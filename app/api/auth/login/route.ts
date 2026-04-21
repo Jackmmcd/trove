@@ -1,27 +1,19 @@
 import { NextResponse } from 'next/server';
-import { getTastytradeClient } from '@/lib/tastytrade/client';
-import { setOAuthState } from '@/lib/auth/session';
-import crypto from 'crypto';
+import { SignJWT } from 'jose';
 
-export async function GET() {
-  try {
-    // Generate random state for CSRF protection
-    const state = crypto.randomBytes(32).toString('hex');
+export const dynamic = 'force-dynamic';
 
-    // Store state in cookie
-    await setOAuthState(state);
+const secret = () => new TextEncoder().encode(process.env.JWT_SECRET!);
 
-    // Get Tastytrade client and authorization URL
-    const client = getTastytradeClient();
-    const authUrl = client.getAuthorizationUrl(state);
-
-    // Redirect to Tastytrade authorization page
-    return NextResponse.redirect(authUrl);
-  } catch (error: any) {
-    console.error('Login error:', error);
-    return NextResponse.json(
-      { error: 'Failed to initiate login', message: error.message },
-      { status: 500 }
-    );
+export async function POST(req: Request) {
+  const { password } = await req.json();
+  if (!password || password !== process.env.APP_PASSWORD) {
+    return NextResponse.json({ success: false, error: 'Invalid password' }, { status: 401 });
   }
+  // Short-lived token — TOTP still required to get a full session
+  const token = await new SignJWT({ step: 'password' })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime('10m')
+    .sign(secret());
+  return NextResponse.json({ success: true, token });
 }

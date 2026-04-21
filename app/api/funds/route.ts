@@ -22,7 +22,8 @@ export async function GET() {
             })
           : [];
 
-        return { ...fund, holdings };
+        const thesisRecord = await prisma.fundThesis.findUnique({ where: { fundId: fund.id } });
+        return { ...fund, holdings, thesis: thesisRecord?.thesis ?? null };
       })
     );
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import TradeModal from './TradeModal';
 import BasketModal from './BasketModal';
 import TickerTooltip from './TickerTooltip';
@@ -18,6 +19,7 @@ interface Fund {
   name: string;
   enabled: boolean;
   holdings: Holding[];
+  thesis: string | null;
 }
 
 interface Toast {
@@ -43,6 +45,7 @@ const thStyle: React.CSSProperties = { color: B.label, fontSize: '10px', letterS
 const tdStyle: React.CSSProperties = { padding: '5px 10px', borderBottom: '1px solid #111', fontSize: '12px', color: B.text };
 
 export default function FundList() {
+  const router = useRouter();
   const [funds, setFunds] = useState<Fund[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -53,6 +56,7 @@ export default function FundList() {
   const [basketFund, setBasketFund] = useState<{ fund: Fund; selected: Holding[] } | null>(null);
   const [selectedMap, setSelectedMap] = useState<Record<string, Set<string>>>({});
   const [collapsedMap, setCollapsedMap] = useState<Record<string, boolean>>({});
+  const [hoveredFund, setHoveredFund] = useState<string | null>(null);
 
   function toggleCollapsed(fundId: string) {
     setCollapsedMap(prev => ({ ...prev, [fundId]: !prev[fundId] }));
@@ -239,7 +243,7 @@ export default function FundList() {
             const isSyncingThis = syncingCik === fund.cik;
             const isExpanded = !!collapsedMap[fund.id];
             return (
-              <div key={fund.id} style={{ ...panelStyle, opacity: fund.enabled ? 1 : 0.5 }}>
+              <div key={fund.id} style={{ ...panelStyle, opacity: fund.enabled ? 1 : 0.5 }} onMouseEnter={() => setHoveredFund(fund.id)} onMouseLeave={() => setHoveredFund(null)}>
                 {/* Fund header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderBottom: isExpanded ? `1px solid ${B.border}` : 'none' }}>
                   <button onClick={() => toggleCollapsed(fund.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', padding: 0, textAlign: 'left' }}>
@@ -264,6 +268,20 @@ export default function FundList() {
                     <button onClick={() => deleteFund(fund.cik, fund.name)} style={btnRed}>REMOVE</button>
                   </div>
                 </div>
+
+                {/* Fund thesis — revealed on hover */}
+                {fund.thesis && (
+                  <div style={{
+                    overflow: 'hidden',
+                    maxHeight: hoveredFund === fund.id ? '300px' : '0px',
+                    opacity: hoveredFund === fund.id ? 1 : 0,
+                    transition: 'max-height 0.35s ease, opacity 0.25s ease',
+                    borderBottom: hoveredFund === fund.id ? `1px solid ${B.border}` : 'none',
+                    background: '#050505',
+                  }}>
+                    <p style={{ color: '#aaa', fontSize: '14px', lineHeight: 1.9, margin: 0, padding: '14px 16px', letterSpacing: '0.3px' }}>{fund.thesis}</p>
+                  </div>
+                )}
 
                 {/* Holdings table */}
                 {isExpanded && (() => {
@@ -322,8 +340,15 @@ export default function FundList() {
                                     <input type="checkbox" checked={checked} onChange={() => toggleTicker(fund.id, h.ticker, fund.holdings)} style={{ cursor: 'pointer', accentColor: B.amber }} />
                                   </td>
                                   <td style={{ ...tdStyle, color: B.label, fontSize: '10px' }}>{idx + 1}</td>
-                                  <td style={{ ...tdStyle, color: B.amber, fontWeight: 'bold', letterSpacing: '1px' }}>
-                                    <TickerTooltip ticker={h.ticker}>{h.ticker}</TickerTooltip>
+                                  <td style={{ ...tdStyle, color: B.amber, fontWeight: 'bold', letterSpacing: '1px' }} onClick={e => e.stopPropagation()}>
+                                    <TickerTooltip ticker={h.ticker}>
+                                      <span
+                                        onClick={() => router.push(`/stock/${h.ticker}`)}
+                                        style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#ff8c0066' }}
+                                      >
+                                        {h.ticker}
+                                      </span>
+                                    </TickerTooltip>
                                   </td>
                                   <td style={tdStyle}>{h.shares.toLocaleString()}</td>
                                   <td style={{ ...tdStyle, color: B.cyan }}>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import TickerTooltip from './TickerTooltip';
 import TradeModal from './TradeModal';
 
@@ -22,6 +23,7 @@ const B = {
 };
 
 export default function Recommendations() {
+  const router = useRouter();
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
   const [limit, setLimit] = useState(20);
@@ -94,8 +96,12 @@ export default function Recommendations() {
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
                     <td style={{ ...tdStyle, color: B.label }}>{index + 1}</td>
-                    <td style={{ ...tdStyle, color: B.amber, fontWeight: 'bold', letterSpacing: '1px' }}>
-                      <TickerTooltip ticker={rec.ticker}>{rec.ticker}</TickerTooltip>
+                    <td style={{ ...tdStyle, color: B.amber, fontWeight: 'bold', letterSpacing: '1px' }} onClick={e => e.stopPropagation()}>
+                      <TickerTooltip ticker={rec.ticker}>
+                        <span onClick={() => router.push(`/stock/${rec.ticker}`)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#ff8c0066' }}>
+                          {rec.ticker}
+                        </span>
+                      </TickerTooltip>
                     </td>
                     <td style={tdStyle}>
                       <span style={{ background: '#1a1000', border: `1px solid ${B.amber}`, color: B.amber, padding: '2px 8px', fontSize: '11px', letterSpacing: '1px' }}>

@@ -1,9 +1,10 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -61,6 +62,27 @@ model BasketPurchase {
 
   @@index([fundId])
   @@index([placedAt])
+}
+
+model StockAnalysis {
+  ticker    String   @id
+  summary   String
+  bullCase  String   // JSON array
+  bearCase  String   // JSON array
+  createdAt DateTime @default(now())
+}
+
+model DailyDigest {
+  date      String   @id  // YYYY-MM-DD
+  digest    String
+  createdAt DateTime @default(now())
+}
+
+model FundThesis {
+  fundId    String   @id
+  thesis    String
+  quarter   String
+  createdAt DateTime @default(now())
 }
 
 model RebalanceEvent {

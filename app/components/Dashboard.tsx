@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, Cell, ReferenceLine,
@@ -93,6 +94,7 @@ const tdStyle: React.CSSProperties = {
 };
 
 export default function Dashboard() {
+  const router = useRouter();
   const [balance, setBalance] = useState<AccountBalance | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
   const [portfolioHistory, setPortfolioHistory] = useState<{ date: string; value: number }[]>([]);
@@ -437,8 +439,12 @@ export default function Dashboard() {
                     onMouseEnter={e => (e.currentTarget.style.background = '#1a1a00')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
-                    <td style={{ ...tdStyle, color: B.amber, fontWeight: 'bold' }}>
-                      <TickerTooltip ticker={p.symbol}>{p.symbol}</TickerTooltip>
+                    <td style={{ ...tdStyle, color: B.amber, fontWeight: 'bold' }} onClick={e => e.stopPropagation()}>
+                      <TickerTooltip ticker={p.symbol}>
+                        <span onClick={() => router.push(`/stock/${p.symbol}`)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#ff8c0066' }}>
+                          {p.symbol}
+                        </span>
+                      </TickerTooltip>
                     </td>
                     <td style={tdStyle}>{p.quantity}</td>
                     <td style={tdStyle}>${p.avgOpenPrice.toFixed(2)}</td>

@@ -158,12 +158,14 @@ export async function GET() {
 
     const tickerSet = new Set(fundTickers.map(t => t.toUpperCase()));
 
+    const BLOCKED_PUBLISHERS = ['motley fool', 'the motley fool', 'benzinga', 'investorplace', 'seeking alpha'];
+
     const seen = new Set<string>();
     const deduped = allItems
       .filter(n => {
         if (seen.has(n.uuid)) return false;
         seen.add(n.uuid);
-        // Keep articles from last 24h; fall back to last 7d if not enough
+        if (BLOCKED_PUBLISHERS.some(p => n.publisher.toLowerCase().includes(p))) return false;
         return n.providerPublishTime >= oneDayAgo;
       });
 
@@ -173,6 +175,7 @@ export async function GET() {
       return allItems.filter(n => {
         if (seenFallback.has(n.uuid)) return false;
         seenFallback.add(n.uuid);
+        if (BLOCKED_PUBLISHERS.some(p => n.publisher.toLowerCase().includes(p))) return false;
         return n.providerPublishTime >= now - 7 * 86400;
       });
     })();
