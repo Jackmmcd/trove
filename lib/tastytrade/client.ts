@@ -315,9 +315,26 @@ export class TastytradeClient {
         ],
       };
       const response = await this.client.post(`/accounts/${acctNum}/orders`, body);
+
+      // Tastytrade returns preflight errors in the response body even on 2xx
+      const preflight = response.data?.data?.['preflight-check-results'];
+      if (Array.isArray(preflight) && preflight.length > 0) {
+        const failed = preflight.filter((p: any) => p.status !== 'Passed');
+        if (failed.length > 0) {
+          const msg = failed.map((p: any) => p['reason-description'] || p.reason || p.status).join('; ');
+          throw new Error(`Preflight failed: ${msg}`);
+        }
+      }
+
       return response.data;
     } catch (error: any) {
       if (axios.isAxiosError(error)) {
+        // Extract preflight errors from error response
+        const errors = error.response?.data?.error?.errors;
+        if (Array.isArray(errors) && errors.length > 0) {
+          const msg = errors.map((e: any) => e.message || e.code).join('; ');
+          throw new Error(`Tastytrade API error: ${msg}`);
+        }
         throw new Error(`Tastytrade API error: ${error.response?.data?.error?.message || JSON.stringify(error.response?.data) || error.message}`);
       }
       throw error;

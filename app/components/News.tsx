@@ -9,7 +9,7 @@ interface NewsItem {
   link: string;
   providerPublishTime: number;
   relatedTickers?: string[];
-  source: 'yahoo' | 'wsj' | 'reuters';
+  source: 'yahoo' | 'wsj' | 'reuters' | 'polygon';
 }
 
 const B = {
@@ -31,7 +31,7 @@ function isMacro(title: string) { return MACRO_KEYWORDS.some(k => title.toLowerC
 
 function ArticleCard({ item }: { item: NewsItem }) {
   const macro = isMacro(item.title);
-  const accentColor = item.source === 'wsj' ? '#e0e0e0' : item.source === 'reuters' ? '#ff8040' : macro ? B.cyan : B.amber;
+  const accentColor = item.source === 'wsj' ? '#e0e0e0' : item.source === 'reuters' ? '#ff8040' : item.source === 'polygon' ? B.green : macro ? B.cyan : B.amber;
   return (
     <a href={item.link} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
       <div

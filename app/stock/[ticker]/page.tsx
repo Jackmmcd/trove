@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import TradeModal from '@/app/components/TradeModal';
+import Navigation from '@/app/components/Navigation';
 
 const B = {
   bg: '#000', panel: '#0d0d0d', border: '#2a2a2a',
@@ -157,6 +159,8 @@ export default function StockPage() {
   const [newsItems, setNewsItems] = useState<{ uuid: string; title: string; publisher: string; link: string; publishedAt: number }[]>([]);
   const [digest, setDigest] = useState<string | null>(null);
   const [digestLoading, setDigestLoading] = useState(false);
+  const [heldShares, setHeldShares] = useState<number>(0);
+  const [tradeModal, setTradeModal] = useState<'buy' | 'sell' | null>(null);
 
   useEffect(() => {
     if (!ticker) return;
@@ -187,6 +191,17 @@ export default function StockPage() {
       })
       .catch(() => setError('Network error'))
       .finally(() => setLoading(false));
+
+    // Check if ticker is held in portfolio
+    fetch('/api/tastytrade/positions')
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) {
+          const pos = d.data.find((p: any) => p.symbol === ticker);
+          setHeldShares(pos ? parseFloat(pos.quantity || '0') : 0);
+        }
+      })
+      .catch(() => {});
 
     // Fetch news + digest in parallel, independent of stock data
     fetch(`/api/news/ticker?ticker=${ticker}`)
@@ -237,6 +252,7 @@ export default function StockPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: B.bg, fontFamily: 'Courier New, monospace', color: B.text }}>
+      <Navigation />
 
       {/* Top bar */}
       <div style={{ borderBottom: `1px solid ${B.border}`, padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -246,6 +262,26 @@ export default function StockPage() {
         <span style={{ color: B.amber, fontWeight: 'bold', fontSize: '14px', letterSpacing: '3px' }}>{ticker}</span>
         {data && <span style={{ color: B.label, fontSize: '11px' }}>{data.name}</span>}
         {data?.sector && <span style={{ color: '#444', fontSize: '10px', letterSpacing: '1px' }}>{data.sector}</span>}
+
+        {/* Trade buttons */}
+        {data && (
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+            <button
+              onClick={() => setTradeModal('buy')}
+              style={{ padding: '5px 18px', background: B.green, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '2px' }}
+            >
+              BUY
+            </button>
+            {heldShares > 0 && (
+              <button
+                onClick={() => setTradeModal('sell')}
+                style={{ padding: '5px 18px', background: B.red, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '2px' }}
+              >
+                SELL
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {loading && (
@@ -255,6 +291,26 @@ export default function StockPage() {
       )}
       {error && (
         <div style={{ padding: '40px', textAlign: 'center', color: B.red, letterSpacing: '1px' }}>ERROR: {error}</div>
+      )}
+
+      {tradeModal && data && (
+        <TradeModal
+          symbol={ticker}
+          currentPrice={data.currentPrice ?? 0}
+          maxSellQuantity={heldShares}
+          initialTab={tradeModal}
+          onClose={() => setTradeModal(null)}
+          onSuccess={() => {
+            setTradeModal(null);
+            // Re-check held shares after trade
+            fetch('/api/tastytrade/positions').then(r => r.json()).then(d => {
+              if (d.success) {
+                const pos = d.data.find((p: any) => p.symbol === ticker);
+                setHeldShares(pos ? parseFloat(pos.quantity || '0') : 0);
+              }
+            }).catch(() => {});
+          }}
+        />
       )}
 
       {data && (
@@ -298,6 +354,32 @@ export default function StockPage() {
             </div>
           </div>
 
+          {/* Range selector */}
+          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+            {RANGES.map(r => (
+              <button key={r.label} onClick={() => setRange(r)}
+                style={{ padding: '4px 12px', background: range.label === r.label ? B.amber : 'transparent', color: range.label === r.label ? '#000' : B.label, border: `1px solid ${range.label === r.label ? B.amber : B.border}`, cursor: 'pointer', fontFamily: 'inherit', fontSize: '10px', letterSpacing: '1px', fontWeight: range.label === r.label ? 'bold' : 'normal' }}>
+                {r.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Sparkline (1Y) */}
+          {data.sparkline.length > 1 && (
+            <div style={{ background: B.panel, border: `1px solid ${B.border}`, padding: '8px 0 0' }}>
+              <div style={{ padding: '0 14px 6px', color: B.label, fontSize: '9px', letterSpacing: '2px' }}>1Y PRICE HISTORY</div>
+              <Sparkline data={data.sparkline} />
+            </div>
+          )}
+
+          {/* TradingView chart */}
+          <div style={{ background: B.panel, border: `1px solid ${B.border}`, overflow: 'hidden' }}>
+            <div style={{ padding: '7px 14px', borderBottom: `1px solid ${B.border}`, color: B.amber, fontSize: '10px', letterSpacing: '3px' }}>
+              CHART · {range.label}
+            </div>
+            <CandleChart key={range.label} candles={data.candles} isUp={isUp} />
+          </div>
+
           {/* AI Analysis panel */}
           {(analysisLoading || analysis) && (
             <div style={{ background: B.panel, border: `1px solid ${B.border}` }}>
@@ -308,12 +390,10 @@ export default function StockPage() {
                 <div style={{ padding: '16px 20px', color: '#444', fontSize: '11px', letterSpacing: '2px' }}>ANALYZING...</div>
               ) : analysis && (
                 <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {/* Summary */}
                   <div>
                     <div style={{ color: B.label, fontSize: '9px', letterSpacing: '2px', marginBottom: '6px' }}>SUMMARY</div>
                     <p style={{ color: B.text, fontSize: '13px', lineHeight: 1.7, margin: 0 }}>{analysis.summary}</p>
                   </div>
-                  {/* Bull / Bear side by side */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div>
                       <div style={{ color: B.green, fontSize: '9px', letterSpacing: '2px', marginBottom: '8px' }}>BULL CASE</div>
@@ -342,32 +422,6 @@ export default function StockPage() {
               )}
             </div>
           )}
-
-          {/* Range selector */}
-          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-            {RANGES.map(r => (
-              <button key={r.label} onClick={() => setRange(r)}
-                style={{ padding: '4px 12px', background: range.label === r.label ? B.amber : 'transparent', color: range.label === r.label ? '#000' : B.label, border: `1px solid ${range.label === r.label ? B.amber : B.border}`, cursor: 'pointer', fontFamily: 'inherit', fontSize: '10px', letterSpacing: '1px', fontWeight: range.label === r.label ? 'bold' : 'normal' }}>
-                {r.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Sparkline (1Y) */}
-          {data.sparkline.length > 1 && (
-            <div style={{ background: B.panel, border: `1px solid ${B.border}`, padding: '8px 0 0' }}>
-              <div style={{ padding: '0 14px 6px', color: B.label, fontSize: '9px', letterSpacing: '2px' }}>1Y PRICE HISTORY</div>
-              <Sparkline data={data.sparkline} />
-            </div>
-          )}
-
-          {/* TradingView chart */}
-          <div style={{ background: B.panel, border: `1px solid ${B.border}`, overflow: 'hidden' }}>
-            <div style={{ padding: '7px 14px', borderBottom: `1px solid ${B.border}`, color: B.amber, fontSize: '10px', letterSpacing: '3px' }}>
-              CHART · {range.label}
-            </div>
-            <CandleChart key={range.label} candles={data.candles} isUp={isUp} />
-          </div>
 
           {/* Recent Activity panel */}
           {(digestLoading || digest || newsItems.length > 0) && (

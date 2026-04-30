@@ -46,8 +46,10 @@ export async function POST(request: Request) {
       );
     }
 
+    // Surface the raw Tastytrade response for debugging
+    const detail = error.response?.data ?? null;
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to place order' },
+      { success: false, error: error.message || 'Failed to place order', detail },
       { status: 500 }
     );
   }

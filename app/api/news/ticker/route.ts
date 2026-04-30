@@ -1,33 +1,26 @@
 import { NextResponse } from 'next/server';
-import axios from 'axios';
+import { getNews } from '@/lib/polygon/client';
 
 export const dynamic = 'force-dynamic';
 
-const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36';
+const BLOCKED = ['motley fool', 'the motley fool', 'benzinga', 'investorplace', 'seeking alpha'];
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const ticker = searchParams.get('ticker')?.toUpperCase();
   if (!ticker) return NextResponse.json({ success: false, error: 'Missing ticker' }, { status: 400 });
 
-  try {
-    const res = await axios.get('https://query1.finance.yahoo.com/v1/finance/search', {
-      params: { q: ticker, quotesCount: 0, newsCount: 20 },
-      headers: { 'User-Agent': UA, Accept: 'application/json' },
-      timeout: 8000,
-    });
-
-    const items = (res.data?.news ?? []).map((n: any) => ({
-      uuid: n.uuid,
+  const raw = await getNews(ticker, 20);
+  const items = raw
+    .filter(n => !BLOCKED.some(b => (n.publisher?.name ?? '').toLowerCase().includes(b)))
+    .map(n => ({
+      uuid: n.id,
       title: n.title,
-      publisher: n.publisher,
-      link: n.link,
-      publishedAt: n.providerPublishTime,
-      relatedTickers: n.relatedTickers ?? [],
+      publisher: n.publisher?.name ?? '',
+      link: n.article_url,
+      publishedAt: Math.floor(new Date(n.published_utc).getTime() / 1000),
+      relatedTickers: n.tickers ?? [],
     }));
 
-    return NextResponse.json({ success: true, data: items });
-  } catch (e: any) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
-  }
+  return NextResponse.json({ success: true, data: items });
 }

@@ -2,16 +2,81 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+
+interface Suggestion {
+  symbol: string;
+  name: string;
+  type: string;
+}
 
 export default function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
   const [logoHovered, setLogoHovered] = useState(false);
+  const [searchValue, setSearchValue] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchSuggestions = useCallback(async (q: string) => {
+    if (!q.trim()) { setSuggestions([]); return; }
+    try {
+      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      setSuggestions(data.results ?? []);
+    } catch {
+      setSuggestions([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => fetchSuggestions(searchValue), 200);
+    setActiveIndex(-1);
+  }, [searchValue, fetchSuggestions]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setSuggestions([]);
+        setSearchFocused(false);
+      }
+    }
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, []);
+
+  function navigate(ticker: string) {
+    router.push(`/stock/${ticker}`);
+    setSearchValue('');
+    setSuggestions([]);
+    inputRef.current?.blur();
+  }
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    const ticker = activeIndex >= 0 && suggestions[activeIndex]
+      ? suggestions[activeIndex].symbol
+      : searchValue.trim().toUpperCase();
+    if (ticker) navigate(ticker);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (!suggestions.length) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIndex(i => Math.min(i + 1, suggestions.length - 1)); }
+    if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIndex(i => Math.max(i - 1, -1)); }
+    if (e.key === 'Escape') { setSuggestions([]); setActiveIndex(-1); }
+  }
 
   const links = [
     { href: '/', label: 'PORTFOLIO' },
     { href: '/funds', label: 'FUNDS' },
+    { href: '/baskets', label: 'BASKETS' },
     { href: '/recommendations', label: 'SIGNALS' },
     { href: '/news', label: 'NEWS' },
   ];
@@ -21,6 +86,8 @@ export default function Navigation() {
     router.push('/login');
     router.refresh();
   }
+
+  const showDropdown = searchFocused && suggestions.length > 0;
 
   return (
     <nav style={{ background: '#000', borderBottom: '1px solid #ff8c00' }}>
@@ -58,6 +125,64 @@ export default function Navigation() {
                 </Link>
               );
             })}
+          </div>
+
+          {/* Ticker search */}
+          <div ref={wrapperRef} style={{ position: 'relative', marginLeft: '8px' }}>
+            <form onSubmit={handleSearch} style={{ display: 'flex', alignItems: 'center' }}>
+              <input
+                ref={inputRef}
+                value={searchValue}
+                onChange={e => setSearchValue(e.target.value.toUpperCase())}
+                onFocus={() => setSearchFocused(true)}
+                onKeyDown={handleKeyDown}
+                placeholder="SEARCH TICKER"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: `1px solid ${searchFocused ? '#ff8c00' : '#666'}`,
+                  color: '#ffaa33',
+                  fontFamily: 'Courier New, monospace',
+                  fontSize: '13px',
+                  letterSpacing: '2px',
+                  padding: '4px 8px',
+                  width: searchFocused || searchValue ? '260px' : '180px',
+                  outline: 'none',
+                  transition: 'width 0.2s ease, border-color 0.15s ease',
+                }}
+              />
+            </form>
+
+            {/* Suggestions dropdown */}
+            {showDropdown && (
+              <div style={{
+                position: 'absolute', top: '100%', left: 0,
+                background: '#0d0d0d', border: '1px solid #ff8c00',
+                borderTop: 'none', zIndex: 100, width: '260px',
+              }}>
+                {suggestions.map((s, i) => (
+                  <div
+                    key={s.symbol}
+                    onMouseDown={() => navigate(s.symbol)}
+                    style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '7px 12px', cursor: 'pointer',
+                      background: i === activeIndex ? '#1a1a00' : 'transparent',
+                      borderBottom: i < suggestions.length - 1 ? '1px solid #1a1a1a' : 'none',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#1a1a00')}
+                    onMouseLeave={e => (e.currentTarget.style.background = i === activeIndex ? '#1a1a00' : 'transparent')}
+                  >
+                    <span style={{ color: '#ff8c00', fontWeight: 'bold', fontSize: '13px', letterSpacing: '1px', fontFamily: 'Courier New, monospace' }}>
+                      {s.symbol}
+                    </span>
+                    <span style={{ color: '#666', fontSize: '11px', marginLeft: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}>
+                      {s.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Right side */}

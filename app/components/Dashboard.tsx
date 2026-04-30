@@ -273,7 +273,7 @@ export default function Dashboard() {
             <div>
               <div style={labelStyle}>Total Invested</div>
               <div style={{ color: B.text, fontSize: '16px', fontWeight: 'bold' }}>
-                ${totalCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                ${totalCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             </div>
             <div>

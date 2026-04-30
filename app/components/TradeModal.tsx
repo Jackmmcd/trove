@@ -6,6 +6,7 @@ interface TradeModalProps {
   symbol: string;
   currentPrice: number;
   maxSellQuantity: number;
+  initialTab?: 'buy' | 'sell';
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -19,8 +20,8 @@ const B = {
   cyan: '#00e5ff', label: '#888', text: '#e0e0e0',
 };
 
-export default function TradeModal({ symbol, currentPrice, maxSellQuantity, onClose, onSuccess }: TradeModalProps) {
-  const [tab, setTab] = useState<Tab>('buy');
+export default function TradeModal({ symbol, currentPrice, maxSellQuantity, initialTab = 'buy', onClose, onSuccess }: TradeModalProps) {
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [quantity, setQuantity] = useState<string>('1');
   const [step, setStep] = useState<Step>('input');
   const [submitting, setSubmitting] = useState(false);

@@ -1,6 +1,5 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -83,6 +82,15 @@ model FundThesis {
   thesis    String
   quarter   String
   createdAt DateTime @default(now())
+}
+
+model AlpacaConnection {
+  id           String   @id @default("singleton")
+  accessToken  String
+  refreshToken String?
+  scope        String?
+  connectedAt  DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model RebalanceEvent {

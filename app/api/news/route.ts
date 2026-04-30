@@ -3,6 +3,7 @@ import axios from 'axios';
 import { prisma } from '@/lib/prisma';
 import { getValidAccessToken } from '@/lib/auth/session';
 import { getTastytradeClient } from '@/lib/tastytrade/client';
+import { getNews } from '@/lib/polygon/client';
 
 interface NewsItem {
   uuid: string;
@@ -11,7 +12,7 @@ interface NewsItem {
   link: string;
   providerPublishTime: number;
   relatedTickers?: string[];
-  source: 'yahoo' | 'wsj' | 'reuters';
+  source: 'yahoo' | 'wsj' | 'reuters' | 'polygon';
 }
 
 // ── Yahoo Finance ──────────────────────────────────────────────
@@ -136,11 +137,23 @@ export async function GET() {
       'earnings results', 'stock market rally', 'tariffs trade war',
     ];
 
-    const tickerBatches: string[][] = [];
-    for (let i = 0; i < allQueryTickers.length; i += 5) tickerBatches.push(allQueryTickers.slice(i, i + 5));
+    // Fetch Polygon news for each ticker (up to 20 tickers, 5 articles each)
+    const polygonResults = await Promise.allSettled(
+      allQueryTickers.slice(0, 20).map(t => getNews(t, 5))
+    );
+    const polygonItems: NewsItem[] = polygonResults.flatMap(r =>
+      r.status === 'fulfilled' ? r.value.map((n: any) => ({
+        uuid: n.id,
+        title: n.title,
+        publisher: n.publisher?.name ?? '',
+        link: n.article_url,
+        providerPublishTime: Math.floor(new Date(n.published_utc).getTime() / 1000),
+        relatedTickers: n.tickers ?? [],
+        source: 'polygon' as const,
+      })) : []
+    );
 
-    const [tickerResults, macroResults, wsjItems, reutersItems] = await Promise.all([
-      Promise.all(tickerBatches.map(b => fetchYahooNews(b.join(' OR ')))),
+    const [macroResults, wsjItems, reutersItems] = await Promise.all([
       Promise.all(macroQueries.map(q => fetchYahooNews(q))),
       fetchWsjNews(),
       fetchReutersNews(),
@@ -149,7 +162,7 @@ export async function GET() {
     const allItems: NewsItem[] = [
       ...wsjItems,
       ...reutersItems,
-      ...tickerResults.flat(),
+      ...polygonItems,
       ...macroResults.flat(),
     ];
 
@@ -158,27 +171,11 @@ export async function GET() {
 
     const tickerSet = new Set(fundTickers.map(t => t.toUpperCase()));
 
-    const BLOCKED_PUBLISHERS = ['motley fool', 'the motley fool', 'benzinga', 'investorplace', 'seeking alpha'];
-
-    const seen = new Set<string>();
-    const deduped = allItems
-      .filter(n => {
-        if (seen.has(n.uuid)) return false;
-        seen.add(n.uuid);
-        if (BLOCKED_PUBLISHERS.some(p => n.publisher.toLowerCase().includes(p))) return false;
-        return n.providerPublishTime >= oneDayAgo;
-      });
-
-    // If < 20 articles in last 24h, extend window to 7 days
-    const window = deduped.length >= 20 ? deduped : (() => {
-      const seenFallback = new Set<string>();
-      return allItems.filter(n => {
-        if (seenFallback.has(n.uuid)) return false;
-        seenFallback.add(n.uuid);
-        if (BLOCKED_PUBLISHERS.some(p => n.publisher.toLowerCase().includes(p))) return false;
-        return n.providerPublishTime >= now - 7 * 86400;
-      });
-    })();
+    const BLOCKED_PUBLISHERS = [
+      'motley fool', 'the motley fool', 'benzinga', 'investorplace', 'seeking alpha',
+      'mt newswires', 'tmx newsfile', 'globenewswire', 'businesswire', 'pr newswire',
+      'accesswire', 'globe newswire', 'newsfile', 'stockstory',
+    ];
 
     // Score: owned tickers = +5, fund tickers = +2, WSJ/Reuters = +3, recency bonus
     function score(n: NewsItem): number {
@@ -186,27 +183,62 @@ export async function GET() {
       if (n.source === 'wsj' || n.source === 'reuters') s += 3;
       const titleUp = n.title.toUpperCase();
       const related = (n.relatedTickers ?? []).map(t => t.toUpperCase());
-      // Owned positions: highest priority
       for (const t of ownedSet) {
         if (titleUp.includes(t) || related.includes(t)) s += 5;
       }
-      // Fund holdings
       for (const t of tickerSet) {
         if (!ownedSet.has(t) && (titleUp.includes(t) || related.includes(t))) s += 2;
       }
-      // Recency: last 6h +2, last 12h +1
       const age = now - n.providerPublishTime;
       if (age < 6 * 3600) s += 2;
       else if (age < 12 * 3600) s += 1;
       return s;
     }
 
+    const MACRO_KEYWORDS = ['federal reserve', 'fed ', 'inflation', 'gdp', 'economy', 'recession',
+      'interest rate', 's&p', 'dow jones', 'nasdaq', 'market', 'treasury', 'tariff', 'trade war',
+      'earnings', 'jobs report', 'unemployment', 'cpi', 'pce', 'fomc', 'yield', 'dollar', 'oil',
+      'rally', 'selloff', 'sell-off', 'correction', 'bull', 'bear'];
+
+    // Pass through: WSJ/Reuters, macro-themed articles, or ticker articles matching held/followed tickers.
+    function isRelevant(n: NewsItem): boolean {
+      if (n.source === 'wsj' || n.source === 'reuters') return true;
+      const titleLow = n.title.toLowerCase();
+      if (MACRO_KEYWORDS.some(k => titleLow.includes(k))) return true;
+      const related = (n.relatedTickers ?? []).map(t => t.toUpperCase());
+      const titleUp = n.title.toUpperCase();
+      return related.some(t => ownedSet.has(t) || tickerSet.has(t))
+        || [...ownedSet, ...tickerSet].some(t => titleUp.includes(t));
+    }
+
+    const seen = new Set<string>();
+    const deduped = allItems
+      .filter(n => {
+        if (seen.has(n.uuid)) return false;
+        seen.add(n.uuid);
+        if (BLOCKED_PUBLISHERS.some(p => n.publisher.toLowerCase().includes(p))) return false;
+        if (!isRelevant(n)) return false;
+        return n.providerPublishTime >= oneDayAgo;
+      });
+
+    // If < 15 articles in last 24h, extend window to 7 days
+    const window = deduped.length >= 15 ? deduped : (() => {
+      const seenFallback = new Set<string>();
+      return allItems.filter(n => {
+        if (seenFallback.has(n.uuid)) return false;
+        seenFallback.add(n.uuid);
+        if (BLOCKED_PUBLISHERS.some(p => n.publisher.toLowerCase().includes(p))) return false;
+        if (!isRelevant(n)) return false;
+        return n.providerPublishTime >= now - 7 * 86400;
+      });
+    })();
+
     const sorted = window
       .sort((a, b) => {
         const scoreDiff = score(b) - score(a);
         return scoreDiff !== 0 ? scoreDiff : b.providerPublishTime - a.providerPublishTime;
       })
-      .slice(0, 200);
+      .slice(0, 80);
 
     return NextResponse.json({ success: true, data: sorted, tickers: fundTickers, ownedTickers });
   } catch (error: any) {
