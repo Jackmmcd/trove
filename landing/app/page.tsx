@@ -1,11 +1,3 @@
-import { redirect } from 'next/navigation';
-import type { Metadata } from 'next';
-
-export const metadata: Metadata = {
-  title: 'Trove — Trade Like the Smart Money',
-  description: 'Follow 13F institutional filings. Build baskets. Track performance. Connected directly to your brokerage.',
-};
-
 const B = {
   amber: '#ff8c00',
   amberDim: '#cc6d00',
@@ -62,9 +54,6 @@ function Step({ n, title, body }: { n: string; title: string; body: string }) {
 }
 
 export default function LandingPage() {
-  // Locally: go straight to the trading app. On Vercel the landing page is served as a static export.
-  if (process.env.VERCEL !== '1') redirect('/dashboard');
-
   return (
     <div style={{ minHeight: '100vh', background: '#000', fontFamily: 'Courier New, monospace', color: B.text }}>
 
@@ -148,36 +137,12 @@ export default function LandingPage() {
       <section style={{ maxWidth: '1100px', margin: '0 auto', padding: '64px 24px' }}>
         <div style={{ color: B.amber, fontSize: '11px', letterSpacing: '4px', fontWeight: 'bold', marginBottom: '32px' }}>PLATFORM FEATURES</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-          <Feature
-            icon="📋"
-            title="13F FILING TRACKER"
-            body="Browse holdings from the world's top hedge funds and institutional investors. Updated quarterly directly from SEC EDGAR. Filter by fund, sector, or ticker."
-          />
-          <Feature
-            icon="🧺"
-            title="ONE-CLICK BASKETS"
-            body="Select a fund and buy their entire portfolio as a basket trade. Set dollar amounts, confirm, and your brokerage executes all legs automatically."
-          />
-          <Feature
-            icon="📊"
-            title="LIVE PORTFOLIO DASHBOARD"
-            body="Real-time position tracking with Day P&L, Week P&L, and total return. Synced directly with Tastytrade. Candlestick charts powered by Polygon.io."
-          />
-          <Feature
-            icon="📰"
-            title="MARKET INTELLIGENCE"
-            body="AI-curated daily briefing tailored to your positions. Only articles relevant to your holdings — no noise. Powered by WSJ, Reuters, and Polygon news feeds."
-          />
-          <Feature
-            icon="🎯"
-            title="TRADE SIGNALS"
-            body="Momentum and institutional flow signals generated from 13F position changes. See which funds are building or exiting positions before the next filing."
-          />
-          <Feature
-            icon="📈"
-            title="STOCK ANALYSIS"
-            body="Deep-dive stock pages with AI bull/bear case analysis, 52-week range, volume, and fundamental data. Search any ticker instantly from the nav bar."
-          />
+          <Feature icon="📋" title="13F FILING TRACKER" body="Browse holdings from the world's top hedge funds and institutional investors. Updated quarterly directly from SEC EDGAR. Filter by fund, sector, or ticker." />
+          <Feature icon="🧺" title="ONE-CLICK BASKETS" body="Select a fund and buy their entire portfolio as a basket trade. Set dollar amounts, confirm, and your brokerage executes all legs automatically." />
+          <Feature icon="📊" title="LIVE PORTFOLIO DASHBOARD" body="Real-time position tracking with Day P&L, Week P&L, and total return. Synced directly with Tastytrade. Candlestick charts powered by Polygon.io." />
+          <Feature icon="📰" title="MARKET INTELLIGENCE" body="AI-curated daily briefing tailored to your positions. Only articles relevant to your holdings — no noise. Powered by WSJ, Reuters, and Polygon news feeds." />
+          <Feature icon="🎯" title="TRADE SIGNALS" body="Momentum and institutional flow signals generated from 13F position changes. See which funds are building or exiting positions before the next filing." />
+          <Feature icon="📈" title="STOCK ANALYSIS" body="Deep-dive stock pages with AI bull/bear case analysis, 52-week range, volume, and fundamental data. Search any ticker instantly from the nav bar." />
         </div>
       </section>
 
@@ -226,12 +191,12 @@ export default function LandingPage() {
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
           {[
             { name: 'TASTYTRADE', status: 'LIVE', desc: 'Full order execution, real-time quotes, position sync' },
-            { name: 'ALPACA', status: 'COMING SOON', desc: 'Paper trading and live execution via Alpaca API' },
+            { name: 'ALPACA', status: 'LIVE', desc: 'Paper trading and live execution via Alpaca API — fractional shares supported' },
           ].map(({ name, status, desc }) => (
             <div key={name} style={{ background: B.panel, border: `1px solid ${B.border}`, padding: '24px', flex: '1', minWidth: '260px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <div style={{ color: B.text, fontWeight: 'bold', fontSize: '15px', letterSpacing: '2px' }}>{name}</div>
-                <div style={{ color: status === 'LIVE' ? B.green : B.label, fontSize: '9px', letterSpacing: '2px', border: `1px solid ${status === 'LIVE' ? '#004400' : '#333'}`, padding: '2px 8px' }}>{status}</div>
+                <div style={{ color: B.green, fontSize: '9px', letterSpacing: '2px', border: `1px solid #004400`, padding: '2px 8px' }}>{status}</div>
               </div>
               <div style={{ color: '#666', fontSize: '12px', lineHeight: 1.7 }}>{desc}</div>
             </div>
@@ -244,7 +209,7 @@ export default function LandingPage() {
         <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '40px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div style={{ color: B.label, fontSize: '10px', letterSpacing: '2px' }}>POWERED BY</div>
           <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap' }}>
-            {['POLYGON.IO', 'SEC EDGAR', 'TASTYTRADE API', 'WSJ', 'REUTERS'].map(s => (
+            {['POLYGON.IO', 'SEC EDGAR', 'TASTYTRADE API', 'ALPACA API', 'WSJ', 'REUTERS'].map(s => (
               <span key={s} style={{ color: '#444', fontSize: '10px', letterSpacing: '2px' }}>{s}</span>
             ))}
           </div>

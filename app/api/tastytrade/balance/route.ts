@@ -1,9 +1,16 @@
 import { NextResponse } from 'next/server';
 import { getTastytradeClient } from '@/lib/tastytrade/client';
 import { getValidAccessToken } from '@/lib/auth/session';
+import { AlpacaClient } from '@/lib/alpaca/client';
 
 export async function GET() {
   try {
+    if (process.env.BROKER === 'alpaca') {
+      const client = new AlpacaClient();
+      const account = await client.getAccountBalance();
+      return NextResponse.json({ success: true, data: account });
+    }
+
     // Get access token from session
     const accessToken = await getValidAccessToken();
 

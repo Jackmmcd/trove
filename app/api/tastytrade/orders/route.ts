@@ -1,18 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getTastytradeClient } from '@/lib/tastytrade/client';
 import { getValidAccessToken } from '@/lib/auth/session';
+import { AlpacaClient } from '@/lib/alpaca/client';
 
 export async function POST(request: Request) {
   try {
-    const accessToken = await getValidAccessToken();
-
-    if (!accessToken) {
-      return NextResponse.json(
-        { success: false, error: 'Not authenticated. Please log in.' },
-        { status: 401 }
-      );
-    }
-
     const body = await request.json();
     const { symbol, quantity, action } = body;
 
@@ -27,6 +19,21 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { success: false, error: 'action must be "buy" or "sell"' },
         { status: 400 }
+      );
+    }
+
+    if (process.env.BROKER === 'alpaca') {
+      const client = new AlpacaClient();
+      const result = await client.placeOrder({ symbol, quantity: Number(quantity), action });
+      return NextResponse.json({ success: true, data: result });
+    }
+
+    const accessToken = await getValidAccessToken();
+
+    if (!accessToken) {
+      return NextResponse.json(
+        { success: false, error: 'Not authenticated. Please log in.' },
+        { status: 401 }
       );
     }
 

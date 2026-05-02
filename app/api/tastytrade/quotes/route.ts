@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getTastytradeClient } from '@/lib/tastytrade/client';
 import { getValidAccessToken } from '@/lib/auth/session';
+import { AlpacaClient } from '@/lib/alpaca/client';
 import axios from 'axios';
 
 /** GET /api/tastytrade/quotes?symbols=AAPL,MSFT,AMZN */
@@ -11,6 +12,19 @@ export async function GET(request: Request) {
 
   if (symbols.length === 0) {
     return NextResponse.json({ success: false, error: 'No symbols provided' }, { status: 400 });
+  }
+
+  // Alpaca mode: use Alpaca market data, fall through to Yahoo on failure
+  if (process.env.BROKER === 'alpaca') {
+    try {
+      const client = new AlpacaClient();
+      const prices = await client.getQuotes(symbols);
+      if (Object.keys(prices).length > 0) {
+        return NextResponse.json({ success: true, data: prices, source: 'alpaca' });
+      }
+    } catch {
+      // Fall through to Yahoo Finance
+    }
   }
 
   // Try Tastytrade first if authenticated

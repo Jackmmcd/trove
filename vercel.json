@@ -1,5 +1,5 @@
 {
-  "env": {
-    "DATABASE_URL": "postgresql://placeholder:placeholder@localhost/placeholder"
-  }
+  "buildCommand": "cd landing && npm install && npm run build",
+  "outputDirectory": "landing/out",
+  "installCommand": "echo skip"
 }

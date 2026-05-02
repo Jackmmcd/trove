@@ -39,7 +39,7 @@ export default function TradeModal({ symbol, currentPrice, maxSellQuantity, init
       .finally(() => setLoadingPrice(false));
   }, [symbol]);
 
-  const qty = parseInt(quantity) || 0;
+  const qty = parseFloat(quantity) || 0;
   const estimatedValue = qty * livePrice;
 
   function handleTabChange(newTab: Tab) {
@@ -47,7 +47,7 @@ export default function TradeModal({ symbol, currentPrice, maxSellQuantity, init
   }
 
   function handlePreview() {
-    if (qty <= 0) { setError('QUANTITY MUST BE AT LEAST 1'); return; }
+    if (qty <= 0) { setError('QUANTITY MUST BE GREATER THAN 0'); return; }
     if (tab === 'sell' && qty > maxSellQuantity) { setError(`MAX SELL: ${maxSellQuantity} SHARES`); return; }
     setError(null); setStep('confirm');
   }
@@ -160,7 +160,7 @@ export default function TradeModal({ symbol, currentPrice, maxSellQuantity, init
                 SHARES {tab === 'sell' && <span style={{ color: B.amber }}>  (MAX: {maxSellQuantity})</span>}
               </div>
               <input
-                type="number" min={1} max={tab === 'sell' ? maxSellQuantity : undefined}
+                type="number" min={0.0001} step="any" max={tab === 'sell' ? maxSellQuantity : undefined}
                 value={quantity} onChange={e => setQuantity(e.target.value)}
                 style={inputStyle}
               />

@@ -62,7 +62,7 @@ export default function BasketModal({ fundId, fundName, holdings, onClose }: Bas
         const prices: Record<string, number> = data.success ? data.data : {};
         setLines(prev => prev.map(l => {
           const price = prices[l.ticker] ?? 0;
-          return { ...l, price, sharesToBuy: price > 0 ? Math.floor(l.dollarAmount / price) : 0 };
+          return { ...l, price, sharesToBuy: price > 0 ? Math.round((l.dollarAmount / price) * 10000) / 10000 : 0 };
         }));
       })
       .catch(() => setLines(prev => prev.map(l => ({ ...l, price: 0 }))))
@@ -73,7 +73,7 @@ export default function BasketModal({ fundId, fundName, holdings, onClose }: Bas
   useEffect(() => {
     setLines(prev => prev.map(l => {
       const dollarAmount = (budgetNum * l.weight) / 100;
-      const sharesToBuy = (l.price ?? 0) > 0 ? Math.floor(dollarAmount / (l.price as number)) : 0;
+      const sharesToBuy = (l.price ?? 0) > 0 ? Math.round((dollarAmount / (l.price as number)) * 10000) / 10000 : 0;
       return { ...l, dollarAmount, sharesToBuy };
     }));
   }, [budget]);
@@ -140,7 +140,7 @@ export default function BasketModal({ fundId, fundName, holdings, onClose }: Bas
                 <div key={l.ticker} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #111', fontSize: '12px' }}>
                   <span style={{ color: B.amber }}>{l.ticker}</span>
                   <span style={{ color: l.status === 'done' ? B.green : l.status === 'error' ? B.red : B.label }}>
-                    {l.status === 'done' ? `✓ ${l.sharesToBuy} SHARES` : l.status === 'error' ? `✗ ${l.error}` : 'SKIPPED'}
+                    {l.status === 'done' ? `✓ ${l.sharesToBuy} SHS` : l.status === 'error' ? `✗ ${l.error}` : 'SKIPPED'}
                   </span>
                 </div>
               ))}

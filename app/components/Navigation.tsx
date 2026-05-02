@@ -74,7 +74,7 @@ export default function Navigation() {
   }
 
   const links = [
-    { href: '/', label: 'PORTFOLIO' },
+    { href: '/dashboard', label: 'PORTFOLIO' },
     { href: '/funds', label: 'FUNDS' },
     { href: '/baskets', label: 'BASKETS' },
     { href: '/recommendations', label: 'SIGNALS' },
