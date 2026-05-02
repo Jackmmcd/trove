@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Trove — Trade Like the Smart Money",
@@ -9,8 +8,16 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="en" style={{ background: "#000" }}>
+      <body style={{
+        margin: 0, padding: 0,
+        background: "#000",
+        color: "#e0e0e0",
+        fontFamily: '"Courier New", Courier, monospace',
+        fontSize: "13px",
+      }}>
+        {children}
+      </body>
     </html>
   );
 }
