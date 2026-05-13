@@ -47,15 +47,23 @@ export default function Recommendations() {
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '64px', color: B.amber }}>
-        <span style={{ letterSpacing: '2px', fontSize: '12px' }}>COMPUTING SIGNALS...</span>
+        <span style={{ letterSpacing: '2px', fontSize: '12px' }}>LOADING INSIGHTS...</span>
       </div>
     );
   }
 
   return (
     <div style={{ padding: '16px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      {/* 13F data disclaimer */}
+      <div style={{ background: '#0a0800', border: '1px solid #2a2000', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <span style={{ color: '#ff8c00', fontSize: '11px', flexShrink: 0 }}>⚠</span>
+        <span style={{ color: '#666', fontSize: '10px', letterSpacing: '0.5px', lineHeight: 1.6 }}>
+          INSIGHTS ARE DERIVED FROM 13F FILINGS, WHICH ARE FILED UP TO 45 DAYS AFTER QUARTER-END AND MAY NOT REFLECT CURRENT FUND POSITIONS.
+          INSTITUTIONAL ACTIVITY DOES NOT PREDICT FUTURE PRICE PERFORMANCE. NOT INVESTMENT ADVICE. PAST PERFORMANCE DOES NOT GUARANTEE FUTURE RESULTS.
+        </span>
+      </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ color: B.amber, fontSize: '14px', fontWeight: 'bold', letterSpacing: '3px' }}>BUY SIGNALS</div>
+        <div style={{ color: B.amber, fontSize: '14px', fontWeight: 'bold', letterSpacing: '3px' }}>INSTITUTIONAL INSIGHTS</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <span style={{ color: B.label, fontSize: '11px', letterSpacing: '1px' }}>LIMIT</span>
           <input
@@ -74,7 +82,7 @@ export default function Recommendations() {
 
       {recommendations.length === 0 ? (
         <div style={{ ...panelStyle, padding: '32px', textAlign: 'center' }}>
-          <p style={{ color: B.label, letterSpacing: '1px', fontSize: '12px' }}>NO SIGNALS — SYNC FUNDS FIRST</p>
+          <p style={{ color: B.label, letterSpacing: '1px', fontSize: '12px' }}>NO INSIGHTS — SYNC FUNDS FIRST</p>
         </div>
       ) : (
         <div style={panelStyle}>

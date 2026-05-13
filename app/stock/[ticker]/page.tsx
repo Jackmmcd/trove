@@ -12,7 +12,7 @@ const B = {
 };
 
 interface SparkPoint { t: number; v: number }
-interface Candle { time: number; open: number; high: number; low: number; close: number }
+interface Candle { time: number | string; open: number; high: number; low: number; close: number }
 interface StockData {
   ticker: string; name: string; exchange: string | null; currency: string;
   currentPrice: number | null; previousClose: number | null;
@@ -153,7 +153,7 @@ export default function StockPage() {
   const [data, setData] = useState<StockData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [range, setRange] = useState(RANGES[3]); // 3M default
+  const [range, setRange] = useState(RANGES[0]); // 1D default
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [newsItems, setNewsItems] = useState<{ uuid: string; title: string; publisher: string; link: string; publishedAt: number }[]>([]);
@@ -161,6 +161,20 @@ export default function StockPage() {
   const [digestLoading, setDigestLoading] = useState(false);
   const [heldShares, setHeldShares] = useState<number>(0);
   const [tradeModal, setTradeModal] = useState<'buy' | 'sell' | null>(null);
+  const [candles, setCandles] = useState<Candle[]>([]);
+  const [candlesLoading, setCandlesLoading] = useState(false);
+
+  // Re-fetch candles whenever ticker or range changes
+  useEffect(() => {
+    if (!ticker) return;
+    setCandlesLoading(true);
+    setCandles([]);
+    fetch(`/api/stock/${encodeURIComponent(ticker)}/candles?range=${range.interval}`)
+      .then(r => r.json())
+      .then(d => { if (d.success) setCandles(d.data); })
+      .catch(() => {})
+      .finally(() => setCandlesLoading(false));
+  }, [ticker, range.interval]);
 
   useEffect(() => {
     if (!ticker) return;
@@ -377,7 +391,10 @@ export default function StockPage() {
             <div style={{ padding: '7px 14px', borderBottom: `1px solid ${B.border}`, color: B.amber, fontSize: '10px', letterSpacing: '3px' }}>
               CHART · {range.label}
             </div>
-            <CandleChart key={range.label} candles={data.candles} isUp={isUp} />
+            {candlesLoading
+              ? <div style={{ height: '420px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ff8c00', fontSize: '11px', letterSpacing: '2px' }}>LOADING CHART...</div>
+              : <CandleChart key={range.label + candles.length} candles={candles} isUp={isUp} />
+            }
           </div>
 
           {/* AI Analysis panel */}

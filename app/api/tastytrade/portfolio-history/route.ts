@@ -41,9 +41,7 @@ export async function GET() {
     if (!accessToken) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
 
     const client = getTastytradeClient(accessToken);
-    const accountNumber = await client.getAccountNumber();
-    const posRes = await client.client.get(`/accounts/${accountNumber}/positions`);
-    const allPositions: any[] = posRes.data?.data?.items ?? [];
+    const allPositions = await client.getPositions();
 
     const equities = allPositions.filter((p: any) => {
       const t = p['instrument-type'] || p.instrumentType || '';

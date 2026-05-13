@@ -34,13 +34,12 @@ async function fetchPortfolioMoves(): Promise<string> {
     const token = await getValidAccessToken();
     if (!token) return '';
     const client = getTastytradeClient(token);
-    const acct = await client.getAccountNumber();
-    const res = await client.client.get(`/accounts/${acct}/positions`);
-    const items: any[] = (res.data?.data?.items ?? []).filter((p: any) =>
+    const items = await client.getPositions();
+    const equities = items.filter((p: any) =>
       (p['instrument-type'] || p.instrumentType) === 'Equity'
     );
-    if (!items.length) return '';
-    const lines = items.map(p => {
+    if (!equities.length) return '';
+    const lines = equities.map((p: any) => {
       const sym = p.symbol;
       const qty = p.quantity ?? p['quantity-direction'];
       const pl = p['unrealized-day-gain-loss'] ?? p.unrealizedDayGainLoss ?? '';

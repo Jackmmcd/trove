@@ -35,6 +35,7 @@ const B = {
 
 export default function BasketModal({ fundId, fundName, holdings, onClose }: BasketModalProps) {
   const [budget, setBudget] = useState('1000');
+  const [fractional, setFractional] = useState(false);
   const [lines, setLines] = useState<BasketLine[]>([]);
   const [loadingPrices, setLoadingPrices] = useState(true);
   const [step, setStep] = useState<'configure' | 'confirm' | 'placing' | 'done'>('configure');
@@ -43,6 +44,11 @@ export default function BasketModal({ fundId, fundName, holdings, onClose }: Bas
 
   const budgetNum = parseFloat(budget) || 0;
   const totalWeight = holdings.reduce((s, h) => s + h.weight, 0);
+
+  const calcShares = (dollars: number, price: number) => {
+    if (price <= 0) return 0;
+    return fractional ? Math.round((dollars / price) * 10000) / 10000 : Math.floor(dollars / price);
+  };
 
   useEffect(() => {
     if (holdings.length === 0) return;
@@ -62,7 +68,7 @@ export default function BasketModal({ fundId, fundName, holdings, onClose }: Bas
         const prices: Record<string, number> = data.success ? data.data : {};
         setLines(prev => prev.map(l => {
           const price = prices[l.ticker] ?? 0;
-          return { ...l, price, sharesToBuy: price > 0 ? Math.round((l.dollarAmount / price) * 10000) / 10000 : 0 };
+          return { ...l, price, sharesToBuy: calcShares(l.dollarAmount, price) };
         }));
       })
       .catch(() => setLines(prev => prev.map(l => ({ ...l, price: 0 }))))
@@ -73,14 +79,14 @@ export default function BasketModal({ fundId, fundName, holdings, onClose }: Bas
   useEffect(() => {
     setLines(prev => prev.map(l => {
       const dollarAmount = (budgetNum * l.weight) / 100;
-      const sharesToBuy = (l.price ?? 0) > 0 ? Math.round((dollarAmount / (l.price as number)) * 10000) / 10000 : 0;
-      return { ...l, dollarAmount, sharesToBuy };
+      return { ...l, dollarAmount, sharesToBuy: calcShares(dollarAmount, l.price ?? 0) };
     }));
-  }, [budget]);
+  }, [budget, fractional]);
 
   async function placeAll() {
     setStep('placing');
     let placed = 0, errors = 0;
+    const finalOrders: Array<{ ticker: string; shares: number; price: number; status: string }> = [];
     for (const line of lines.filter(l => l.sharesToBuy > 0)) {
       setLines(prev => prev.map(l => l.ticker === line.ticker ? { ...l, status: 'placing' } : l));
       try {
@@ -89,24 +95,24 @@ export default function BasketModal({ fundId, fundName, holdings, onClose }: Bas
           body: JSON.stringify({ symbol: line.ticker, quantity: line.sharesToBuy, action: 'buy' }),
         });
         const data = await res.json();
-        if (data.success) { placed++; setLines(prev => prev.map(l => l.ticker === line.ticker ? { ...l, status: 'done' } : l)); }
-        else throw new Error(data.error || 'Order failed');
+        if (data.success) {
+          placed++;
+          setLines(prev => prev.map(l => l.ticker === line.ticker ? { ...l, status: 'done' } : l));
+          finalOrders.push({ ticker: line.ticker, shares: line.sharesToBuy, price: line.price ?? 0, status: 'done' });
+        } else throw new Error(data.error || 'Order failed');
       } catch (err: any) {
         errors++;
         setLines(prev => prev.map(l => l.ticker === line.ticker ? { ...l, status: 'error', error: err.message } : l));
+        finalOrders.push({ ticker: line.ticker, shares: line.sharesToBuy, price: line.price ?? 0, status: 'error' });
       }
     }
     setPlacedCount(placed); setErrorCount(errors); setStep('done');
 
-    // Record basket purchase for tracking
     if (placed > 0 && fundId) {
-      const completedOrders = lines
-        .filter(l => l.sharesToBuy > 0)
-        .map(l => ({ ticker: l.ticker, shares: l.sharesToBuy, price: l.price ?? 0, status: l.status }));
       fetch('/api/baskets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fundId, fundName, budget: budgetNum, orders: completedOrders }),
+        body: JSON.stringify({ fundId, fundName, budget: budgetNum, orders: finalOrders }),
       }).catch(() => {});
     }
   }
@@ -163,6 +169,13 @@ export default function BasketModal({ fundId, fundName, holdings, onClose }: Bas
                     style={{ background: '#000', border: `1px solid ${B.amber}`, color: B.amber, padding: '5px 10px', fontSize: '16px', fontFamily: 'Courier New, monospace', width: '120px', outline: 'none' }}
                   />
                 </div>
+                <button
+                  onClick={() => setFractional(f => !f)}
+                  disabled={step !== 'configure'}
+                  style={{ padding: '4px 10px', background: fractional ? B.cyan : 'transparent', color: fractional ? '#000' : B.label, border: `1px solid ${fractional ? B.cyan : B.border}`, cursor: 'pointer', fontFamily: 'Courier New, monospace', fontSize: '9px', letterSpacing: '1px', fontWeight: 'bold', whiteSpace: 'nowrap' }}
+                >
+                  {fractional ? 'FRACTIONAL' : 'WHOLE SHS'}
+                </button>
                 {!loadingPrices && (
                   <div style={{ display: 'flex', gap: '20px' }}>
                     <div>

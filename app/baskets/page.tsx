@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Navigation from '../components/Navigation';
 
 const B = {
   bg: '#000', panel: '#0d0d0d', border: '#2a2a2a',
@@ -84,21 +85,20 @@ export default function BasketsPage() {
 
   const panelStyle: React.CSSProperties = { background: B.panel, border: `1px solid ${B.border}`, fontFamily: 'Courier New, monospace' };
 
-  if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px', color: B.amber, fontFamily: 'Courier New, monospace', letterSpacing: '2px' }}>
-      LOADING BASKETS...
-    </div>
-  );
-
-  if (baskets.length === 0) return (
-    <div style={{ padding: '40px', textAlign: 'center', fontFamily: 'Courier New, monospace' }}>
-      <p style={{ color: B.label, letterSpacing: '2px', fontSize: '12px' }}>NO BASKETS PURCHASED YET</p>
-      <p style={{ color: '#444', fontSize: '11px', marginTop: '8px' }}>Buy a basket from the FUNDS page to start tracking performance.</p>
-    </div>
-  );
-
   return (
-    <div style={{ padding: '16px', maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px', fontFamily: 'Courier New, monospace' }}>
+    <div style={{ minHeight: '100vh', background: B.bg, fontFamily: 'Courier New, monospace' }}>
+      <Navigation />
+      {loading ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px', color: B.amber, letterSpacing: '2px' }}>
+          LOADING BASKETS...
+        </div>
+      ) : baskets.length === 0 ? (
+        <div style={{ padding: '40px', textAlign: 'center' }}>
+          <p style={{ color: B.label, letterSpacing: '2px', fontSize: '12px' }}>NO BASKETS PURCHASED YET</p>
+          <p style={{ color: '#444', fontSize: '11px', marginTop: '8px' }}>Buy a basket from the FUNDS page to start tracking performance.</p>
+        </div>
+      ) : (
+      <div style={{ padding: '16px', maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
       <div style={{ color: B.amber, fontSize: '14px', fontWeight: 'bold', letterSpacing: '3px' }}>BASKET TRACKER</div>
 
@@ -204,6 +204,8 @@ export default function BasketsPage() {
           </div>
         );
       })}
+    </div>
+      )}
     </div>
   );
 }

@@ -77,7 +77,7 @@ export default function Navigation() {
     { href: '/dashboard', label: 'PORTFOLIO' },
     { href: '/funds', label: 'FUNDS' },
     { href: '/baskets', label: 'BASKETS' },
-    { href: '/recommendations', label: 'SIGNALS' },
+    { href: '/recommendations', label: 'INSIGHTS' },
     { href: '/news', label: 'NEWS' },
   ];
 
@@ -90,6 +90,7 @@ export default function Navigation() {
   const showDropdown = searchFocused && suggestions.length > 0;
 
   return (
+    <div>
     <nav style={{ background: '#000', borderBottom: '1px solid #ff8c00' }}>
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', height: '40px', gap: '0' }}>
@@ -199,5 +200,18 @@ export default function Navigation() {
         </div>
       </div>
     </nav>
+    {/* Compliance bar — visible on every authenticated page */}
+    <div style={{
+      background: '#0a0a0a', borderBottom: '1px solid #1a1a1a',
+      padding: '4px 16px', textAlign: 'center',
+    }}>
+      <span style={{ color: '#444', fontSize: '9px', letterSpacing: '1.5px', fontFamily: 'Courier New, monospace' }}>
+        NOT FINANCIAL ADVICE &nbsp;·&nbsp; ALL TRADING INVOLVES RISK OF LOSS &nbsp;·&nbsp; 13F DATA REFLECTS PRIOR QUARTER (45-DAY DELAY) &nbsp;·&nbsp; ORDERS ROUTE THROUGH YOUR CONNECTED BROKER &nbsp;·&nbsp;{' '}
+        <a href="/terms" style={{ color: '#555', textDecoration: 'underline' }}>TERMS</a>
+        &nbsp;·&nbsp;
+        <a href="/privacy" style={{ color: '#555', textDecoration: 'underline' }}>PRIVACY</a>
+      </span>
+    </div>
+    </div>
   );
 }

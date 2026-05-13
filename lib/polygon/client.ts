@@ -94,3 +94,30 @@ export async function getSnapshots(tickers: string[]): Promise<Record<string, { 
     return out;
   } catch { return {}; }
 }
+
+export interface PolygonSnapshot {
+  day: { o: number; h: number; l: number; c: number; v: number } | null;
+  prevDay: { o: number; h: number; l: number; c: number; v: number } | null;
+  lastTrade: { p: number } | null;
+  todaysChange: number | null;
+  todaysChangePerc: number | null;
+}
+
+/** Full snapshot for a single ticker — today's intraday data + previous day close */
+export async function getSnapshot(ticker: string): Promise<PolygonSnapshot | null> {
+  try {
+    const res = await http.get('/v2/snapshot/locale/us/markets/stocks/tickers', {
+      params: p({ tickers: ticker }),
+      timeout: 15000,
+    });
+    const t = res.data?.tickers?.[0];
+    if (!t) return null;
+    return {
+      day: t.day ?? null,
+      prevDay: t.prevDay ?? null,
+      lastTrade: t.lastTrade ? { p: t.lastTrade.p } : null,
+      todaysChange: t.todaysChange ?? null,
+      todaysChangePerc: t.todaysChangePerc ?? null,
+    };
+  } catch { return null; }
+}

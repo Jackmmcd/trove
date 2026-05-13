@@ -117,12 +117,10 @@ export async function GET() {
           const token = await getValidAccessToken();
           if (!token) return [];
           const client = getTastytradeClient(token);
-          const acct = await client.getAccountNumber();
-          const res = await client.client.get(`/accounts/${acct}/positions`);
-          const items: any[] = res.data?.data?.items ?? [];
+          const items = await client.getPositions();
           return items
-            .filter(p => (p['instrument-type'] || p.instrumentType) === 'Equity')
-            .map(p => p.symbol as string);
+            .filter((p: any) => (p['instrument-type'] || p.instrumentType) === 'Equity')
+            .map((p: any) => p.symbol as string);
         } catch { return []; }
       })(),
     ]);

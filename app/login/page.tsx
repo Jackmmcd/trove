@@ -7,7 +7,7 @@ import Image from 'next/image';
 const B = {
   bg: '#000', panel: '#0d0d0d', border: '#2a2a2a',
   amber: '#ff8c00', green: '#00ff41', red: '#ff3333',
-  label: '#888', text: '#e0e0e0',
+  cyan: '#00e5ff', label: '#888', text: '#e0e0e0',
 };
 
 const inputStyle: React.CSSProperties = {

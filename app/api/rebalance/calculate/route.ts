@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { generateRebalanceTrades, RebalanceConstraints } from '@/lib/rebalancing/calculator';
+import { generateRebalanceTrades } from '@/lib/rebalancing/calculator';
+import type { RebalanceConstraints } from '@/lib/rebalancing/types';
 
 export async function GET(request: Request) {
   try {

@@ -192,7 +192,7 @@ export class TastytradeClient {
   /**
    * Get account balance and summary
    */
-  async getAccountBalance(accountNumber?: string): Promise<TastytradeAccount> {
+  async getAccountBalance(accountNumber?: string): Promise<Pick<TastytradeAccount, 'netLiquidity' | 'totalEquity' | 'cashAvailableForTrading' | 'buyingPower' | 'availableFunds'>> {
     this.ensureAuthenticated();
 
     try {
@@ -206,6 +206,7 @@ export class TastytradeClient {
         totalEquity: parseFloat(raw['margin-equity'] || '0'),
         cashAvailableForTrading: parseFloat(raw['cash-balance'] || '0'),
         buyingPower: parseFloat(raw['equity-buying-power'] || '0'),
+        availableFunds: parseFloat(raw['available-trading-funds'] || raw['equity-buying-power'] || '0'),
       };
     } catch (error: any) {
       if (axios.isAxiosError(error)) {

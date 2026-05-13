@@ -394,7 +394,7 @@ export default function FundList() {
       )}
 
       {basketFund && (
-        <BasketModal fundName={basketFund.fund.name} holdings={basketFund.selected}
+        <BasketModal fundId={basketFund.fund.id} fundName={basketFund.fund.name} holdings={basketFund.selected}
           onClose={() => setBasketFund(null)} />
       )}
     </div>

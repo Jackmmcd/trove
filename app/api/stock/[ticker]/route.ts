@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAggs, getTickerDetails, getPrevClose } from '@/lib/polygon/client';
+import { getAggs, getTickerDetails, getSnapshot } from '@/lib/polygon/client';
 import { getTastytradeClient } from '@/lib/tastytrade/client';
 import { getValidAccessToken } from '@/lib/auth/session';
 
@@ -15,31 +15,34 @@ export async function GET(_req: Request, { params }: { params: Promise<{ ticker:
   const { ticker } = await params;
   const sym = ticker.toUpperCase();
 
-  // Fetch in parallel: company details, 1Y daily candles, prev close, live price
-  const [details, candles1Y, prevBar] = await Promise.all([
+  // Fetch in parallel: company details, 1Y daily candles, Polygon snapshot
+  const [details, candles1Y, snapshot] = await Promise.all([
     getTickerDetails(sym),
     getAggs(sym, dateStr(400), dateStr(0), 1, 'day'),
-    getPrevClose(sym),
+    getSnapshot(sym),
   ]);
 
   // Get real-time price from Tastytrade if authenticated
-  let currentPrice: number | null = null;
+  let ttPrice: number | null = null;
   try {
     const token = await getValidAccessToken();
     if (token) {
       const client = getTastytradeClient(token);
       const prices = await client.getQuotes([sym]);
-      currentPrice = prices[sym] ?? null;
+      ttPrice = prices[sym] ?? null;
     }
   } catch { /* ok */ }
 
-  // Fall back to last candle close if no live price
+  // Prefer Tastytrade live price, then Polygon snapshot (lastTrade or day close)
+  const snapshotPrice = snapshot?.lastTrade?.p ?? snapshot?.day?.c ?? null;
+  const price = ttPrice ?? snapshotPrice;
+
+  // Previous close from snapshot (prevDay) — authoritative and independent of current price
   const todayStr = new Date().toISOString().slice(0, 10);
   const completedCandles = candles1Y.filter(c => new Date(c.t).toISOString().slice(0, 10) < todayStr && c.c > 0);
   const lastClose = completedCandles.length > 0 ? completedCandles[completedCandles.length - 1].c : null;
-  const price = currentPrice ?? lastClose ?? null;
+  const prevClose = snapshot?.prevDay?.c ?? lastClose;
 
-  const prevClose = prevBar?.c ?? (completedCandles.length >= 2 ? completedCandles[completedCandles.length - 2].c : null);
   const change = price !== null && prevClose ? price - prevClose : null;
   const changePct = change !== null && prevClose ? change / prevClose : null;
 
@@ -82,12 +85,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ ticker:
 
       currentPrice: price,
       previousClose: prevClose,
-      open: prevBar?.o ?? null,
-      dayLow: prevBar?.l ?? null,
-      dayHigh: prevBar?.h ?? null,
+      open: snapshot?.day?.o ?? null,
+      dayLow: snapshot?.day?.l ?? null,
+      dayHigh: snapshot?.day?.h ?? null,
       change,
       changePct,
-      volume: prevBar?.v ?? null,
+      volume: snapshot?.day?.v ?? null,
       avgVolume: null, // not available on free tier
 
       change1d: changePct,

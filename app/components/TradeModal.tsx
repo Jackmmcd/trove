@@ -16,7 +16,7 @@ type Step = 'input' | 'confirm';
 
 const B = {
   bg: '#000', panel: '#0d0d0d', border: '#2a2a2a',
-  amber: '#ff8c00', green: '#00ff41', red: '#ff3333',
+  amber: '#ff8c00', amberDim: '#cc6d00', green: '#00ff41', red: '#ff3333',
   cyan: '#00e5ff', label: '#888', text: '#e0e0e0',
 };
 
@@ -191,8 +191,12 @@ export default function TradeModal({ symbol, currentPrice, maxSellQuantity, init
                 EST. ${estimatedValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
-            <p style={{ color: B.label, fontSize: '10px', letterSpacing: '0.5px', marginBottom: '12px', textAlign: 'center' }}>
+            <p style={{ color: B.label, fontSize: '10px', letterSpacing: '0.5px', marginBottom: '4px', textAlign: 'center' }}>
               MARKET ORDERS EXECUTE AT BEST AVAILABLE PRICE
+            </p>
+            <p style={{ color: '#444', fontSize: '9px', letterSpacing: '0.5px', marginBottom: '12px', textAlign: 'center', lineHeight: 1.6 }}>
+              ORDERS ARE ROUTED THROUGH YOUR CONNECTED BROKER. TROVE IS NOT A BROKER-DEALER.
+              TRADING INVOLVES RISK OF LOSS. THIS IS NOT INVESTMENT ADVICE.
             </p>
             {error && <p style={{ color: B.red, fontSize: '11px', marginBottom: '8px' }}>{error}</p>}
             <div style={{ display: 'flex', gap: '8px' }}>

@@ -351,7 +351,7 @@ export default function Dashboard() {
                     />
                     <Tooltip
                       contentStyle={tooltipStyle}
-                      formatter={(v: number) => [`$${v.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 'Portfolio']}
+                      formatter={(v: number | undefined) => v == null ? ['—', 'Portfolio'] : [`$${v.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 'Portfolio']}
                       labelStyle={tooltipLabelStyle}
                       itemStyle={tooltipItemStyle}
                     />
@@ -379,7 +379,7 @@ export default function Dashboard() {
                   <CartesianGrid strokeDasharray="2 2" vertical={false} stroke="#1a1a1a" />
                   <XAxis dataKey="symbol" tick={{ fontSize: 10, fill: '#888', fontFamily: 'Courier New' }} />
                   <YAxis tickFormatter={formatCurrency} tick={{ fontSize: 10, fill: '#888', fontFamily: 'Courier New' }} width={52} />
-                  <Tooltip formatter={(v: number) => [`$${v.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, undefined]} contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
+                  <Tooltip formatter={(v: number | undefined) => v == null ? ['—', undefined] : [`$${v.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, undefined]} contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
                   <Legend wrapperStyle={{ fontSize: '10px', color: '#888', fontFamily: 'Courier New' }} />
                   <Bar dataKey="cost" name="Cost Basis" fill="#444" radius={[2, 2, 0, 0]} />
                   <Bar dataKey="value" name="Current Value" radius={[2, 2, 0, 0]}>
@@ -398,7 +398,7 @@ export default function Dashboard() {
                   <CartesianGrid strokeDasharray="2 2" vertical={false} stroke="#1a1a1a" />
                   <XAxis dataKey="symbol" tick={{ fontSize: 10, fill: '#888', fontFamily: 'Courier New' }} />
                   <YAxis tickFormatter={formatCurrency} tick={{ fontSize: 10, fill: '#888', fontFamily: 'Courier New' }} width={52} />
-                  <Tooltip formatter={(v: number) => [`${v >= 0 ? '+' : ''}$${v.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 'P&L']} contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
+                  <Tooltip formatter={(v: number | undefined) => v == null ? ['—', 'P&L'] : [`${v >= 0 ? '+' : ''}$${v.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 'P&L']} contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
                   <ReferenceLine y={0} stroke="#444" strokeWidth={1} />
                   <Bar dataKey="gainLoss" name="Gain / Loss" radius={[2, 2, 0, 0]}>
                     {chartData.map((entry, i) => (
