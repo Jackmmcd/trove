@@ -59,7 +59,10 @@ export default function LoginPage() {
         body: JSON.stringify({ password }),
       });
       const data = await res.json();
-      if (data.success) {
+      if (data.success && data.skipTotp) {
+        router.push('/dashboard');
+        router.refresh();
+      } else if (data.success) {
         setPasswordToken(data.token);
         setStep('totp');
       } else {

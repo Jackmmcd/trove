@@ -34,9 +34,9 @@ export default function LoginButton() {
   );
 
   return (
-    <button onClick={() => window.location.href = '/api/auth/login'}
+    <button onClick={() => window.location.href = '/login'}
       style={{ ...btnStyle, background: '#ff8c00', color: '#000' }}>
-      LOGIN — TASTYTRADE
+      LOGIN
     </button>
   );
 }
