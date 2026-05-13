@@ -1,6 +1,3 @@
 {
-  "buildCommand": "cd landing && npm install && npm run build",
-  "outputDirectory": "landing/out",
-  "installCommand": "echo skip",
-  "framework": null
+  "framework": "nextjs"
 }

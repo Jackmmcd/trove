@@ -62,8 +62,7 @@ function Step({ n, title, body }: { n: string; title: string; body: string }) {
 }
 
 export default function LandingPage() {
-  // Locally: go straight to the trading app. On Vercel the landing page is served as a static export.
-  if (process.env.VERCEL !== '1') redirect('/dashboard');
+  redirect('/dashboard');
 
   return (
     <div style={{ minHeight: '100vh', background: '#000', fontFamily: 'Courier New, monospace', color: B.text }}>
@@ -103,7 +102,7 @@ export default function LandingPage() {
           <div style={{ width: '1px', background: B.border, margin: '0 8px' }} />
           <Stat value="0%" label="MARKUP ON TRADES" />
           <div style={{ width: '1px', background: B.border, margin: '0 8px' }} />
-          <Stat value="2" label="BROKERS SUPPORTED" />
+          <Stat value="3" label="BROKERS SUPPORTED" />
           <div style={{ width: '1px', background: B.border, margin: '0 8px' }} />
           <Stat value="LIVE" label="PORTFOLIO TRACKING" />
         </div>
@@ -170,8 +169,8 @@ export default function LandingPage() {
           />
           <Feature
             icon="🎯"
-            title="TRADE SIGNALS"
-            body="Momentum and institutional flow signals generated from 13F position changes. See which funds are building or exiting positions before the next filing."
+            title="INSTITUTIONAL INSIGHTS"
+            body="Ranked analysis of institutional activity derived from 13F position changes. See which funds are building or reducing positions across hundreds of filings."
           />
           <Feature
             icon="📈"
@@ -226,6 +225,7 @@ export default function LandingPage() {
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
           {[
             { name: 'TASTYTRADE', status: 'LIVE', desc: 'Full order execution, real-time quotes, position sync' },
+            { name: 'SCHWAB', status: 'COMING SOON', desc: 'Charles Schwab Trader API integration — full trading, balances, and position sync' },
             { name: 'ALPACA', status: 'COMING SOON', desc: 'Paper trading and live execution via Alpaca API' },
           ].map(({ name, status, desc }) => (
             <div key={name} style={{ background: B.panel, border: `1px solid ${B.border}`, padding: '24px', flex: '1', minWidth: '260px' }}>
@@ -252,9 +252,22 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer style={{ borderTop: `1px solid ${B.border}`, padding: '24px', textAlign: 'center' }}>
-        <div style={{ color: '#333', fontSize: '10px', letterSpacing: '2px' }}>
-          © 2025 TROVE · NOT FINANCIAL ADVICE · FOR INFORMATIONAL PURPOSES ONLY
+      <footer style={{ borderTop: `1px solid ${B.border}`, padding: '32px 24px', textAlign: 'center' }}>
+        <div style={{ color: '#333', fontSize: '10px', letterSpacing: '2px', marginBottom: '12px' }}>
+          © 2026 TROVE · NOT FINANCIAL ADVICE · FOR INFORMATIONAL PURPOSES ONLY
+        </div>
+        <div style={{ color: '#2a2a2a', fontSize: '9px', letterSpacing: '1px', lineHeight: 2, maxWidth: '800px', margin: '0 auto 12px' }}>
+          TROVE IS AN INDEPENDENT THIRD-PARTY APPLICATION AND IS NOT AFFILIATED WITH, ENDORSED BY, OR SPONSORED BY ANY BROKERAGE FIRM INCLUDING CHARLES SCHWAB &amp; CO., INC., TASTYTRADE, OR ALPACA MARKETS.
+          ALL ORDERS ARE ROUTED THROUGH YOUR CONNECTED BROKERAGE; TROVE IS NOT A REGISTERED BROKER-DEALER OR INVESTMENT ADVISER.
+          13F FILING DATA IS SOURCED FROM SEC EDGAR AND MAY REFLECT HOLDINGS UP TO 45 DAYS AFTER QUARTER-END.
+          AI-GENERATED ANALYSIS IS FOR INFORMATIONAL PURPOSES ONLY AND DOES NOT CONSTITUTE INVESTMENT ADVICE.
+          INVESTING IN SECURITIES INVOLVES RISK, INCLUDING POSSIBLE LOSS OF PRINCIPAL.
+          PAST PERFORMANCE OF ANY INVESTMENT STRATEGY DOES NOT GUARANTEE FUTURE RESULTS.
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '24px' }}>
+          <a href="/terms" style={{ color: '#444', fontSize: '9px', letterSpacing: '2px', textDecoration: 'underline' }}>TERMS OF SERVICE</a>
+          <a href="/privacy" style={{ color: '#444', fontSize: '9px', letterSpacing: '2px', textDecoration: 'underline' }}>PRIVACY POLICY</a>
+          <a href="/disclosures" style={{ color: '#444', fontSize: '9px', letterSpacing: '2px', textDecoration: 'underline' }}>RISK DISCLOSURES</a>
         </div>
       </footer>
 
