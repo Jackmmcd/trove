@@ -81,12 +81,6 @@ export default function Navigation() {
     { href: '/news', label: 'NEWS' },
   ];
 
-  async function logout() {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    router.push('/login');
-    router.refresh();
-  }
-
   const showDropdown = searchFocused && suggestions.length > 0;
 
   return (
@@ -187,15 +181,8 @@ export default function Navigation() {
           </div>
 
           {/* Right side */}
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
             <span style={{ color: '#555', fontSize: '11px', letterSpacing: '1px' }}>13F INSTITUTIONAL TRACKER</span>
-            <button onClick={logout} style={{
-              background: 'none', border: '1px solid #2a2a2a', color: '#555',
-              cursor: 'pointer', fontFamily: 'Courier New, monospace', fontSize: '10px',
-              letterSpacing: '1px', padding: '3px 10px',
-            }}>
-              LOGOUT
-            </button>
           </div>
         </div>
       </div>
