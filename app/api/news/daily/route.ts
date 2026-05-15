@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import axios from 'axios';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/supabase/admin';
 import { getValidAccessToken } from '@/lib/auth/session';
 import { getTastytradeClient } from '@/lib/tastytrade/client';
 
@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36';
 
 function todayKey(): string {
-  return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  return new Date().toISOString().slice(0, 10);
 }
 
 async function fetchHeadlines(): Promise<string[]> {
@@ -39,13 +39,12 @@ async function fetchPortfolioMoves(): Promise<string> {
       (p['instrument-type'] || p.instrumentType) === 'Equity'
     );
     if (!equities.length) return '';
-    const lines = equities.map((p: any) => {
+    return equities.map((p: any) => {
       const sym = p.symbol;
       const qty = p.quantity ?? p['quantity-direction'];
       const pl = p['unrealized-day-gain-loss'] ?? p.unrealizedDayGainLoss ?? '';
       return `${sym}: ${qty} shares, day P&L ${pl}`;
-    });
-    return lines.join('\n');
+    }).join('\n');
   } catch { return ''; }
 }
 
@@ -53,9 +52,8 @@ export async function GET(req: Request) {
   const date = todayKey();
   const force = new URL(req.url).searchParams.get('force') === '1';
 
-  // Return cached digest if it exists for today (unless force refresh)
   if (!force) {
-    const cached = await prisma.dailyDigest.findUnique({ where: { date } });
+    const { data: cached } = await db.from('daily_digests').select('digest').eq('date', date).maybeSingle();
     if (cached) return NextResponse.json({ success: true, digest: cached.digest, cached: true });
   }
 
@@ -65,9 +63,7 @@ export async function GET(req: Request) {
   const [headlines, portfolioMoves] = await Promise.all([fetchHeadlines(), fetchPortfolioMoves()]);
 
   const headlineList = headlines.map((h, i) => `${i + 1}. ${h}`).join('\n');
-  const portfolioSection = portfolioMoves
-    ? `\n\nPortfolio positions today:\n${portfolioMoves}`
-    : '';
+  const portfolioSection = portfolioMoves ? `\n\nPortfolio positions today:\n${portfolioMoves}` : '';
 
   const prompt = `You are writing a daily market briefing for an individual investor. Based on the headlines below, write a punchy 3-paragraph briefing — no headers, no bullet points, no markdown, plain text only.
 
@@ -90,11 +86,7 @@ ${headlineList}`;
     const raw = (msg.content[0] as { type: string; text: string }).text;
     const digest = raw.split('\n').map(l => l.replace(/^#{1,6}\s+/, '').trim()).filter(Boolean).join('\n\n').trim();
 
-    await prisma.dailyDigest.upsert({
-      where: { date },
-      create: { date, digest },
-      update: { digest },
-    });
+    await db.from('daily_digests').upsert({ date, digest }, { onConflict: 'date' });
 
     return NextResponse.json({ success: true, digest, cached: false });
   } catch (e: any) {

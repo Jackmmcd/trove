@@ -33,12 +33,13 @@ export default function TickerTape() {
         const qRes = await fetch(`/api/tastytrade/quotes?symbols=${encodeURIComponent(symbols)}`);
         const qData = await qRes.json();
         const prices: Record<string, number> = qData.success ? qData.data : {};
+        const prevCloses: Record<string, number> = qData.prevCloses ?? {};
 
         const tape: TapeItem[] = equities.map((p: any) => {
-          const avgCost = parseFloat(p['average-open-price'] || '0');
           const price = prices[p.symbol] ?? parseFloat(p['close-price'] || p['mark-price'] || '0');
-          const gainLoss = price - avgCost;
-          const gainLossPct = avgCost > 0 ? (gainLoss / avgCost) * 100 : 0;
+          const prevClose = prevCloses[p.symbol] ?? 0;
+          const gainLoss = prevClose > 0 ? price - prevClose : 0;
+          const gainLossPct = prevClose > 0 ? (gainLoss / prevClose) * 100 : 0;
           return { symbol: p.symbol, price, gainLoss, gainLossPct };
         });
 

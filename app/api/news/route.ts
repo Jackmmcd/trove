@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/supabase/admin';
 import { getValidAccessToken } from '@/lib/auth/session';
 import { getTastytradeClient } from '@/lib/tastytrade/client';
 import { getNews } from '@/lib/polygon/client';
@@ -15,7 +15,6 @@ interface NewsItem {
   source: 'yahoo' | 'wsj' | 'reuters' | 'polygon';
 }
 
-// ── Yahoo Finance ──────────────────────────────────────────────
 async function fetchYahooNews(query: string): Promise<NewsItem[]> {
   try {
     const res = await axios.get('https://query1.finance.yahoo.com/v1/finance/search', {
@@ -35,7 +34,6 @@ async function fetchYahooNews(query: string): Promise<NewsItem[]> {
   } catch { return []; }
 }
 
-// ── RSS parser (simple regex — no extra deps) ─────────────────
 function parseRss(xml: string, defaultPublisher: string, source: 'wsj' | 'reuters'): NewsItem[] {
   const items: NewsItem[] = [];
   const itemRe = /<item>([\s\S]*?)<\/item>/gi;
@@ -46,10 +44,8 @@ function parseRss(xml: string, defaultPublisher: string, source: 'wsj' | 'reuter
     const link  = (block.match(/<link[^>]*>([^<]+)<\/link>/) ?? (block.match(/<link[^>]*href="([^"]+)"/) ?? []))[1]?.trim();
     const pubDate = (block.match(/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/) ?? [])[1]?.trim();
     const publisher = (block.match(/<source[^>]*>([\s\S]*?)<\/source>/) ?? [])[1]?.trim() || defaultPublisher;
-
     if (!title || !link) continue;
     const ts = pubDate ? Math.floor(new Date(pubDate).getTime() / 1000) : Math.floor(Date.now() / 1000);
-
     items.push({
       uuid: `${source}-${Buffer.from(link).toString('base64').slice(0, 24)}`,
       title: title.replace(/\s*-\s*(WSJ|Reuters)$/, '').trim(),
@@ -63,7 +59,6 @@ function parseRss(xml: string, defaultPublisher: string, source: 'wsj' | 'reuter
   return items;
 }
 
-// ── WSJ RSS (direct feeds — links open in user's browser session) ──
 const WSJ_FEEDS = [
   'https://feeds.a.dj.com/rss/RSSMarketsMain.xml',
   'https://feeds.a.dj.com/rss/RSSWorldNews.xml',
@@ -74,16 +69,13 @@ const WSJ_FEEDS = [
 async function fetchWsjNews(): Promise<NewsItem[]> {
   const results = await Promise.allSettled(
     WSJ_FEEDS.map(url =>
-      axios.get(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/rss+xml, application/xml' },
-        timeout: 8000,
-      }).then(r => parseRss(r.data as string, 'WSJ', 'wsj'))
+      axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/rss+xml, application/xml' }, timeout: 8000 })
+        .then(r => parseRss(r.data as string, 'WSJ', 'wsj'))
     )
   );
   return results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
 }
 
-// ── Reuters via Google News RSS ────────────────────────────────
 const REUTERS_QUERIES = [
   'https://news.google.com/rss/search?q=site:reuters.com+markets&hl=en-US&gl=US&ceid=US:en',
   'https://news.google.com/rss/search?q=site:reuters.com+economy+OR+fed+OR+stocks&hl=en-US&gl=US&ceid=US:en',
@@ -94,24 +86,17 @@ const REUTERS_QUERIES = [
 async function fetchReutersNews(): Promise<NewsItem[]> {
   const results = await Promise.allSettled(
     REUTERS_QUERIES.map(url =>
-      axios.get(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/rss+xml, application/xml' },
-        timeout: 8000,
-      }).then(r => parseRss(r.data as string, 'Reuters', 'reuters'))
+      axios.get(url, { headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/rss+xml, application/xml' }, timeout: 8000 })
+        .then(r => parseRss(r.data as string, 'Reuters', 'reuters'))
     )
   );
   return results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
 }
 
-// ── Main handler ───────────────────────────────────────────────
 export async function GET() {
   try {
-    // Fetch owned positions and fund holdings in parallel
-    const [funds, ownedTickers] = await Promise.all([
-      prisma.fund.findMany({
-        where: { enabled: true },
-        include: { holdings: { orderBy: { weight: 'desc' }, take: 10 } },
-      }),
+    const [{ data: funds }, ownedTickers] = await Promise.all([
+      db.from('funds').select('*, holdings(ticker, weight)').eq('enabled', true),
       (async (): Promise<string[]> => {
         try {
           const token = await getValidAccessToken();
@@ -125,17 +110,17 @@ export async function GET() {
       })(),
     ]);
 
-    const fundTickers = [...new Set(funds.flatMap(f => f.holdings.map(h => h.ticker)))].slice(0, 20);
+    const fundTickers = [...new Set((funds ?? []).flatMap((f: any) =>
+      (f.holdings ?? []).sort((a: any, b: any) => b.weight - a.weight).slice(0, 10).map((h: any) => h.ticker)
+    ))].slice(0, 20) as string[];
     const ownedSet = new Set(ownedTickers.map(t => t.toUpperCase()));
 
-    // Combine: owned tickers first for query, then fund tickers
     const allQueryTickers = [...new Set([...ownedTickers, ...fundTickers])];
     const macroQueries = [
       'S&P 500 market', 'Federal Reserve interest rates', 'economy inflation',
       'earnings results', 'stock market rally', 'tariffs trade war',
     ];
 
-    // Fetch Polygon news for each ticker (up to 20 tickers, 5 articles each)
     const polygonResults = await Promise.allSettled(
       allQueryTickers.slice(0, 20).map(t => getNews(t, 5))
     );
@@ -157,16 +142,10 @@ export async function GET() {
       fetchReutersNews(),
     ]);
 
-    const allItems: NewsItem[] = [
-      ...wsjItems,
-      ...reutersItems,
-      ...polygonItems,
-      ...macroResults.flat(),
-    ];
+    const allItems: NewsItem[] = [...wsjItems, ...reutersItems, ...polygonItems, ...macroResults.flat()];
 
     const now = Math.floor(Date.now() / 1000);
     const oneDayAgo = now - 86400;
-
     const tickerSet = new Set(fundTickers.map(t => t.toUpperCase()));
 
     const BLOCKED_PUBLISHERS = [
@@ -175,18 +154,13 @@ export async function GET() {
       'accesswire', 'globe newswire', 'newsfile', 'stockstory',
     ];
 
-    // Score: owned tickers = +5, fund tickers = +2, WSJ/Reuters = +3, recency bonus
     function score(n: NewsItem): number {
       let s = 0;
       if (n.source === 'wsj' || n.source === 'reuters') s += 3;
       const titleUp = n.title.toUpperCase();
       const related = (n.relatedTickers ?? []).map(t => t.toUpperCase());
-      for (const t of ownedSet) {
-        if (titleUp.includes(t) || related.includes(t)) s += 5;
-      }
-      for (const t of tickerSet) {
-        if (!ownedSet.has(t) && (titleUp.includes(t) || related.includes(t))) s += 2;
-      }
+      for (const t of ownedSet) { if (titleUp.includes(t) || related.includes(t)) s += 5; }
+      for (const t of tickerSet) { if (!ownedSet.has(t) && (titleUp.includes(t) || related.includes(t))) s += 2; }
       const age = now - n.providerPublishTime;
       if (age < 6 * 3600) s += 2;
       else if (age < 12 * 3600) s += 1;
@@ -198,7 +172,6 @@ export async function GET() {
       'earnings', 'jobs report', 'unemployment', 'cpi', 'pce', 'fomc', 'yield', 'dollar', 'oil',
       'rally', 'selloff', 'sell-off', 'correction', 'bull', 'bear'];
 
-    // Pass through: WSJ/Reuters, macro-themed articles, or ticker articles matching held/followed tickers.
     function isRelevant(n: NewsItem): boolean {
       if (n.source === 'wsj' || n.source === 'reuters') return true;
       const titleLow = n.title.toLowerCase();
@@ -210,16 +183,14 @@ export async function GET() {
     }
 
     const seen = new Set<string>();
-    const deduped = allItems
-      .filter(n => {
-        if (seen.has(n.uuid)) return false;
-        seen.add(n.uuid);
-        if (BLOCKED_PUBLISHERS.some(p => n.publisher.toLowerCase().includes(p))) return false;
-        if (!isRelevant(n)) return false;
-        return n.providerPublishTime >= oneDayAgo;
-      });
+    const deduped = allItems.filter(n => {
+      if (seen.has(n.uuid)) return false;
+      seen.add(n.uuid);
+      if (BLOCKED_PUBLISHERS.some(p => n.publisher.toLowerCase().includes(p))) return false;
+      if (!isRelevant(n)) return false;
+      return n.providerPublishTime >= oneDayAgo;
+    });
 
-    // If < 15 articles in last 24h, extend window to 7 days
     const window = deduped.length >= 15 ? deduped : (() => {
       const seenFallback = new Set<string>();
       return allItems.filter(n => {
@@ -232,10 +203,7 @@ export async function GET() {
     })();
 
     const sorted = window
-      .sort((a, b) => {
-        const scoreDiff = score(b) - score(a);
-        return scoreDiff !== 0 ? scoreDiff : b.providerPublishTime - a.providerPublishTime;
-      })
+      .sort((a, b) => { const d = score(b) - score(a); return d !== 0 ? d : b.providerPublishTime - a.providerPublishTime; })
       .slice(0, 80);
 
     return NextResponse.json({ success: true, data: sorted, tickers: fundTickers, ownedTickers });

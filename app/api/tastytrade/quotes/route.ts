@@ -20,7 +20,8 @@ export async function GET(request: Request) {
       const client = new AlpacaClient();
       const prices = await client.getQuotes(symbols);
       if (Object.keys(prices).length > 0) {
-        return NextResponse.json({ success: true, data: prices, source: 'alpaca' });
+        const { prevCloses } = await fetchYahooQuotes(symbols);
+        return NextResponse.json({ success: true, data: prices, prevCloses, source: 'alpaca' });
       }
     } catch {
       // Fall through to Yahoo Finance
@@ -42,7 +43,8 @@ export async function GET(request: Request) {
       }
 
       if (Object.keys(prices).length > 0) {
-        return NextResponse.json({ success: true, data: prices, source: 'tastytrade' });
+        const { prevCloses } = await fetchYahooQuotes(symbols);
+        return NextResponse.json({ success: true, data: prices, prevCloses, source: 'tastytrade' });
       }
     }
   } catch {
@@ -51,18 +53,18 @@ export async function GET(request: Request) {
 
   // Fallback: Yahoo Finance v8 chart API (free, no auth)
   try {
-    const prices = await fetchYahooPrices(symbols);
-    return NextResponse.json({ success: true, data: prices, source: 'yahoo' });
+    const { prices, prevCloses } = await fetchYahooQuotes(symbols);
+    return NextResponse.json({ success: true, data: prices, prevCloses, source: 'yahoo' });
   } catch (error: any) {
     console.error('Quotes fallback error:', error.message);
     return NextResponse.json({ success: false, error: 'Failed to fetch quotes' }, { status: 500 });
   }
 }
 
-async function fetchYahooPrices(symbols: string[]): Promise<Record<string, number>> {
+async function fetchYahooQuotes(symbols: string[]): Promise<{ prices: Record<string, number>; prevCloses: Record<string, number> }> {
   const prices: Record<string, number> = {};
+  const prevCloses: Record<string, number> = {};
 
-  // Fetch up to 20 symbols in parallel; Yahoo doesn't have a reliable batch endpoint
   const concurrency = 20;
   for (let i = 0; i < symbols.length; i += concurrency) {
     const chunk = symbols.slice(i, i + concurrency);
@@ -76,17 +78,20 @@ async function fetchYahooPrices(symbols: string[]): Promise<Record<string, numbe
             timeout: 8000,
           },
         );
-        const price: number = res.data?.chart?.result?.[0]?.meta?.regularMarketPrice ?? 0;
-        return { symbol, price };
+        const meta = res.data?.chart?.result?.[0]?.meta ?? {};
+        const price: number = meta.regularMarketPrice ?? 0;
+        const prevClose: number = meta.chartPreviousClose ?? meta.previousClose ?? 0;
+        return { symbol, price, prevClose };
       }),
     );
 
     for (const r of results) {
-      if (r.status === 'fulfilled' && r.value.price > 0) {
-        prices[r.value.symbol] = r.value.price;
+      if (r.status === 'fulfilled') {
+        if (r.value.price > 0) prices[r.value.symbol] = r.value.price;
+        if (r.value.prevClose > 0) prevCloses[r.value.symbol] = r.value.prevClose;
       }
     }
   }
 
-  return prices;
+  return { prices, prevCloses };
 }

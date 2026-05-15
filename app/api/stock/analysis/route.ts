@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,12 +33,11 @@ export async function POST(req: Request) {
 
   const sym = (ticker as string).toUpperCase();
 
-  // Return cached analysis if it exists
-  const cached = await prisma.stockAnalysis.findUnique({ where: { ticker: sym } });
+  const { data: cached } = await db.from('stock_analyses').select('*').eq('ticker', sym).maybeSingle();
   if (cached) {
     return NextResponse.json({
       success: true,
-      analysis: `Summary:\n${cached.summary}\n\nBull Case:\n${cached.bullCase}\n\nBear Case:\n${cached.bearCase}`,
+      analysis: `Summary:\n${cached.summary}\n\nBull Case:\n${cached.bull_case}\n\nBear Case:\n${cached.bear_case}`,
       cached: true,
     });
   }
@@ -56,16 +55,14 @@ export async function POST(req: Request) {
     });
     const text = (msg.content[0] as { type: string; text: string }).text;
 
-    // Parse and persist
     const summary = text.match(/Summary:\s*([\s\S]*?)(?=Bull Case:|$)/i)?.[1]?.trim() ?? '';
     const bullRaw = text.match(/Bull Case:\s*([\s\S]*?)(?=Bear Case:|$)/i)?.[1]?.trim() ?? '';
     const bearRaw = text.match(/Bear Case:\s*([\s\S]*?)$/i)?.[1]?.trim() ?? '';
 
-    await prisma.stockAnalysis.upsert({
-      where: { ticker: sym },
-      create: { ticker: sym, summary, bullCase: bullRaw, bearCase: bearRaw },
-      update: { summary, bullCase: bullRaw, bearCase: bearRaw },
-    });
+    await db.from('stock_analyses').upsert(
+      { ticker: sym, summary, bull_case: bullRaw, bear_case: bearRaw },
+      { onConflict: 'ticker' }
+    );
 
     return NextResponse.json({ success: true, analysis: text, cached: false });
   } catch (e: any) {

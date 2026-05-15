@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { createClient } from '@/utils/supabase/client';
 
 interface Suggestion {
   symbol: string;
@@ -181,8 +182,23 @@ export default function Navigation() {
           </div>
 
           {/* Right side */}
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ color: '#555', fontSize: '11px', letterSpacing: '1px' }}>13F INSTITUTIONAL TRACKER</span>
+            <button
+              onClick={async () => {
+                const supabase = createClient();
+                await supabase.auth.signOut();
+                router.push('/login');
+              }}
+              style={{
+                background: 'transparent', border: '1px solid #2a0000',
+                color: '#cc2222', fontFamily: 'Courier New, monospace',
+                fontWeight: 'bold', fontSize: '10px', letterSpacing: '1px',
+                padding: '3px 10px', cursor: 'pointer', height: '24px',
+              }}
+            >
+              LOGOUT
+            </button>
           </div>
         </div>
       </div>

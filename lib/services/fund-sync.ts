@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/supabase/admin';
 import { getSECApiClient } from '@/lib/sec-api/client';
 import Anthropic from '@anthropic-ai/sdk';
 
@@ -31,79 +31,50 @@ export interface SyncResult {
   error?: string;
 }
 
-/**
- * Sync all enabled funds from the database.
- */
 export async function syncAllFunds(): Promise<SyncResult[]> {
-  const enabledFunds = await prisma.fund.findMany({ where: { enabled: true } });
+  const { data: enabledFunds } = await db.from('funds').select('*').eq('enabled', true);
   const results: SyncResult[] = [];
-
-  for (const fund of enabledFunds) {
-    const result = await syncFund(fund.cik);
-    results.push(result);
+  for (const fund of (enabledFunds ?? [])) {
+    results.push(await syncFund(fund.cik));
   }
-
   return results;
 }
 
-/**
- * Sync a specific fund by CIK. Creates the fund record if it doesn't exist.
- */
 export async function syncFund(cik: string): Promise<SyncResult> {
   const secClient = getSECApiClient();
 
-  let fund = await prisma.fund.findUnique({ where: { cik } });
-
+  const { data: fund } = await db.from('funds').select('*').eq('cik', cik).maybeSingle();
   if (!fund) {
-    // If not in DB, we can't create it without a name – caller should create first
     return { fundId: '', cik, name: '', success: false, holdingsCount: 0, error: `Fund ${cik} not found in database` };
   }
 
   try {
     const holdingsData = await secClient.fetch13FHoldings(cik);
 
-    // Replace all holdings for this quarter
-    await prisma.holding.deleteMany({
-      where: { fundId: fund.id, quarter: holdingsData.quarter },
-    });
+    await db.from('holdings').delete().match({ fund_id: fund.id, quarter: holdingsData.quarter });
 
     if (holdingsData.holdings.length > 0) {
-      await prisma.holding.createMany({
-        data: holdingsData.holdings.map(h => ({
-          fundId: fund!.id,
+      await db.from('holdings').insert(
+        holdingsData.holdings.map(h => ({
+          fund_id: fund.id,
           ticker: h.ticker,
           shares: h.shares,
           value: h.value,
           weight: h.weight,
           quarter: holdingsData.quarter,
-          filingDate: new Date(holdingsData.filingDate),
-        })),
-      });
+          filing_date: new Date(holdingsData.filingDate).toISOString(),
+        }))
+      );
     }
 
-    // Clear old thesis and regenerate from new holdings
-    await prisma.fundThesis.deleteMany({ where: { fundId: fund.id } });
+    await db.from('fund_theses').delete().eq('fund_id', fund.id);
     const thesisText = await generateThesis(fund.name, holdingsData.holdings, holdingsData.quarter);
     if (thesisText) {
-      await prisma.fundThesis.create({ data: { fundId: fund.id, thesis: thesisText, quarter: holdingsData.quarter } });
+      await db.from('fund_theses').insert({ fund_id: fund.id, thesis: thesisText, quarter: holdingsData.quarter });
     }
 
-    return {
-      fundId: fund.id,
-      cik,
-      name: fund.name,
-      success: true,
-      holdingsCount: holdingsData.holdings.length,
-      quarter: holdingsData.quarter,
-    };
+    return { fundId: fund.id, cik, name: fund.name, success: true, holdingsCount: holdingsData.holdings.length, quarter: holdingsData.quarter };
   } catch (error: any) {
-    return {
-      fundId: fund.id,
-      cik,
-      name: fund.name,
-      success: false,
-      holdingsCount: 0,
-      error: error.message,
-    };
+    return { fundId: fund.id, cik, name: fund.name, success: false, holdingsCount: 0, error: error.message };
   }
 }

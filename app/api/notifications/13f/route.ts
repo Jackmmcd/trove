@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { db } from '@/lib/supabase/admin';
 import axios from 'axios';
 
 const USER_AGENT = process.env.SEC_USER_AGENT || '13F Follower App contact@example.com';
@@ -25,11 +25,12 @@ function dateToQuarter(dateString: string): string {
 
 export async function GET() {
   try {
-    const funds = await prisma.fund.findMany({ where: { enabled: true } });
+    const { data: funds, error } = await db.from('funds').select('id, cik, name').eq('enabled', true);
+    if (error) throw new Error(error.message);
 
     const alerts: FilingAlert[] = [];
 
-    await Promise.all(funds.map(async fund => {
+    await Promise.all((funds ?? []).map(async (fund: any) => {
       try {
         const padded = fund.cik.replace(/^0+/, '').padStart(10, '0');
         const res = await axios.get(`https://data.sec.gov/submissions/CIK${padded}.json`, {
@@ -42,24 +43,22 @@ export async function GET() {
 
         const forms: string[] = recent.form ?? [];
         const dates: string[] = recent.filingDate ?? [];
-
-        // Find latest 13F-HR
-        const idx = forms.findIndex(f => f === '13F-HR' || f === '13F-HR/A');
+        const idx = forms.findIndex((f: string) => f === '13F-HR' || f === '13F-HR/A');
         if (idx === -1) return;
 
         const latestFilingDate = dates[idx];
         const latestQuarter = dateToQuarter(latestFilingDate);
 
-        // Get what we have stored
-        const latestHolding = await prisma.holding.findFirst({
-          where: { fundId: fund.id },
-          orderBy: { quarter: 'desc' },
-          select: { quarter: true },
-        });
+        const { data: latestHolding } = await db
+          .from('holdings')
+          .select('quarter')
+          .eq('fund_id', fund.id)
+          .order('quarter', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
         const currentQuarter = latestHolding?.quarter ?? null;
 
-        // Alert if EDGAR has a newer quarter than what we've stored
         if (!currentQuarter || latestQuarter > currentQuarter) {
           alerts.push({
             fundId: fund.id,
