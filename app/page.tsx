@@ -72,7 +72,7 @@ export default function LandingPage() {
             TROVE
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-            <div style={{ color: B.label, fontSize: '10px', letterSpacing: '2px' }}>INSTITUTIONAL-GRADE · RETAIL-ACCESSIBLE</div>
+            <div className="nav-links" style={{ color: B.label, fontSize: '10px', letterSpacing: '2px' }}>INSTITUTIONAL-GRADE · RETAIL-ACCESSIBLE</div>
             <Link href="/login" style={{
               background: B.amber, color: '#000',
               fontWeight: 900, fontSize: '11px', letterSpacing: '2px',
@@ -114,7 +114,7 @@ export default function LandingPage() {
         </Link>
 
         {/* Stats bar */}
-        <div style={{ display: 'flex', justifyContent: 'center', borderTop: `1px solid ${B.border}`, borderBottom: `1px solid ${B.border}`, padding: '32px 0', gap: '0', flexWrap: 'wrap' }}>
+        <div className="landing-stats" style={{ display: 'flex', justifyContent: 'center', borderTop: `1px solid ${B.border}`, borderBottom: `1px solid ${B.border}`, padding: '32px 0', gap: '0', flexWrap: 'wrap' }}>
           <Stat value="13F" label="FILINGS TRACKED" />
           <div style={{ width: '1px', background: B.border, margin: '0 8px' }} />
           <Stat value="0%" label="MARKUP ON TRADES" />
@@ -129,7 +129,7 @@ export default function LandingPage() {
       <section style={{ background: '#050505', borderTop: `1px solid ${B.border}`, borderBottom: `1px solid ${B.border}` }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '64px 24px' }}>
           <div style={{ color: B.amber, fontSize: '11px', letterSpacing: '4px', fontWeight: 'bold', marginBottom: '24px' }}>WHAT IS TROVE</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px', alignItems: 'center' }}>
+          <div className="landing-2col">
             <div>
               <h2 style={{ fontSize: '28px', fontWeight: 900, lineHeight: 1.3, margin: '0 0 20px', letterSpacing: '1px' }}>
                 Institutional investors file their holdings publicly.<br />
@@ -163,7 +163,7 @@ export default function LandingPage() {
       {/* Features */}
       <section style={{ maxWidth: '1100px', margin: '0 auto', padding: '64px 24px' }}>
         <div style={{ color: B.amber, fontSize: '11px', letterSpacing: '4px', fontWeight: 'bold', marginBottom: '32px' }}>PLATFORM FEATURES</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+        <div className="landing-features">
           <Feature
             icon="📋"
             title="13F FILING TRACKER"
@@ -201,14 +201,14 @@ export default function LandingPage() {
       <section style={{ background: '#050505', borderTop: `1px solid ${B.border}`, borderBottom: `1px solid ${B.border}` }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '64px 24px' }}>
           <div style={{ color: B.amber, fontSize: '11px', letterSpacing: '4px', fontWeight: 'bold', marginBottom: '40px' }}>HOW IT WORKS</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '64px' }}>
+          <div className="landing-steps" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '64px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
               <Step n="1" title="CONNECT YOUR BROKERAGE" body="Link your Tastytrade account securely. Trove reads your positions and balance in real time. No credentials are stored — OAuth token only." />
               <Step n="2" title="BROWSE INSTITUTIONAL HOLDINGS" body="Explore 13F filings from hundreds of funds. See exactly what Bridgewater, Citadel, or Renaissance held last quarter." />
               <Step n="3" title="BUILD A BASKET OR FOLLOW A FUND" body="Select positions, set your dollar amount, and execute all legs as a single basket order through your connected brokerage." />
               <Step n="4" title="TRACK PERFORMANCE" body="Monitor your basket and individual positions in real time. Get daily briefings on news that actually affects your holdings." />
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div className="landing-terminal" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ background: '#0d0d0d', border: `1px solid ${B.border}` }}>
                 <div style={{ padding: '8px 14px', borderBottom: `1px solid ${B.border}`, display: 'flex', gap: '6px', alignItems: 'center' }}>
                   {['#ff5f56', '#ffbd2e', '#27c93f'].map(c => <div key={c} style={{ width: 10, height: 10, borderRadius: '50%', background: c }} />)}
@@ -239,7 +239,7 @@ export default function LandingPage() {
       {/* Brokers */}
       <section style={{ maxWidth: '1100px', margin: '0 auto', padding: '64px 24px' }}>
         <div style={{ color: B.amber, fontSize: '11px', letterSpacing: '4px', fontWeight: 'bold', marginBottom: '32px' }}>SUPPORTED BROKERAGES</div>
-        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+        <div className="landing-brokers">
           {[
             { name: 'TASTYTRADE', status: 'LIVE', desc: 'Full order execution, real-time quotes, position sync' },
             { name: 'SCHWAB', status: 'COMING SOON', desc: 'Charles Schwab Trader API integration — full trading, balances, and position sync' },

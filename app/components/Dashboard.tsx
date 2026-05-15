@@ -256,7 +256,7 @@ export default function Dashboard() {
   const tooltipItemStyle = { color: '#ffffff', fontWeight: 'bold', fontSize: '14px' };
 
   return (
-    <div style={{ padding: '16px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+    <div style={{ padding: '12px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -267,7 +267,7 @@ export default function Dashboard() {
       </div>
 
       {/* Balance tiles */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+      <div className="r-grid-4">
         {[
           { label: 'Net Liquidity', value: balance?.netLiquidity },
           { label: 'Total Equity', value: balance?.totalEquity },
@@ -388,7 +388,7 @@ export default function Dashboard() {
           })()}
 
           {/* Charts */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          <div className="r-grid-2">
             <div style={panelStyle}>
               <div style={sectionHeaderStyle}>COST BASIS vs CURRENT VALUE</div>
               <ResponsiveContainer width="100%" height={220}>
@@ -438,7 +438,7 @@ export default function Dashboard() {
         {positions.length === 0 ? (
           <p style={{ color: B.label, fontSize: '12px' }}>NO POSITIONS FOUND</p>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <div className="r-scroll">
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>

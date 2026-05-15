@@ -13,8 +13,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "13F Follower - Track Institutional Holdings",
-  description: "Follow and rebalance your portfolio based on 13F filings",
+  title: "Trove — Trade Like the Smart Money",
+  description: "Follow 13F institutional filings. Build baskets. Track performance.",
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
 };
 
 export default function RootLayout({
