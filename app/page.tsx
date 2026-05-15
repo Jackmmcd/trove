@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -62,8 +62,6 @@ function Step({ n, title, body }: { n: string; title: string; body: string }) {
 }
 
 export default function LandingPage() {
-  redirect('/dashboard');
-
   return (
     <div style={{ minHeight: '100vh', background: '#000', fontFamily: 'Courier New, monospace', color: B.text }}>
 
@@ -73,7 +71,17 @@ export default function LandingPage() {
           <div style={{ background: B.amber, color: '#000', fontWeight: 900, fontSize: '16px', letterSpacing: '3px', padding: '0 14px', height: '44px', display: 'flex', alignItems: 'center' }}>
             TROVE
           </div>
-          <div style={{ color: B.label, fontSize: '10px', letterSpacing: '2px' }}>INSTITUTIONAL-GRADE · RETAIL-ACCESSIBLE</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+            <div style={{ color: B.label, fontSize: '10px', letterSpacing: '2px' }}>INSTITUTIONAL-GRADE · RETAIL-ACCESSIBLE</div>
+            <Link href="/login" style={{
+              background: B.amber, color: '#000',
+              fontWeight: 900, fontSize: '11px', letterSpacing: '2px',
+              padding: '0 16px', height: '28px', display: 'flex', alignItems: 'center',
+              textDecoration: 'none',
+            }}>
+              LOGIN
+            </Link>
+          </div>
         </div>
       </nav>
 
@@ -91,10 +99,19 @@ export default function LandingPage() {
           TRADE LIKE THE<br />
           <span style={{ color: B.amber }}>SMART MONEY</span>
         </h1>
-        <p style={{ color: '#888', fontSize: '16px', lineHeight: 1.8, maxWidth: '600px', margin: '0 auto 48px' }}>
+        <p style={{ color: '#888', fontSize: '16px', lineHeight: 1.8, maxWidth: '600px', margin: '0 auto 32px' }}>
           Follow 13F filings. Build baskets. Rebalance automatically.<br />
           Connected directly to your brokerage.
         </p>
+        <Link href="/login" style={{
+          display: 'inline-block',
+          background: B.amber, color: '#000',
+          fontWeight: 900, fontSize: '13px', letterSpacing: '3px',
+          padding: '14px 40px', textDecoration: 'none',
+          marginBottom: '48px',
+        }}>
+          GET STARTED →
+        </Link>
 
         {/* Stats bar */}
         <div style={{ display: 'flex', justifyContent: 'center', borderTop: `1px solid ${B.border}`, borderBottom: `1px solid ${B.border}`, padding: '32px 0', gap: '0', flexWrap: 'wrap' }}>
