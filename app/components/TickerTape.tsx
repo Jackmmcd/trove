@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 
 interface TapeItem {
   symbol: string;
@@ -9,14 +9,15 @@ interface TapeItem {
   gainLossPct: number;
 }
 
+// Module-level cache — persists across navigations
+let _tapeCache: { items: TapeItem[]; ts: number } | null = null;
+const TAPE_TTL = 60_000; // 1 minute
+
 export default function TickerTape() {
-  const [items, setItems] = useState<TapeItem[]>([]);
-  const fetchedRef = useRef(false);
+  const cached = _tapeCache && Date.now() - _tapeCache.ts < TAPE_TTL ? _tapeCache : null;
+  const [items, setItems] = useState<TapeItem[]>(cached?.items ?? []);
 
   useEffect(() => {
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
-
     async function load() {
       try {
         const posRes = await fetch('/api/tastytrade/positions');
@@ -43,12 +44,13 @@ export default function TickerTape() {
           return { symbol: p.symbol, price, gainLoss, gainLossPct };
         });
 
+        _tapeCache = { items: tape, ts: Date.now() };
         setItems(tape);
       } catch { /* ignore */ }
     }
 
-    load();
-    const interval = setInterval(load, 60000); // refresh every minute
+    if (!cached) load();
+    const interval = setInterval(load, 60_000);
     return () => clearInterval(interval);
   }, []);
 

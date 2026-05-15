@@ -93,17 +93,30 @@ const tdStyle: React.CSSProperties = {
   color: B.text,
 };
 
+// Module-level cache — survives component remounts during navigation
+let _cache: {
+  balance: AccountBalance | null;
+  positions: Position[];
+  portfolioHistory: { date: string; value: number }[];
+  ts: number;
+} | null = null;
+const CACHE_TTL = 3 * 60 * 1000; // 3 minutes
+
 export default function Dashboard() {
   const router = useRouter();
-  const [balance, setBalance] = useState<AccountBalance | null>(null);
-  const [positions, setPositions] = useState<Position[]>([]);
-  const [portfolioHistory, setPortfolioHistory] = useState<{ date: string; value: number }[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cached = _cache && Date.now() - _cache.ts < CACHE_TTL ? _cache : null;
+  const [balance, setBalance] = useState<AccountBalance | null>(cached?.balance ?? null);
+  const [positions, setPositions] = useState<Position[]>(cached?.positions ?? []);
+  const [portfolioHistory, setPortfolioHistory] = useState<{ date: string; value: number }[]>(cached?.portfolioHistory ?? []);
+  const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState<string | null>(null);
   const [requiresAuth, setRequiresAuth] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    if (cached) return; // Fresh cache — skip fetch on revisit
+    fetchData();
+  }, []);
 
   const fetchData = async () => {
     try {
@@ -129,16 +142,17 @@ export default function Dashboard() {
       const balanceData = await balanceRes.json();
       const positionsData = await positionsRes.json();
 
-      if (balanceData.success) setBalance(balanceData.data);
+      const balanceVal: AccountBalance | null = balanceData.success ? balanceData.data : null;
+      if (balanceVal) setBalance(balanceVal);
 
-      const equities = positionsData.success
+      const equities: any[] = positionsData.success
         ? positionsData.data.filter((p: any) => {
             const type = p['instrument-type'] || p.instrumentType || '';
             return type === 'Equity' || type === 'Stock';
           })
         : [];
 
-      const stalePositions = equities.map((p: any) => {
+      const stalePositions: Position[] = equities.map((p: any) => {
         const currentPrice = parseFloat(p['close-price'] || p['mark-price'] || '0');
         const avgOpenPrice = parseFloat(p['average-open-price'] || '0');
         const quantity = parseFloat(p.quantity || '0');
@@ -159,20 +173,27 @@ export default function Dashboard() {
       ]);
       clearTimeout(abortTimer);
 
-      if (portData.success && portData.data?.length > 0) setPortfolioHistory(portData.data);
+      const portHistory: { date: string; value: number }[] =
+        portData.success && portData.data?.length > 0 ? portData.data : [];
+      if (portHistory.length) setPortfolioHistory(portHistory);
 
+      let finalPositions = stalePositions;
       if (symbols) {
         const prices: Record<string, number> = qData.success ? qData.data : {};
         const history: Record<string, { prev1Close: number | null; prev5Close: number | null }> = hData.success ? hData.data : {};
 
-        setPositions(prev => prev.map(p => {
+        finalPositions = stalePositions.map(p => {
           const livePrice = prices[p.symbol] ?? p.currentPrice;
           const hist = history[p.symbol];
           const dailyPnL = hist?.prev1Close ? (livePrice - hist.prev1Close) * p.quantity : null;
           const weeklyPnL = hist?.prev5Close ? (livePrice - hist.prev5Close) * p.quantity : null;
           return { ...p, currentPrice: livePrice, totalValue: livePrice * p.quantity, gainLoss: (livePrice - p.avgOpenPrice) * p.quantity, dailyPnL, weeklyPnL };
-        }));
+        });
+        setPositions(finalPositions);
       }
+
+      // Write to module cache so revisits are instant
+      _cache = { balance: balanceVal, positions: finalPositions, portfolioHistory: portHistory, ts: Date.now() };
     } catch (err: any) {
       setError(err.message);
     } finally {
