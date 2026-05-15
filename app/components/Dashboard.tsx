@@ -111,10 +111,10 @@ export default function Dashboard() {
       setError(null);
       setRequiresAuth(false);
 
-      const [balanceRes, positionsRes, histRes] = await Promise.all([
+      // Phase 1: balance + positions — show dashboard as soon as these resolve
+      const [balanceRes, positionsRes] = await Promise.all([
         fetch('/api/tastytrade/balance'),
         fetch('/api/tastytrade/positions'),
-        fetch('/api/tastytrade/portfolio-history'),
       ]);
 
       if (balanceRes.status === 401 || positionsRes.status === 401) {
@@ -126,56 +126,52 @@ export default function Dashboard() {
 
       if (!balanceRes.ok || !positionsRes.ok) throw new Error('Failed to fetch account data');
 
-      const histData = await histRes.json().catch(() => ({}));
-      if (histData.success && histData.data?.length > 0) setPortfolioHistory(histData.data);
-
       const balanceData = await balanceRes.json();
       const positionsData = await positionsRes.json();
 
       if (balanceData.success) setBalance(balanceData.data);
 
-      if (positionsData.success) {
-        const equities = positionsData.data.filter((p: any) => {
-          const type = p['instrument-type'] || p.instrumentType || '';
-          return type === 'Equity' || type === 'Stock';
-        });
+      const equities = positionsData.success
+        ? positionsData.data.filter((p: any) => {
+            const type = p['instrument-type'] || p.instrumentType || '';
+            return type === 'Equity' || type === 'Stock';
+          })
+        : [];
 
-        // Build positions with stale close price first so UI renders immediately
-        const stalePositions = equities.map((p: any) => {
-          const currentPrice = parseFloat(p['close-price'] || p['mark-price'] || '0');
-          const avgOpenPrice = parseFloat(p['average-open-price'] || '0');
-          const quantity = parseFloat(p.quantity || '0');
-          return { symbol: p.symbol, quantity, avgOpenPrice, currentPrice, totalValue: currentPrice * quantity, gainLoss: (currentPrice - avgOpenPrice) * quantity, dailyPnL: null, weeklyPnL: null };
-        });
-        setPositions(stalePositions);
+      const stalePositions = equities.map((p: any) => {
+        const currentPrice = parseFloat(p['close-price'] || p['mark-price'] || '0');
+        const avgOpenPrice = parseFloat(p['average-open-price'] || '0');
+        const quantity = parseFloat(p.quantity || '0');
+        return { symbol: p.symbol, quantity, avgOpenPrice, currentPrice, totalValue: currentPrice * quantity, gainLoss: (currentPrice - avgOpenPrice) * quantity, dailyPnL: null, weeklyPnL: null };
+      });
+      setPositions(stalePositions);
+      setLoading(false); // Dashboard visible — background fetches below
 
-        if (equities.length > 0) {
-          const symbols = equities.map((p: any) => p.symbol).join(',');
+      // Phase 2: live quotes + history + portfolio chart (all background)
+      const symbols = equities.map((p: any) => p.symbol).join(',');
+      const abort = new AbortController();
+      const abortTimer = setTimeout(() => abort.abort(), 25000);
 
-          // Fetch live quotes + historical closes in parallel
-          const [qData, hData] = await Promise.all([
-            fetch(`/api/tastytrade/quotes?symbols=${encodeURIComponent(symbols)}`).then(r => r.json()).catch(() => ({})),
-            fetch(`/api/tastytrade/history?symbols=${encodeURIComponent(symbols)}`).then(r => r.json()).catch(() => ({})),
-          ]);
+      const [qData, hData, portData] = await Promise.all([
+        symbols ? fetch(`/api/tastytrade/quotes?symbols=${encodeURIComponent(symbols)}`).then(r => r.json()).catch(() => ({})) : Promise.resolve({}),
+        symbols ? fetch(`/api/tastytrade/history?symbols=${encodeURIComponent(symbols)}`, { signal: abort.signal }).then(r => r.json()).catch(() => ({})) : Promise.resolve({}),
+        fetch('/api/tastytrade/portfolio-history', { signal: abort.signal }).then(r => r.json()).catch(() => ({})),
+      ]);
+      clearTimeout(abortTimer);
 
-          const prices: Record<string, number> = qData.success ? qData.data : {};
-          const history: Record<string, { prev1Close: number | null; prev5Close: number | null }> = hData.success ? hData.data : {};
+      if (portData.success && portData.data?.length > 0) setPortfolioHistory(portData.data);
 
-          setPositions(prev => prev.map(p => {
-            const livePrice = prices[p.symbol] ?? p.currentPrice;
-            const hist = history[p.symbol];
-            const dailyPnL = hist?.prev1Close ? (livePrice - hist.prev1Close) * p.quantity : null;
-            const weeklyPnL = hist?.prev5Close ? (livePrice - hist.prev5Close) * p.quantity : null;
-            return {
-              ...p,
-              currentPrice: livePrice,
-              totalValue: livePrice * p.quantity,
-              gainLoss: (livePrice - p.avgOpenPrice) * p.quantity,
-              dailyPnL,
-              weeklyPnL,
-            };
-          }));
-        }
+      if (symbols) {
+        const prices: Record<string, number> = qData.success ? qData.data : {};
+        const history: Record<string, { prev1Close: number | null; prev5Close: number | null }> = hData.success ? hData.data : {};
+
+        setPositions(prev => prev.map(p => {
+          const livePrice = prices[p.symbol] ?? p.currentPrice;
+          const hist = history[p.symbol];
+          const dailyPnL = hist?.prev1Close ? (livePrice - hist.prev1Close) * p.quantity : null;
+          const weeklyPnL = hist?.prev5Close ? (livePrice - hist.prev5Close) * p.quantity : null;
+          return { ...p, currentPrice: livePrice, totalValue: livePrice * p.quantity, gainLoss: (livePrice - p.avgOpenPrice) * p.quantity, dailyPnL, weeklyPnL };
+        }));
       }
     } catch (err: any) {
       setError(err.message);

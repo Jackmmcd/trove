@@ -74,9 +74,14 @@ export async function scoreCompanies(limit = 20): Promise<CompanyRecommendation[
     currentByTicker.set(h.ticker, [...(currentByTicker.get(h.ticker) ?? []), h.fund_id]);
   }
 
+  // Only plain equity tickers: 1-5 uppercase letters, optional dot + 1-2 letters (e.g. BRK.A)
+  // Excludes bond/note descriptions like "BABA 0.5 06/01/31"
+  const equityTicker = /^[A-Z]{1,5}(\.[A-Z]{1,2})?$/;
+
   const recommendations: CompanyRecommendation[] = [];
 
   for (const [ticker, data] of diversification.entries()) {
+    if (!equityTicker.test(ticker)) continue;
     const recentAdditions = (currentByTicker.get(ticker) ?? []).filter(fid => !previousTickerSet.has(`${fid}-${ticker}`)).length;
     const score = (data.fundCount / fundCount) * 100 * 0.4 + data.totalWeight * 0.4 + recentAdditions * 20 * 0.2;
     const reasons: string[] = [];
