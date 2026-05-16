@@ -257,7 +257,7 @@ export default function Dashboard() {
     return (
       <div style={{ margin: '16px', ...panelStyle, border: `1px solid ${B.red}` }}>
         <p style={{ color: B.red }}>ERROR: {error}</p>
-        <button onClick={fetchData} style={{ marginTop: '8px', padding: '6px 16px', background: B.red, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 'bold' }}>
+        <button onClick={() => fetchData()} style={{ marginTop: '8px', padding: '6px 16px', background: B.red, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 'bold' }}>
           RETRY
         </button>
       </div>
