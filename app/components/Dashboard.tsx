@@ -93,34 +93,48 @@ const tdStyle: React.CSSProperties = {
   color: B.text,
 };
 
-// Module-level cache — survives component remounts during navigation
-let _cache: {
+// Module-level cache keyed by user ID — survives remounts, invalidates on account switch
+const _caches = new Map<string, {
   balance: AccountBalance | null;
   positions: Position[];
   portfolioHistory: { date: string; value: number }[];
   isPaper: boolean;
   ts: number;
-} | null = null;
+}>();
 const CACHE_TTL = 3 * 60 * 1000;
 
 export default function Dashboard() {
   const router = useRouter();
-  const cached = _cache && Date.now() - _cache.ts < CACHE_TTL ? _cache : null;
-  const [balance, setBalance] = useState<AccountBalance | null>(cached?.balance ?? null);
-  const [positions, setPositions] = useState<Position[]>(cached?.positions ?? []);
-  const [portfolioHistory, setPortfolioHistory] = useState<{ date: string; value: number }[]>(cached?.portfolioHistory ?? []);
-  const [isPaper, setIsPaper] = useState<boolean>(cached?.isPaper ?? false);
-  const [loading, setLoading] = useState(!cached);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [balance, setBalance] = useState<AccountBalance | null>(null);
+  const [positions, setPositions] = useState<Position[]>([]);
+  const [portfolioHistory, setPortfolioHistory] = useState<{ date: string; value: number }[]>([]);
+  const [isPaper, setIsPaper] = useState<boolean>(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [requiresAuth, setRequiresAuth] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
 
   useEffect(() => {
-    if (cached) return;
-    fetchData();
+    import('@/utils/supabase/client').then(({ createClient }) => {
+      createClient().auth.getUser().then(({ data: { user } }) => {
+        const uid = user?.id ?? 'anonymous';
+        setUserId(uid);
+        const cached = _caches.get(uid);
+        if (cached && Date.now() - cached.ts < CACHE_TTL) {
+          setBalance(cached.balance);
+          setPositions(cached.positions);
+          setPortfolioHistory(cached.portfolioHistory);
+          setIsPaper(cached.isPaper);
+          setLoading(false);
+        } else {
+          fetchData(uid);
+        }
+      });
+    });
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = async (uid = userId ?? 'anonymous') => {
     try {
       setLoading(true);
       setError(null);
@@ -142,7 +156,7 @@ export default function Dashboard() {
         setPositions(paperPositions);
         setLoading(false);
 
-        _cache = { balance: balanceVal, positions: paperPositions, portfolioHistory: [], isPaper: true, ts: Date.now() };
+        _caches.set(uid, { balance: balanceVal, positions: paperPositions, portfolioHistory: [], isPaper: true, ts: Date.now() });
         return;
       }
 
@@ -213,7 +227,7 @@ export default function Dashboard() {
         setPositions(finalPositions);
       }
 
-      _cache = { balance: balanceVal, positions: finalPositions, portfolioHistory: portHistory, isPaper: false, ts: Date.now() };
+      _caches.set(uid, { balance: balanceVal, positions: finalPositions, portfolioHistory: portHistory, isPaper: false, ts: Date.now() });
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -539,7 +553,7 @@ export default function Dashboard() {
           maxSellQuantity={selectedPosition.quantity}
           isPaper={isPaper}
           onClose={() => setSelectedPosition(null)}
-          onSuccess={() => { setSelectedPosition(null); _cache = null; fetchData(); }}
+          onSuccess={() => { setSelectedPosition(null); if (userId) _caches.delete(userId); fetchData(); }}
         />
       )}
     </div>
