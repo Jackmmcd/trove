@@ -31,32 +31,33 @@ export interface SyncResult {
   error?: string;
 }
 
-export async function syncAllFunds(): Promise<SyncResult[]> {
-  const { data: enabledFunds } = await db.from('funds').select('*').eq('enabled', true);
+export async function syncAllFunds(userId: string): Promise<SyncResult[]> {
+  const { data: enabledFunds } = await db.from('funds').select('*').eq('enabled', true).eq('user_id', userId);
   const results: SyncResult[] = [];
   for (const fund of (enabledFunds ?? [])) {
-    results.push(await syncFund(fund.cik));
+    results.push(await syncFund(fund.cik, userId));
   }
   return results;
 }
 
-export async function syncFund(cik: string): Promise<SyncResult> {
+export async function syncFund(cik: string, userId: string): Promise<SyncResult> {
   const secClient = getSECApiClient();
 
-  const { data: fund } = await db.from('funds').select('*').eq('cik', cik).maybeSingle();
+  const { data: fund } = await db.from('funds').select('*').eq('cik', cik).eq('user_id', userId).maybeSingle();
   if (!fund) {
-    return { fundId: '', cik, name: '', success: false, holdingsCount: 0, error: `Fund ${cik} not found in database` };
+    return { fundId: '', cik, name: '', success: false, holdingsCount: 0, error: `Fund ${cik} not found` };
   }
 
   try {
     const holdingsData = await secClient.fetch13FHoldings(cik);
 
-    await db.from('holdings').delete().match({ fund_id: fund.id, quarter: holdingsData.quarter });
+    await db.from('holdings').delete().match({ fund_id: fund.id, quarter: holdingsData.quarter, user_id: userId });
 
     if (holdingsData.holdings.length > 0) {
       await db.from('holdings').insert(
         holdingsData.holdings.map(h => ({
           fund_id: fund.id,
+          user_id: userId,
           ticker: h.ticker,
           shares: h.shares,
           value: h.value,
