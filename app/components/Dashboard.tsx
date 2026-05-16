@@ -98,9 +98,10 @@ let _cache: {
   balance: AccountBalance | null;
   positions: Position[];
   portfolioHistory: { date: string; value: number }[];
+  isPaper: boolean;
   ts: number;
 } | null = null;
-const CACHE_TTL = 3 * 60 * 1000; // 3 minutes
+const CACHE_TTL = 3 * 60 * 1000;
 
 export default function Dashboard() {
   const router = useRouter();
@@ -108,13 +109,14 @@ export default function Dashboard() {
   const [balance, setBalance] = useState<AccountBalance | null>(cached?.balance ?? null);
   const [positions, setPositions] = useState<Position[]>(cached?.positions ?? []);
   const [portfolioHistory, setPortfolioHistory] = useState<{ date: string; value: number }[]>(cached?.portfolioHistory ?? []);
+  const [isPaper, setIsPaper] = useState<boolean>(cached?.isPaper ?? false);
   const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState<string | null>(null);
   const [requiresAuth, setRequiresAuth] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
 
   useEffect(() => {
-    if (cached) return; // Fresh cache — skip fetch on revisit
+    if (cached) return;
     fetchData();
   }, []);
 
@@ -124,7 +126,27 @@ export default function Dashboard() {
       setError(null);
       setRequiresAuth(false);
 
-      // Phase 1: balance + positions — show dashboard as soon as these resolve
+      // Check if this user has a paper account first
+      const paperBalanceRes = await fetch('/api/paper/balance');
+
+      if (paperBalanceRes.ok) {
+        // ── Paper trading path ────────────────────────────────────────
+        const paperBalance = await paperBalanceRes.json();
+        const balanceVal: AccountBalance = paperBalance.data;
+        setBalance(balanceVal);
+        setIsPaper(true);
+
+        const posRes = await fetch('/api/paper/positions');
+        const posData = await posRes.json();
+        const paperPositions: Position[] = posData.success ? posData.data : [];
+        setPositions(paperPositions);
+        setLoading(false);
+
+        _cache = { balance: balanceVal, positions: paperPositions, portfolioHistory: [], isPaper: true, ts: Date.now() };
+        return;
+      }
+
+      // ── Live Tastytrade path ──────────────────────────────────────
       const [balanceRes, positionsRes] = await Promise.all([
         fetch('/api/tastytrade/balance'),
         fetch('/api/tastytrade/positions'),
@@ -159,9 +181,9 @@ export default function Dashboard() {
         return { symbol: p.symbol, quantity, avgOpenPrice, currentPrice, totalValue: currentPrice * quantity, gainLoss: (currentPrice - avgOpenPrice) * quantity, dailyPnL: null, weeklyPnL: null };
       });
       setPositions(stalePositions);
-      setLoading(false); // Dashboard visible — background fetches below
+      setIsPaper(false);
+      setLoading(false);
 
-      // Phase 2: live quotes + history + portfolio chart (all background)
       const symbols = equities.map((p: any) => p.symbol).join(',');
       const abort = new AbortController();
       const abortTimer = setTimeout(() => abort.abort(), 25000);
@@ -181,7 +203,6 @@ export default function Dashboard() {
       if (symbols) {
         const prices: Record<string, number> = qData.success ? qData.data : {};
         const history: Record<string, { prev1Close: number | null; prev5Close: number | null }> = hData.success ? hData.data : {};
-
         finalPositions = stalePositions.map(p => {
           const livePrice = prices[p.symbol] ?? p.currentPrice;
           const hist = history[p.symbol];
@@ -192,8 +213,7 @@ export default function Dashboard() {
         setPositions(finalPositions);
       }
 
-      // Write to module cache so revisits are instant
-      _cache = { balance: balanceVal, positions: finalPositions, portfolioHistory: portHistory, ts: Date.now() };
+      _cache = { balance: balanceVal, positions: finalPositions, portfolioHistory: portHistory, isPaper: false, ts: Date.now() };
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -260,8 +280,19 @@ export default function Dashboard() {
 
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ color: B.amber, fontSize: '14px', fontWeight: 'bold', letterSpacing: '3px' }}>
-          ACCOUNT OVERVIEW
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ color: B.amber, fontSize: '14px', fontWeight: 'bold', letterSpacing: '3px' }}>
+            ACCOUNT OVERVIEW
+          </div>
+          {isPaper && (
+            <div style={{
+              background: '#002200', border: '1px solid #00ff41', color: '#00ff41',
+              fontSize: '9px', fontWeight: 'bold', letterSpacing: '2px',
+              padding: '2px 8px',
+            }}>
+              PAPER TRADING
+            </div>
+          )}
         </div>
         <LoginButton />
       </div>
@@ -506,8 +537,9 @@ export default function Dashboard() {
           symbol={selectedPosition.symbol}
           currentPrice={selectedPosition.currentPrice}
           maxSellQuantity={selectedPosition.quantity}
+          isPaper={isPaper}
           onClose={() => setSelectedPosition(null)}
-          onSuccess={() => { setSelectedPosition(null); fetchData(); }}
+          onSuccess={() => { setSelectedPosition(null); _cache = null; fetchData(); }}
         />
       )}
     </div>

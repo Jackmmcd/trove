@@ -7,6 +7,7 @@ interface TradeModalProps {
   currentPrice: number;
   maxSellQuantity: number;
   initialTab?: 'buy' | 'sell';
+  isPaper?: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -20,7 +21,7 @@ const B = {
   cyan: '#00e5ff', label: '#888', text: '#e0e0e0',
 };
 
-export default function TradeModal({ symbol, currentPrice, maxSellQuantity, initialTab = 'buy', onClose, onSuccess }: TradeModalProps) {
+export default function TradeModal({ symbol, currentPrice, maxSellQuantity, initialTab = 'buy', isPaper = false, onClose, onSuccess }: TradeModalProps) {
   const [tab, setTab] = useState<Tab>(initialTab);
   const [quantity, setQuantity] = useState<string>('1');
   const [step, setStep] = useState<Step>('input');
@@ -55,14 +56,15 @@ export default function TradeModal({ symbol, currentPrice, maxSellQuantity, init
   async function handleConfirm() {
     setSubmitting(true); setError(null);
     try {
-      const response = await fetch('/api/tastytrade/orders', {
+      const endpoint = isPaper ? '/api/paper/order' : '/api/tastytrade/orders';
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol, quantity: qty, action: tab }),
       });
       const data = await response.json();
       if (!response.ok || !data.success) throw new Error(data.error || 'Order failed');
-      setSuccessMsg(`ORDER SUBMITTED: ${tab.toUpperCase()} ${qty} ${symbol}`);
+      setSuccessMsg(`${isPaper ? '[PAPER] ' : ''}ORDER SUBMITTED: ${tab.toUpperCase()} ${qty} ${symbol}`);
     } catch (err: any) {
       setError(err.message.toUpperCase());
       setStep('input');
@@ -123,7 +125,7 @@ export default function TradeModal({ symbol, currentPrice, maxSellQuantity, init
     <div style={overlayStyle}>
       <div style={modalStyle}>
         <div style={headerStyle}>
-          <span>TRADE {symbol}</span>
+          <span>{isPaper ? '📄 PAPER TRADE ' : 'TRADE '}{symbol}</span>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#000', cursor: 'pointer', fontSize: '18px', lineHeight: 1 }}>×</button>
         </div>
 
@@ -191,12 +193,13 @@ export default function TradeModal({ symbol, currentPrice, maxSellQuantity, init
                 EST. ${estimatedValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
-            <p style={{ color: B.label, fontSize: '10px', letterSpacing: '0.5px', marginBottom: '4px', textAlign: 'center' }}>
-              MARKET ORDERS EXECUTE AT BEST AVAILABLE PRICE
+            <p style={{ color: isPaper ? '#00ff41' : B.label, fontSize: '10px', letterSpacing: '0.5px', marginBottom: '4px', textAlign: 'center' }}>
+              {isPaper ? 'PAPER TRADE — NO REAL MONEY' : 'MARKET ORDERS EXECUTE AT BEST AVAILABLE PRICE'}
             </p>
             <p style={{ color: '#444', fontSize: '9px', letterSpacing: '0.5px', marginBottom: '12px', textAlign: 'center', lineHeight: 1.6 }}>
-              ORDERS ARE ROUTED THROUGH YOUR CONNECTED BROKER. TROVE IS NOT A BROKER-DEALER.
-              TRADING INVOLVES RISK OF LOSS. THIS IS NOT INVESTMENT ADVICE.
+              {isPaper
+                ? 'SIMULATED ORDER. EXECUTES AT CURRENT MARKET PRICE AGAINST YOUR VIRTUAL $10,000 ACCOUNT.'
+                : 'ORDERS ARE ROUTED THROUGH YOUR CONNECTED BROKER. TROVE IS NOT A BROKER-DEALER. TRADING INVOLVES RISK OF LOSS.'}
             </p>
             {error && <p style={{ color: B.red, fontSize: '11px', marginBottom: '8px' }}>{error}</p>}
             <div style={{ display: 'flex', gap: '8px' }}>
