@@ -48,6 +48,7 @@ export default function FundList() {
   const router = useRouter();
   const [funds, setFunds] = useState<Fund[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isPaper, setIsPaper] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncingCik, setSyncingCik] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -67,7 +68,11 @@ export default function FundList() {
   const [lookingUp, setLookingUp] = useState(false);
   const [adding, setAdding] = useState(false);
 
-  useEffect(() => { fetchFunds(); }, []);
+  useEffect(() => {
+    fetchFunds();
+    // Detect paper account
+    fetch('/api/paper/balance').then(r => { if (r.ok) setIsPaper(true); }).catch(() => {});
+  }, []);
 
   function toast(message: string, type: 'success' | 'error' = 'success') {
     const id = ++toastId;
@@ -191,14 +196,23 @@ export default function FundList() {
 
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ color: B.amber, fontSize: '14px', fontWeight: 'bold', letterSpacing: '3px' }}>FOLLOWED FUNDS</div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={() => setShowAddForm(v => !v)} style={btnAmber}>+ ADD FUND</button>
-          <button onClick={syncAll} disabled={syncing || funds.filter(f => f.enabled).length === 0}
-            style={{ ...btnGhost, color: syncing ? B.label : B.cyan, borderColor: syncing ? B.border : '#004a5a', opacity: (syncing || funds.filter(f => f.enabled).length === 0) ? 0.5 : 1 }}>
-            {syncing ? 'SYNCING...' : 'SYNC ALL'}
-          </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ color: B.amber, fontSize: '14px', fontWeight: 'bold', letterSpacing: '3px' }}>FOLLOWED FUNDS</div>
+          {isPaper && (
+            <div style={{ background: '#002200', border: '1px solid #00ff41', color: '#00ff41', fontSize: '9px', fontWeight: 'bold', letterSpacing: '2px', padding: '2px 8px' }}>
+              PAPER TRADING
+            </div>
+          )}
         </div>
+        {!isPaper && (
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={() => setShowAddForm(v => !v)} style={btnAmber}>+ ADD FUND</button>
+            <button onClick={syncAll} disabled={syncing || funds.filter(f => f.enabled).length === 0}
+              style={{ ...btnGhost, color: syncing ? B.label : B.cyan, borderColor: syncing ? B.border : '#004a5a', opacity: (syncing || funds.filter(f => f.enabled).length === 0) ? 0.5 : 1 }}>
+              {syncing ? 'SYNCING...' : 'SYNC ALL'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Add Fund Form */}
@@ -258,14 +272,16 @@ export default function FundList() {
                     <span style={{ fontSize: '10px', letterSpacing: '1px', padding: '2px 8px', border: `1px solid ${fund.enabled ? '#004400' : B.border}`, color: fund.enabled ? B.green : B.label }}>
                       {fund.enabled ? 'ACTIVE' : 'DISABLED'}
                     </span>
-                    <button onClick={() => toggleEnabled(fund.cik, fund.name, fund.enabled)} style={btnGhost}>
-                      {fund.enabled ? 'DISABLE' : 'ENABLE'}
-                    </button>
-                    <button onClick={() => syncOne(fund.cik, fund.name)} disabled={isSyncingThis}
-                      style={{ ...btnGhost, color: B.cyan, borderColor: '#004a5a', opacity: isSyncingThis ? 0.5 : 1 }}>
-                      {isSyncingThis ? 'SYNCING...' : 'SYNC'}
-                    </button>
-                    <button onClick={() => deleteFund(fund.cik, fund.name)} style={btnRed}>REMOVE</button>
+                    {!isPaper && <>
+                      <button onClick={() => toggleEnabled(fund.cik, fund.name, fund.enabled)} style={btnGhost}>
+                        {fund.enabled ? 'DISABLE' : 'ENABLE'}
+                      </button>
+                      <button onClick={() => syncOne(fund.cik, fund.name)} disabled={isSyncingThis}
+                        style={{ ...btnGhost, color: B.cyan, borderColor: '#004a5a', opacity: isSyncingThis ? 0.5 : 1 }}>
+                        {isSyncingThis ? 'SYNCING...' : 'SYNC'}
+                      </button>
+                      <button onClick={() => deleteFund(fund.cik, fund.name)} style={btnRed}>REMOVE</button>
+                    </>}
                   </div>
                 </div>
 
@@ -390,11 +406,13 @@ export default function FundList() {
 
       {tradeTarget && (
         <TradeModal symbol={tradeTarget.symbol} currentPrice={tradeTarget.price} maxSellQuantity={0}
+          isPaper={isPaper}
           onClose={() => setTradeTarget(null)} onSuccess={() => setTradeTarget(null)} />
       )}
 
       {basketFund && (
         <BasketModal fundId={basketFund.fund.id} fundName={basketFund.fund.name} holdings={basketFund.selected}
+          isPaper={isPaper}
           onClose={() => setBasketFund(null)} />
       )}
     </div>

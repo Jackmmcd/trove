@@ -23,6 +23,7 @@ interface BasketModalProps {
   fundId?: string;
   fundName: string;
   holdings: Holding[];
+  isPaper?: boolean;
   onClose: () => void;
 }
 
@@ -33,7 +34,7 @@ const B = {
   label: '#888', text: '#e0e0e0',
 };
 
-export default function BasketModal({ fundId, fundName, holdings, onClose }: BasketModalProps) {
+export default function BasketModal({ fundId, fundName, holdings, isPaper = false, onClose }: BasketModalProps) {
   const [budget, setBudget] = useState('1000');
   const [fractional, setFractional] = useState(false);
   const [lines, setLines] = useState<BasketLine[]>([]);
@@ -87,10 +88,12 @@ export default function BasketModal({ fundId, fundName, holdings, onClose }: Bas
     setStep('placing');
     let placed = 0, errors = 0;
     const finalOrders: Array<{ ticker: string; shares: number; price: number; status: string }> = [];
+    const endpoint = isPaper ? '/api/paper/order' : '/api/tastytrade/orders';
+
     for (const line of lines.filter(l => l.sharesToBuy > 0)) {
       setLines(prev => prev.map(l => l.ticker === line.ticker ? { ...l, status: 'placing' } : l));
       try {
-        const res = await fetch('/api/tastytrade/orders', {
+        const res = await fetch(endpoint, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ symbol: line.ticker, quantity: line.sharesToBuy, action: 'buy' }),
         });
@@ -112,7 +115,7 @@ export default function BasketModal({ fundId, fundName, holdings, onClose }: Bas
       fetch('/api/baskets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fundId, fundName, budget: budgetNum, orders: finalOrders }),
+        body: JSON.stringify({ fundId, fundName, budget: budgetNum, orders: finalOrders, isPaper }),
       }).catch(() => {});
     }
   }
@@ -131,7 +134,7 @@ export default function BasketModal({ fundId, fundName, holdings, onClose }: Bas
     <div style={overlayStyle}>
       <div style={modalStyle}>
         <div style={headerStyle}>
-          <span>BUY BASKET — {fundName.toUpperCase()}</span>
+          <span>{isPaper ? '📄 PAPER ' : ''}BUY BASKET — {fundName.toUpperCase()}</span>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#000', cursor: 'pointer', fontSize: '18px', lineHeight: 1, fontFamily: 'inherit' }}>×</button>
         </div>
 

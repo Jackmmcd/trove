@@ -1,5 +1,14 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { createClient } from '@/utils/supabase/server';
 import { db } from '@/lib/supabase/admin';
+
+async function getUser() {
+  const cookieStore = await cookies();
+  const supabase = createClient(cookieStore);
+  const { data: { user } } = await supabase.auth.getUser();
+  return user;
+}
 
 function toBasket(r: any) {
   return {
@@ -9,12 +18,16 @@ function toBasket(r: any) {
     budget: r.budget,
     placedAt: r.placed_at,
     orders: r.orders,
+    isPaper: r.is_paper ?? false,
   };
 }
 
 export async function POST(request: Request) {
   try {
-    const { fundId, fundName, budget, orders } = await request.json();
+    const user = await getUser();
+    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+
+    const { fundId, fundName, budget, orders, isPaper } = await request.json();
     if (!fundId || !fundName || !budget || !orders) {
       return NextResponse.json({ success: false, error: 'Missing fields' }, { status: 400 });
     }
@@ -23,6 +36,8 @@ export async function POST(request: Request) {
       fund_name: fundName,
       budget,
       orders,
+      user_id: user.id,
+      is_paper: isPaper ?? false,
     }).select().single();
     if (error) throw new Error(error.message);
     return NextResponse.json({ success: true, data: toBasket(data) });
@@ -33,7 +48,14 @@ export async function POST(request: Request) {
 
 export async function GET() {
   try {
-    const { data, error } = await db.from('basket_purchases').select('*').order('placed_at', { ascending: false });
+    const user = await getUser();
+    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+
+    const { data, error } = await db
+      .from('basket_purchases')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('placed_at', { ascending: false });
     if (error) throw new Error(error.message);
     return NextResponse.json({ success: true, data: (data ?? []).map(toBasket) });
   } catch (error: any) {
