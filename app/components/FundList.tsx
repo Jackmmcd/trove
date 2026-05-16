@@ -204,15 +204,15 @@ export default function FundList() {
             </div>
           )}
         </div>
-        {!isPaper && (
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={() => setShowAddForm(v => !v)} style={btnAmber}>+ ADD FUND</button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={() => setShowAddForm(v => !v)} style={btnAmber}>+ ADD FUND</button>
+          {!isPaper && (
             <button onClick={syncAll} disabled={syncing || funds.filter(f => f.enabled).length === 0}
               style={{ ...btnGhost, color: syncing ? B.label : B.cyan, borderColor: syncing ? B.border : '#004a5a', opacity: (syncing || funds.filter(f => f.enabled).length === 0) ? 0.5 : 1 }}>
               {syncing ? 'SYNCING...' : 'SYNC ALL'}
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Add Fund Form */}
