@@ -60,13 +60,26 @@ export async function POST(request: Request) {
     if (!cik || !name) {
       return NextResponse.json({ success: false, error: 'CIK and name are required' }, { status: 400 });
     }
+    const paddedCik = cik.padStart(10, '0');
+
+    // Check for duplicate before hitting the DB constraint
+    const { data: existing } = await db.from('funds').select('id').eq('cik', paddedCik).eq('user_id', user.id).maybeSingle();
+    if (existing) {
+      return NextResponse.json({ success: false, error: 'You are already following this fund' }, { status: 409 });
+    }
+
     const { data: fund, error } = await db.from('funds').insert({
-      cik: cik.padStart(10, '0'),
+      cik: paddedCik,
       name,
       enabled,
       user_id: user.id,
     }).select().single();
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (error.message.includes('unique constraint') || error.message.includes('duplicate key')) {
+        return NextResponse.json({ success: false, error: 'You are already following this fund' }, { status: 409 });
+      }
+      throw new Error(error.message);
+    }
     return NextResponse.json({ success: true, data: fund });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
