@@ -29,21 +29,27 @@ export async function GET(_req: Request, { params }: { params: Promise<{ ticker:
     if (token) {
       const client = getTastytradeClient(token);
       const prices = await client.getQuotes([sym]);
-      ttPrice = prices[sym] ?? null;
+      ttPrice = prices[sym] > 0 ? prices[sym] : null;
     }
   } catch { /* ok */ }
 
-  // Prefer Tastytrade live price, then Polygon snapshot (lastTrade or day close)
-  const snapshotPrice = snapshot?.lastTrade?.p ?? snapshot?.day?.c ?? null;
-  const price = ttPrice ?? snapshotPrice;
-
-  // Previous close from snapshot (prevDay) — authoritative and independent of current price
+  // Previous close from snapshot (prevDay) — computed before price so we can use lastClose as fallback
   const todayStr = new Date().toISOString().slice(0, 10);
   const completedCandles = candles1Y.filter(c => new Date(c.t).toISOString().slice(0, 10) < todayStr && c.c > 0);
   const lastClose = completedCandles.length > 0 ? completedCandles[completedCandles.length - 1].c : null;
-  const prevClose = snapshot?.prevDay?.c ?? lastClose;
+  const prevDayC = snapshot?.prevDay?.c;
+  const prevClose = (prevDayC != null && prevDayC > 0 ? prevDayC : null) ?? lastClose;
+
+  // Prefer Tastytrade live price, then Polygon snapshot (lastTrade or day close), then last candle close
+  // Treat 0 as invalid — Polygon returns 0 for delisted / no-trade-today stocks
+  const ltP = snapshot?.lastTrade?.p;
+  const dayC = snapshot?.day?.c;
+  const snapshotPrice = (ltP != null && ltP > 0 ? ltP : null)
+                      ?? (dayC != null && dayC > 0 ? dayC : null);
+  const price = ttPrice ?? snapshotPrice ?? lastClose;
 
   const change = price !== null && prevClose ? price - prevClose : null;
+  // When price === prevClose (fell back to lastClose for both), show 0 change rather than null
   const changePct = change !== null && prevClose ? change / prevClose : null;
 
   // Period performance
