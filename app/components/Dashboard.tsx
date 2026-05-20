@@ -134,6 +134,18 @@ export default function Dashboard() {
     });
   }, []);
 
+  // Refetch when tab becomes visible — catches trades made on other pages
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && userId) {
+        _caches.delete(userId);
+        fetchData(userId);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [userId]);
+
   const fetchData = async (uid = userId ?? 'anonymous') => {
     try {
       setLoading(true);
@@ -156,7 +168,8 @@ export default function Dashboard() {
         setPositions(paperPositions);
         setLoading(false);
 
-        _caches.set(uid, { balance: balanceVal, positions: paperPositions, portfolioHistory: [], isPaper: true, ts: Date.now() });
+        // Don't cache paper positions — always fetch fresh so trades from other pages show immediately
+        _caches.delete(uid);
         return;
       }
 
