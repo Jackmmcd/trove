@@ -160,6 +160,7 @@ export default function StockPage() {
   const [digest, setDigest] = useState<string | null>(null);
   const [digestLoading, setDigestLoading] = useState(false);
   const [heldShares, setHeldShares] = useState<number>(0);
+  const [isPaper, setIsPaper] = useState(false);
   const [tradeModal, setTradeModal] = useState<'buy' | 'sell' | null>(null);
   const [candles, setCandles] = useState<Candle[]>([]);
   const [candlesLoading, setCandlesLoading] = useState(false);
@@ -206,13 +207,24 @@ export default function StockPage() {
       .catch(() => setError('Network error'))
       .finally(() => setLoading(false));
 
-    // Check if ticker is held in portfolio
-    fetch('/api/tastytrade/positions')
-      .then(r => r.json())
-      .then(d => {
-        if (d.success) {
-          const pos = d.data.find((p: any) => p.symbol === ticker);
-          setHeldShares(pos ? parseFloat(pos.quantity || '0') : 0);
+    // Detect paper account, then check the right positions source
+    fetch('/api/paper/balance')
+      .then(r => {
+        if (r.ok) {
+          setIsPaper(true);
+          return fetch('/api/paper/positions').then(r2 => r2.json()).then(d => {
+            if (d.success) {
+              const pos = d.data.find((p: any) => p.symbol === ticker);
+              setHeldShares(pos ? Number(pos.quantity || 0) : 0);
+            }
+          });
+        } else {
+          return fetch('/api/tastytrade/positions').then(r2 => r2.json()).then(d => {
+            if (d.success) {
+              const pos = d.data.find((p: any) => p.symbol === ticker);
+              setHeldShares(pos ? parseFloat(pos.quantity || '0') : 0);
+            }
+          });
         }
       })
       .catch(() => {});
@@ -313,11 +325,12 @@ export default function StockPage() {
           currentPrice={data.currentPrice ?? 0}
           maxSellQuantity={heldShares}
           initialTab={tradeModal}
+          isPaper={isPaper}
           onClose={() => setTradeModal(null)}
           onSuccess={() => {
             setTradeModal(null);
-            // Re-check held shares after trade
-            fetch('/api/tastytrade/positions').then(r => r.json()).then(d => {
+            const posUrl = isPaper ? '/api/paper/positions' : '/api/tastytrade/positions';
+            fetch(posUrl).then(r => r.json()).then(d => {
               if (d.success) {
                 const pos = d.data.find((p: any) => p.symbol === ticker);
                 setHeldShares(pos ? parseFloat(pos.quantity || '0') : 0);
