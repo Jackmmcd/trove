@@ -31,11 +31,13 @@ export interface SyncResult {
   error?: string;
 }
 
-export async function syncAllFunds(userId: string): Promise<SyncResult[]> {
-  const { data: enabledFunds } = await db.from('funds').select('*').eq('enabled', true).eq('user_id', userId);
+export async function syncAllFunds(userId?: string): Promise<SyncResult[]> {
+  let query = db.from('funds').select('*').eq('enabled', true);
+  if (userId) query = query.eq('user_id', userId);
+  const { data: enabledFunds } = await query;
   const results: SyncResult[] = [];
   for (const fund of (enabledFunds ?? [])) {
-    results.push(await syncFund(fund.cik, userId));
+    results.push(await syncFund(fund.cik, fund.user_id ?? userId ?? ''));
   }
   return results;
 }

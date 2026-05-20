@@ -4,6 +4,8 @@ import { createClient } from '@/utils/supabase/server';
 import { db } from '@/lib/supabase/admin';
 import { syncAllFunds } from '@/lib/services/fund-sync';
 
+export const dynamic = 'force-dynamic';
+
 async function getUser() {
   const cookieStore = await cookies();
   const supabase = createClient(cookieStore);
