@@ -110,7 +110,7 @@ export default function LandingPage() {
           padding: '14px 40px', textDecoration: 'none',
           marginBottom: '48px',
         }}>
-          GET STARTED →
+          LOGIN →
         </Link>
 
         {/* Stats bar */}
