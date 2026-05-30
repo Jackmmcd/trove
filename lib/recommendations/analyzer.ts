@@ -11,12 +11,16 @@ export interface CompanyRecommendation {
   reasons: string[];
 }
 
-// Known bond/fixed-income ETFs and money-market instruments to exclude
+// Non-equity products to exclude: bond ETFs, commodity ETFs, crypto ETFs, money-market funds
 const BOND_ETF_EXCLUSIONS = new Set([
+  // Bond / fixed income
   'SHY','IEF','TLT','GOVT','BND','AGG','LQD','HYG','JNK','VCSH','VCIT','VGSH','VGIT','VGLT',
   'MUB','TIP','VTIP','SCHZ','SCHO','SCHR','SCHB','BNDX','EMB','IGIB','IGSB','USHY',
-  'FLOT','NEAR','BSV','BIV','BLV','BSCO','BSCP','BSCQ','GSY','MINT','SHV','ICSH',
-  'JPST','PIMIX','PONAX','GLD','IAU','SLV','PDBC','DJP', 'SGOL',
+  'FLOT','NEAR','BSV','BIV','BLV','BSCO','BSCP','BSCQ','GSY','MINT','SHV','ICSH','JPST',
+  // Commodity ETFs (gold, silver, oil, diversified)
+  'GLD','IAU','SLV','PDBC','DJP','SGOL','GLDM','BAR','SIVR','GDX','GDXJ','USO','UNG',
+  // Crypto ETFs / trusts
+  'IBIT','FBTC','GBTC','BITO','ETHE','ETHW','ARKB','BTCO','HODL','EZBC','DEFI',
 ]);
 
 async function getLatestQuarter(userId: string): Promise<string> {
@@ -99,6 +103,8 @@ export async function scoreCompanies(userId: string, limit = 20): Promise<Compan
   for (const [ticker, data] of diversification.entries()) {
     if (!equityTicker.test(ticker)) continue;
     if (BOND_ETF_EXCLUSIONS.has(ticker)) continue;
+    // Filter out noise: positions too small to be meaningful conviction signals
+    if (data.totalWeight < 0.25) continue;
 
     // Only count as "newly added" for funds that had previous-quarter data — avoids inflating
     // scores for all holdings when a fund is freshly imported with no historical baseline.
@@ -106,7 +112,11 @@ export async function scoreCompanies(userId: string, limit = 20): Promise<Compan
       fid => fundsWithPreviousData.has(fid) && !previousTickerSet.has(`${fid}-${ticker}`)
     ).length;
 
-    const score = (data.fundCount / fundCount) * 100 * 0.4 + data.totalWeight * 0.4 + recentAdditions * 20 * 0.2;
+    // Score: breadth × weight prevents tiny positions riding fund-count term into top rankings.
+    // breadth (0–1) × totalWeight gives a number proportional to real conviction.
+    const breadth = data.fundCount / fundCount;
+    const score = breadth * data.totalWeight * 0.6 + recentAdditions * 5 * 0.4;
+
     const reasons: string[] = [];
     if (data.fundCount >= fundCount * 0.5) reasons.push(`Held by ${data.fundCount} of ${fundCount} funds`);
     if (data.totalWeight > 5) reasons.push(`High aggregate weight (${data.totalWeight.toFixed(2)}%)`);
