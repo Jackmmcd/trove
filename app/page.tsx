@@ -160,6 +160,75 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Narrative — Why Now */}
+      <section style={{ maxWidth: '1100px', margin: '0 auto', padding: '72px 24px' }}>
+        <div style={{ color: B.amber, fontSize: '11px', letterSpacing: '4px', fontWeight: 'bold', marginBottom: '40px' }}>WHY THIS MATTERS NOW</div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px', alignItems: 'start' }} className="landing-2col">
+          <div>
+            <h2 style={{ fontSize: '26px', fontWeight: 900, lineHeight: 1.4, margin: '0 0 24px', letterSpacing: '1px' }}>
+              The biggest capital reallocation in a generation is happening <span style={{ color: B.amber }}>right now.</span>
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {[
+                {
+                  heading: 'AI is rewriting every sector.',
+                  body: 'Trillion-dollar funds are repositioning their entire books around the AI infrastructure buildout — semiconductors, data centers, power grids, software. The 13F filings from Q1 2025 are the first clear signal of where the conviction is concentrated.',
+                },
+                {
+                  heading: 'Rates are shifting. Portfolios are rotating.',
+                  body: 'As the rate cycle turns, the funds that built models for a decade of zero rates are rebuilding from scratch. Watching what they\'re buying into — and selling out of — is the closest thing to a real-time macro map you can get from public data.',
+                },
+                {
+                  heading: 'Geopolitical fragmentation is creating winners and losers.',
+                  body: 'Defense, domestic manufacturing, energy independence. Institutions have research teams of hundreds tracking these themes. Their 13F positions are the output of that research — available to anyone willing to read them.',
+                },
+              ].map(({ heading, body }) => (
+                <div key={heading} style={{ borderLeft: `2px solid ${B.amber}`, paddingLeft: '20px' }}>
+                  <div style={{ color: B.text, fontSize: '13px', fontWeight: 'bold', letterSpacing: '0.5px', marginBottom: '8px' }}>{heading}</div>
+                  <div style={{ color: '#777', fontSize: '13px', lineHeight: 1.8 }}>{body}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ background: '#050505', border: `1px solid ${B.border}`, borderLeft: `3px solid ${B.cyan}`, padding: '24px' }}>
+              <div style={{ color: B.cyan, fontSize: '10px', letterSpacing: '3px', marginBottom: '12px' }}>THE EDGE</div>
+              <p style={{ color: '#bbb', fontSize: '14px', lineHeight: 1.9, margin: 0 }}>
+                Renaissance Technologies employs 300+ mathematicians and scientists. Bridgewater runs macro models that have been refined for 40 years. Coatue has a dedicated technology research team tracking every public software company.
+              </p>
+              <p style={{ color: '#777', fontSize: '13px', lineHeight: 1.9, margin: '16px 0 0' }}>
+                Every quarter, they are legally required to show you exactly what they own. Most people scroll past the SEC filing. Trove puts it in a format you can act on in under 60 seconds.
+              </p>
+            </div>
+
+            <div style={{ background: '#050505', border: `1px solid ${B.border}`, borderLeft: `3px solid ${B.green}`, padding: '24px' }}>
+              <div style={{ color: B.green, fontSize: '10px', letterSpacing: '3px', marginBottom: '12px' }}>THE SIGNAL</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {[
+                  ['Funds simultaneously building a position', 'Rare — and historically predictive'],
+                  ['Concentration increasing quarter-over-quarter', 'Conviction deepening, not diversifying'],
+                  ['New position opened across 3+ top funds', 'Follow the clustering, not the hype'],
+                ].map(([signal, meaning]) => (
+                  <div key={signal} style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', paddingBottom: '10px', borderBottom: '1px solid #111' }}>
+                    <div style={{ color: '#aaa', fontSize: '11px', lineHeight: 1.6 }}>{signal}</div>
+                    <div style={{ color: B.green, fontSize: '10px', letterSpacing: '0.5px', textAlign: 'right', flexShrink: 0, paddingTop: '2px' }}>{meaning}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ background: '#050505', border: `1px solid ${B.border}`, borderLeft: `3px solid ${B.amberDim}`, padding: '20px 24px' }}>
+              <div style={{ color: B.label, fontSize: '10px', letterSpacing: '2px', marginBottom: '8px' }}>IMPORTANT NOTE</div>
+              <p style={{ color: '#555', fontSize: '11px', lineHeight: 1.8, margin: 0 }}>
+                13F filings reflect holdings as of quarter-end, disclosed up to 45 days later. They are a lagging signal, not a real-time feed. Use them as a lens on conviction — not a trade alert.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Features */}
       <section style={{ maxWidth: '1100px', margin: '0 auto', padding: '64px 24px' }}>
         <div style={{ color: B.amber, fontSize: '11px', letterSpacing: '4px', fontWeight: 'bold', marginBottom: '32px' }}>PLATFORM FEATURES</div>
