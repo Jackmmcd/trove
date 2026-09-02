@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import EdDemo from './components/EdDemo';
+import LandingShell from './components/LandingShell';
 
 export const metadata: Metadata = {
   title: 'Trove — Trade Like the Smart Money',
@@ -64,27 +64,9 @@ function Step({ n, title, body }: { n: string; title: string; body: string }) {
 
 export default function LandingPage() {
   return (
-    <div style={{ minHeight: '100vh', background: '#000', fontFamily: 'Courier New, monospace', color: B.text }}>
+    <LandingShell>
+<div style={{ background: '#000', fontFamily: 'Courier New, monospace', color: B.text }}>
 
-      {/* Nav */}
-      <nav style={{ borderBottom: `1px solid ${B.amber}`, background: '#000' }}>
-        <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 24px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ background: B.amber, color: '#000', fontWeight: 900, fontSize: '16px', letterSpacing: '3px', padding: '0 14px', height: '44px', display: 'flex', alignItems: 'center' }}>
-            TROVE
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-            <div className="nav-links" style={{ color: B.label, fontSize: '10px', letterSpacing: '2px' }}>INSTITUTIONAL-GRADE · RETAIL-ACCESSIBLE</div>
-            <Link href="/login" style={{
-              background: B.amber, color: '#000',
-              fontWeight: 900, fontSize: '11px', letterSpacing: '2px',
-              padding: '0 16px', height: '28px', display: 'flex', alignItems: 'center',
-              textDecoration: 'none',
-            }}>
-              LOGIN
-            </Link>
-          </div>
-        </div>
-      </nav>
 
       {/* Hero */}
       <section style={{ maxWidth: '1100px', margin: '0 auto', padding: '80px 24px 64px', textAlign: 'center' }}>
@@ -113,11 +95,6 @@ export default function LandingPage() {
         }}>
           LOGIN →
         </Link>
-
-        {/* Ed — try it before signing in */}
-        <div style={{ marginBottom: '48px' }}>
-          <EdDemo />
-        </div>
 
         {/* Stats bar */}
         <div className="landing-stats" style={{ display: 'flex', justifyContent: 'center', borderTop: `1px solid ${B.border}`, borderBottom: `1px solid ${B.border}`, padding: '32px 0', gap: '0', flexWrap: 'wrap' }}>
@@ -364,5 +341,6 @@ export default function LandingPage() {
       </footer>
 
     </div>
+    </LandingShell>
   );
 }

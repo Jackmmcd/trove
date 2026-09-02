@@ -3,8 +3,8 @@ import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { db } from '@/lib/supabase/admin';
 import { getActiveDigest } from '@/lib/advisor/corpus';
-import { ED_INSTRUCTIONS } from '@/lib/advisor/system';
-import { ED_TOOLS, runTool } from '@/lib/advisor/tools';
+import { ANALYST_INSTRUCTIONS } from '@/lib/advisor/system';
+import { ANALYST_TOOLS, runTool } from '@/lib/advisor/tools';
 import { getProfile, renderProfileBlock } from '@/lib/advisor/profile';
 import { recordUsage } from '@/lib/advisor/usage';
 
@@ -15,8 +15,8 @@ const MODEL = 'claude-opus-5';
 const MAX_TOOL_ROUNDS = 4;
 
 // Fast mode runs the same model at up to ~2.5x output tokens/sec, at premium
-// pricing ($10/$50 per MTok vs $5/$25). Off unless ED_FAST_MODE=1.
-const FAST = process.env.ED_FAST_MODE === '1';
+// pricing ($10/$50 per MTok vs $5/$25). Off unless ANALYST_FAST_MODE=1.
+const FAST = process.env.ANALYST_FAST_MODE === '1';
 
 /**
  * Most questions are lookups against positions already in context and do not
@@ -132,11 +132,11 @@ export async function POST(req: Request) {
             ...(FAST ? { speed: 'fast' as const, betas: ['fast-mode-2026-02-01'] } : {}),
             thinking: { type: 'adaptive', display: 'summarized' },
             output_config: { effort: effortFor(message) },
-            tools: ED_TOOLS,
+            tools: ANALYST_TOOLS,
             // Cache breakpoint sits on the digest: instructions + digest are the
             // stable prefix, everything in `messages` is per-turn.
             system: [
-              { type: 'text', text: ED_INSTRUCTIONS },
+              { type: 'text', text: ANALYST_INSTRUCTIONS },
               {
                 type: 'text',
                 text: snapshot.digest,
@@ -200,7 +200,7 @@ export async function POST(req: Request) {
           output: finalUsage?.output_tokens ?? 0,
         });
       } catch (e: any) {
-        send('error', { message: e?.message ?? 'Ed hit an error' });
+        send('error', { message: e?.message ?? 'Analyst hit an error' });
       } finally {
         // Settle the fire-and-forget write so a failure surfaces in logs rather
         // than as an unhandled rejection.

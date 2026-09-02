@@ -17,7 +17,7 @@ const DIM = '#666';
 
 /**
  * Minimal inline renderer: **bold**, `code`, and $-prefixed figures.
- * Deliberately not a full markdown parser — Ed is instructed to write prose,
+ * Deliberately not a full markdown parser — Analyst is instructed to write prose,
  * so this only needs to catch emphasis rather than render arbitrary documents.
  */
 function renderInline(
@@ -53,7 +53,7 @@ function renderInline(
  * Turn every recognised symbol into a control that opens the side panel.
  *
  * Matching is gated on `known` — the set of tickers actually reported by a
- * tracked fund. A symbol Ed invented stays plain text, so the reader never gets
+ * tracked fund. A symbol Analyst invented stays plain text, so the reader never gets
  * a clickable affordance implying a position exists.
  */
 function linkifyTickers(
@@ -131,7 +131,7 @@ const STARTERS = [
   'Show me a name with strong consensus that I do not already own.',
 ];
 
-export default function EdChat() {
+export default function AnalystChat() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -233,13 +233,13 @@ export default function EdChat() {
 
       <div style={{ padding: '28px 0 18px', borderBottom: `1px solid #1a1a1a` }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>
-          <h1 style={{ color: AMBER, fontSize: '22px', fontWeight: 900, letterSpacing: '3px', margin: 0 }}>ED</h1>
+          <h1 style={{ color: AMBER, fontSize: '22px', fontWeight: 900, letterSpacing: '3px', margin: 0 }}>ANALYST</h1>
           <span style={{ color: DIM, fontSize: '11px', letterSpacing: '1px' }}>
             13F RESEARCH ASSISTANT{fundCount ? ` · ${fundCount} FUNDS IN CONTEXT` : ''}
           </span>
         </div>
         <p style={{ color: '#888', fontSize: '12.5px', lineHeight: 1.6, margin: '10px 0 0', maxWidth: '62ch' }}>
-          Ed reads every tracked filer&apos;s disclosed positions. It surfaces what to look
+          Analyst reads every tracked filer&apos;s disclosed positions. It surfaces what to look
           into and why — it does not give advice, and 13F data runs up to 45 days behind.
         </p>
       </div>
@@ -268,7 +268,7 @@ export default function EdChat() {
               color: m.role === 'user' ? AMBER : DIM,
               fontSize: '10.5px', letterSpacing: '1.5px', marginBottom: '7px',
             }}>
-              {m.role === 'user' ? 'YOU' : 'ED'}
+              {m.role === 'user' ? 'YOU' : 'ANALYST'}
             </div>
 
             <div style={{
@@ -336,7 +336,7 @@ export default function EdChat() {
               if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input); }
             }}
             rows={1}
-            placeholder="Ask Ed about the funds…"
+            placeholder="Ask Analyst about the funds…"
             disabled={busy}
             style={{
               flex: 1, background: '#0a0a0a', border: '1px solid #2a2a2a',

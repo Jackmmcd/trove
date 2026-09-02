@@ -1,7 +1,7 @@
-import EdChat from '@/app/components/EdChat';
+import AnalystChat from '@/app/components/AnalystChat';
 
-export const metadata = { title: 'Ed · Trove' };
+export const metadata = { title: 'Analyst · Trove' };
 
 export default function AdvisorPage() {
-  return <EdChat />;
+  return <AnalystChat />;
 }

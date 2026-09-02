@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 
 /**
- * Email gate for the public Ed demo on the landing page.
+ * Email gate for the public Analyst demo on the landing page.
  *
  * This is an allowlist, not authentication — anyone who knows an allowed
  * address gets in, and there is no verification that they own it. It exists to
@@ -15,7 +15,7 @@ import jwt from 'jsonwebtoken';
  *    on every call.
  */
 
-const COOKIE = 'ed_demo_access';
+const COOKIE = 'analyst_access';
 const TTL_HOURS = 24;
 
 function secret(): string {
@@ -24,7 +24,7 @@ function secret(): string {
 
 /** Allowlist from env, plus the owner's address as the built-in default. */
 function allowed(): string[] {
-  const fromEnv = (process.env.ED_DEMO_EMAILS ?? '')
+  const fromEnv = (process.env.ANALYST_DEMO_EMAILS ?? '')
     .split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
   return fromEnv.length ? fromEnv : ['mmcd.jack@gmail.com'];
 }

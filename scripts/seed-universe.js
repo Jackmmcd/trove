@@ -25,7 +25,7 @@ const sb = createClient(
 );
 
 // Curated starter universe. Names are pulled from EDGAR at run time — the values
-// here are only for reading the file. entity_type drives how Ed frames a
+// here are only for reading the file. entity_type drives how Analyst frames a
 // filer: a corporate treasury or an endowment is not a hedge fund conviction signal.
 const UNIVERSE = [
   { cik: '0001001085', entity_type: 'asset_manager',   note: 'Alternative asset manager; balance-sheet positions, not a hedge fund book.' },

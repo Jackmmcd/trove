@@ -12,7 +12,7 @@ async function generateThesis(
   const top = holdings.slice(0, 20);
   // Include the issuer name from the filing. Given bare tickers, the model cannot
   // identify recently-listed or thinly-covered names and says so — which then ends
-  // up quoted in Ed's context as "this data looks fictional".
+  // up quoted in Analyst's context as "this data looks fictional".
   const holdingsList = top
     .map((h, i) => `${i + 1}. ${h.name ? `${h.name} (${h.ticker})` : h.ticker} — ${h.weight.toFixed(1)}%`)
     .join('\n');

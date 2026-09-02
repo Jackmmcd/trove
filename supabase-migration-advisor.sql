@@ -1,4 +1,4 @@
--- Ed / global fund universe migration
+-- Analyst / global fund universe migration
 -- Run this in the Supabase SQL editor (Dashboard → SQL Editor), then:
 --   node scripts/seed-universe.js
 --   node scripts/sync-universe.js
@@ -17,7 +17,7 @@ ALTER TABLE funds ADD COLUMN IF NOT EXISTS filer_note  TEXT NOT NULL DEFAULT '';
 ALTER TABLE funds ALTER COLUMN user_id DROP NOT NULL;
 
 COMMENT ON COLUMN funds.entity_type IS
-  'hedge_fund | asset_manager | endowment | sovereign_wealth | corporate — 13F filers are not all hedge funds; Ed must label the difference.';
+  'hedge_fund | asset_manager | endowment | sovereign_wealth | corporate — 13F filers are not all hedge funds; Analyst must label the difference.';
 
 -- One canonical row per CIK in the global universe. Legacy per-user rows are
 -- unaffected by this index because it only covers user_id IS NULL.
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS investor_profiles (
 );
 
 -- ---------------------------------------------------------------------------
--- 5. Ed conversations
+-- 5. Analyst conversations
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS advisor_conversations (
   id         TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,

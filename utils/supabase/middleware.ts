@@ -34,7 +34,7 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith('/api/cron') ||
     pathname.startsWith('/api/advisor/corpus');
 
-  // The Ed demo on the landing page runs before login. It gates itself on the
+  // The Analyst demo on the landing page runs before login. It gates itself on the
   // email allowlist in lib/advisor/access.ts rather than a Supabase session.
   const isPublicDemo =
     pathname.startsWith('/api/advisor/access') ||

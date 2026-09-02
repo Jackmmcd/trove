@@ -10,7 +10,7 @@ import { db } from '@/lib/supabase/admin';
  * do not sort it dynamically, and do not interpolate anything into a description.
  */
 
-export const ED_TOOLS: Anthropic.Beta.BetaTool[] = [
+export const ANALYST_TOOLS: Anthropic.Beta.BetaTool[] = [
   {
     name: 'get_fund_detail',
     description:
@@ -64,7 +64,7 @@ export const ED_TOOLS: Anthropic.Beta.BetaTool[] = [
 ];
 
 // Mirrors app/api/stock/analysis/route.ts so a company reads the same way in
-// Ed as it does on its stock page.
+// Analyst as it does on its stock page.
 const STOCK_ANALYSIS_SYSTEM = `You are a sharp equity analyst. Given a company description, output three things in plain English — no jargon, no filler.
 
 Rules:

@@ -1,7 +1,7 @@
 import { db } from '@/lib/supabase/admin';
 
 /**
- * Daily spend ceiling for Ed.
+ * Daily spend ceiling for Analyst.
  *
  * Designed to cost nothing in latency:
  *  - The check is a single indexed primary-key read, issued *alongside* the
@@ -23,7 +23,7 @@ const IN_PER_TOKEN = 5 / 1e6;
 const OUT_PER_TOKEN = 25 / 1e6;
 
 function capUsd(): number {
-  const raw = Number(process.env.ED_DAILY_USD_CAP);
+  const raw = Number(process.env.ANALYST_DAILY_USD_CAP);
   return Number.isFinite(raw) && raw > 0 ? raw : 25;
 }
 
@@ -64,13 +64,13 @@ export async function checkDailyCap(): Promise<CapStatus> {
 
   try {
     const { data } = await db
-      .from('ed_usage').select('est_cost_usd').eq('day', day).maybeSingle();
+      .from('analyst_usage').select('est_cost_usd').eq('day', day).maybeSingle();
     const spent = data?.est_cost_usd ?? 0;
     cached = { day, spent, at: Date.now() };
     return { allowed: spent < cap, spent, cap };
   } catch {
-    // Never let a ledger outage take Ed down — fail open and log.
-    console.error('ed_usage read failed; allowing turn');
+    // Never let a ledger outage take Analyst down — fail open and log.
+    console.error('analyst_usage read failed; allowing turn');
     return { allowed: true, spent: 0, cap };
   }
 }
@@ -88,7 +88,7 @@ export async function recordUsage(usage: {
   if (!usage) return;
   const cost = estimateCost(usage);
   try {
-    const { data, error } = await db.rpc('ed_record_usage', {
+    const { data, error } = await db.rpc('analyst_record_usage', {
       p_day: today(),
       p_input: usage.input_tokens ?? 0,
       p_output: usage.output_tokens ?? 0,
@@ -96,9 +96,9 @@ export async function recordUsage(usage: {
       p_cache_write: usage.cache_creation_input_tokens ?? 0,
       p_cost: cost,
     });
-    if (error) { console.error('ed_record_usage:', error.message); return; }
+    if (error) { console.error('analyst_record_usage:', error.message); return; }
     if (typeof data === 'number') cached = { day: today(), spent: data, at: Date.now() };
   } catch (e) {
-    console.error('ed_record_usage threw:', e);
+    console.error('analyst_record_usage threw:', e);
   }
 }

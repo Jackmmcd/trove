@@ -18,7 +18,7 @@ CREATE INDEX IF NOT EXISTS idx_holdings_cusip ON holdings(cusip);
 COMMENT ON COLUMN holdings.cusip IS
   'CUSIP as reported in the filing. The authoritative cross-fund join key — ticker is display only.';
 COMMENT ON COLUMN holdings.issuer_name IS
-  'nameOfIssuer as reported. Gives Ed a readable name when the ticker is unresolved.';
+  'nameOfIssuer as reported. Gives Analyst a readable name when the ticker is unresolved.';
 
 -- Cache of CUSIP -> ticker resolutions so a failed OpenFIGI lookup can be
 -- backfilled later instead of re-failing on every sync.

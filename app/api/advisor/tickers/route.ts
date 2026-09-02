@@ -9,9 +9,9 @@ export const dynamic = 'force-dynamic';
 /**
  * Every ticker any tracked fund has ever reported.
  *
- * The chat UI uses this to decide which symbols in Ed's replies become
+ * The chat UI uses this to decide which symbols in Analyst's replies become
  * clickable. That makes it a hallucination guard as well as a convenience: a
- * symbol Ed invented is not in this set, so it renders as plain text and the
+ * symbol Analyst invented is not in this set, so it renders as plain text and the
  * reader gets no false affordance suggesting it is real.
  */
 export async function GET() {

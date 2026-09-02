@@ -10,7 +10,7 @@
  * stop it any time, run it again, and it picks up where it left off.
  *
  * Work is ordered by how much each name matters: breadth across funds × weight.
- * The names Ed actually discusses are done in the first half hour.
+ * The names Analyst actually discusses are done in the first half hour.
  */
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');

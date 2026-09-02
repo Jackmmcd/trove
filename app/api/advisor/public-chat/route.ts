@@ -1,8 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { cookies } from 'next/headers';
 import { getActiveDigest } from '@/lib/advisor/corpus';
-import { ED_INSTRUCTIONS } from '@/lib/advisor/system';
-import { ED_TOOLS, runTool } from '@/lib/advisor/tools';
+import { ANALYST_INSTRUCTIONS } from '@/lib/advisor/system';
+import { ANALYST_TOOLS, runTool } from '@/lib/advisor/tools';
 import { ACCESS_COOKIE, verifyAccessToken } from '@/lib/advisor/access';
 import { checkDailyCap, recordUsage } from '@/lib/advisor/usage';
 
@@ -13,12 +13,12 @@ const MODEL = 'claude-opus-5';
 const MAX_TOOL_ROUNDS = 4;
 
 // No signed-in user, so anything portfolio-shaped is unavailable. Dropping the
-// tool entirely is better than letting Ed call it and get an empty result —
+// tool entirely is better than letting Analyst call it and get an empty result —
 // a tool that always returns nothing teaches it to stop trusting its tools.
-const PUBLIC_TOOLS = ED_TOOLS.filter(t => t.name !== 'get_user_portfolio');
+const PUBLIC_TOOLS = ANALYST_TOOLS.filter(t => t.name !== 'get_user_portfolio');
 
 const PUBLIC_CONTEXT = `<session_context>
-This person is not signed in. They are trying Ed from the Trove landing page.
+This person is not signed in. They are trying Analyst from the Trove landing page.
 
 You know nothing about their holdings, risk tolerance, or goals — do not guess,
 and do not ask them to describe their portfolio. Answer from what the funds have
@@ -30,7 +30,7 @@ version of their question instead.
 export async function POST(req: Request) {
   const email = verifyAccessToken((await cookies()).get(ACCESS_COOKIE)?.value);
   if (!email) {
-    return Response.json({ error: 'Enter your email to use Ed.' }, { status: 403 });
+    return Response.json({ error: 'Enter your email to use Analyst.' }, { status: 403 });
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -42,11 +42,11 @@ export async function POST(req: Request) {
   // Both reads issued together; the cap check resolves inside the corpus fetch,
   // so enforcing it costs no wall-clock time.
   const [snapshot, cap] = await Promise.all([getActiveDigest(), checkDailyCap()]);
-  if (!snapshot) return Response.json({ error: 'Ed is warming up. Try again shortly.' }, { status: 503 });
+  if (!snapshot) return Response.json({ error: 'Analyst is warming up. Try again shortly.' }, { status: 503 });
 
   if (!cap.allowed) {
     return Response.json(
-      { error: "Ed has hit today's usage limit. It resets at midnight UTC." },
+      { error: "Analyst has hit today's usage limit. It resets at midnight UTC." },
       { status: 429 }
     );
   }
@@ -89,7 +89,7 @@ export async function POST(req: Request) {
             output_config: { effort: 'low' },
             tools: PUBLIC_TOOLS,
             system: [
-              { type: 'text', text: ED_INSTRUCTIONS },
+              { type: 'text', text: ANALYST_INSTRUCTIONS },
               { type: 'text', text: snapshot.digest, cache_control: { type: 'ephemeral', ttl: '1h' } },
             ],
             messages,
@@ -127,7 +127,7 @@ export async function POST(req: Request) {
 
         send('done', {});
       } catch (e: any) {
-        send('error', { message: e?.message ?? 'Ed hit an error' });
+        send('error', { message: e?.message ?? 'Analyst hit an error' });
       } finally {
         controller.close();
         // After the response is closed — never on the critical path.

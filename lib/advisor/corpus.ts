@@ -3,7 +3,7 @@ import { fetchAllRows } from '@/lib/supabase/paginate';
 
 /**
  * The universe digest — a frozen, plain-text rendering of every fund in the
- * global universe, built once per sync and read verbatim on every Ed turn.
+ * global universe, built once per sync and read verbatim on every Analyst turn.
  *
  * Two rules keep this cacheable, and both matter more than they look:
  *
