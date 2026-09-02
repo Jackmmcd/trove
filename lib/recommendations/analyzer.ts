@@ -1,4 +1,5 @@
 import { db } from '@/lib/supabase/admin';
+import { fetchAllRows } from '@/lib/supabase/paginate';
 
 export interface CompanyRecommendation {
   ticker: string;
@@ -53,12 +54,17 @@ export async function analyzeDiversification(userId: string) {
   const { data: funds } = await db.from('funds').select('id, name').eq('user_id', userId).eq('enabled', true);
   if (!funds?.length) return new Map();
 
-  const { data: holdings } = await db.from('holdings').select('ticker, value, weight, fund_id').in('fund_id', funds.map(f => f.id)).eq('quarter', quarter);
+  // Paged — one quarter across the whole universe exceeds PostgREST's 1,000-row
+  // cap, which would silently drop funds from the scoring.
+  const holdings = await fetchAllRows<{ ticker: string; value: number; weight: number; fund_id: string }>(
+    (from, to) => db.from('holdings').select('ticker, value, weight, fund_id')
+      .in('fund_id', funds.map(f => f.id)).eq('quarter', quarter).order('id').range(from, to)
+  );
 
   const fundNameMap = new Map(funds.map(f => [f.id, f.name]));
   const tickerMap = new Map<string, { fundCount: number; totalValue: number; totalWeight: number; funds: string[] }>();
 
-  for (const h of (holdings ?? [])) {
+  for (const h of holdings) {
     const fundName = fundNameMap.get(h.fund_id) ?? '';
     const existing = tickerMap.get(h.ticker) || { fundCount: 0, totalValue: 0, totalWeight: 0, funds: [] };
     if (!existing.funds.includes(fundName)) { existing.fundCount++; existing.funds.push(fundName); }
@@ -84,14 +90,16 @@ export async function scoreCompanies(userId: string, limit = 20): Promise<Compan
   const fundIds = (funds ?? []).map(f => f.id);
 
   // Previous quarter holdings — only for funds that actually had data then
-  const { data: previousHoldings } = await db.from('holdings').select('ticker, fund_id').in('fund_id', fundIds).eq('quarter', previousQuarter);
-  const previousTickerSet = new Set((previousHoldings ?? []).map(h => `${h.fund_id}-${h.ticker}`));
+  const previousHoldings = await fetchAllRows<{ ticker: string; fund_id: string }>((from, to) =>
+    db.from('holdings').select('ticker, fund_id').in('fund_id', fundIds).eq('quarter', previousQuarter).order('id').range(from, to));
+  const previousTickerSet = new Set(previousHoldings.map(h => `${h.fund_id}-${h.ticker}`));
   // Track which funds had any previous quarter data
-  const fundsWithPreviousData = new Set((previousHoldings ?? []).map(h => h.fund_id));
+  const fundsWithPreviousData = new Set(previousHoldings.map(h => h.fund_id));
 
-  const { data: currentHoldings } = await db.from('holdings').select('ticker, fund_id').in('fund_id', fundIds).eq('quarter', latestQuarter);
+  const currentHoldings = await fetchAllRows<{ ticker: string; fund_id: string }>((from, to) =>
+    db.from('holdings').select('ticker, fund_id').in('fund_id', fundIds).eq('quarter', latestQuarter).order('id').range(from, to));
   const currentByTicker = new Map<string, string[]>();
-  for (const h of (currentHoldings ?? [])) {
+  for (const h of currentHoldings) {
     currentByTicker.set(h.ticker, [...(currentByTicker.get(h.ticker) ?? []), h.fund_id]);
   }
 

@@ -27,7 +27,22 @@ export async function updateSession(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+
+  // Machine-called endpoints carry no user session, so redirecting them to /login
+  // would silently break the scheduled sync. They enforce CRON_SECRET themselves.
+  const isMachineRoute =
+    pathname.startsWith('/api/cron') ||
+    pathname.startsWith('/api/advisor/corpus');
+
+  // The Ed demo on the landing page runs before login. It gates itself on the
+  // email allowlist in lib/advisor/access.ts rather than a Supabase session.
+  const isPublicDemo =
+    pathname.startsWith('/api/advisor/access') ||
+    pathname.startsWith('/api/advisor/public-chat');
+
   const isPublic =
+    isMachineRoute ||
+    isPublicDemo ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/_next') ||

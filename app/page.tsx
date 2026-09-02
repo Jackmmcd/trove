@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import EdDemo from './components/EdDemo';
 
 export const metadata: Metadata = {
   title: 'Trove — Trade Like the Smart Money',
@@ -112,6 +113,11 @@ export default function LandingPage() {
         }}>
           LOGIN →
         </Link>
+
+        {/* Ed — try it before signing in */}
+        <div style={{ marginBottom: '48px' }}>
+          <EdDemo />
+        </div>
 
         {/* Stats bar */}
         <div className="landing-stats" style={{ display: 'flex', justifyContent: 'center', borderTop: `1px solid ${B.border}`, borderBottom: `1px solid ${B.border}`, padding: '32px 0', gap: '0', flexWrap: 'wrap' }}>

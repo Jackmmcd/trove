@@ -12,6 +12,7 @@ const links = [
   { href: '/funds', label: 'FUNDS' },
   { href: '/baskets', label: 'BASKETS' },
   { href: '/recommendations', label: 'INSIGHTS' },
+  { href: '/advisor', label: 'ED' },
   { href: '/news', label: 'NEWS' },
 ];
 

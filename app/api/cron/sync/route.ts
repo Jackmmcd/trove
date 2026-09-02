@@ -23,8 +23,21 @@ export async function GET(request: Request) {
   }
 
   try {
+    // ?cik=0001040273 syncs a single global fund — used by scripts/sync-universe.js
+    // so a 27-fund backfill can be resumed one filer at a time.
+    const params = new URL(request.url, 'http://localhost').searchParams;
+    const cik = params.get('cik');
+    if (cik) {
+      const { syncFund } = await import('@/lib/services/fund-sync');
+      // &quarter=2026-Q1 backfills a historical filing so quarter-over-quarter
+      // deltas can be computed. Without at least two quarters per fund, every
+      // position reads as unchanged and the "new position" signal is dead.
+      const one = await syncFund(cik, undefined, params.get('quarter') ?? undefined);
+      return NextResponse.json({ success: one.success, results: [one], error: one.error });
+    }
+
     const result = await dailySync();
-    
+
     return NextResponse.json({
       success: result.success,
       data: result,
@@ -41,9 +54,9 @@ export async function GET(request: Request) {
   }
 }
 
-// Also allow POST for manual triggers
-export async function POST() {
-  return GET(new Request(''));
+// Also allow POST for manual triggers — preserve the URL so ?cik= still works
+export async function POST(request: Request) {
+  return GET(request);
 }
 
 

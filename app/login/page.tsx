@@ -11,7 +11,7 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const mode = 'login';
 
   const errorParam = searchParams.get('error');
 
@@ -136,14 +136,6 @@ function LoginForm() {
             </button>
           </form>
 
-          <div style={{ textAlign: 'center', marginTop: '16px' }}>
-            <button
-              onClick={() => { setMode(m => m === 'login' ? 'signup' : 'login'); setError(''); }}
-              style={{ background: 'none', border: 'none', color: B.dim, fontSize: '10px', letterSpacing: '1.5px', cursor: 'pointer', fontFamily: 'Courier New, monospace' }}
-            >
-              {mode === 'login' ? 'CREATE ACCOUNT' : 'ALREADY HAVE AN ACCOUNT? SIGN IN'}
-            </button>
-          </div>
         </div>
 
         <div style={{ textAlign: 'center', marginTop: '20px', color: B.dim, fontSize: '9px', letterSpacing: '1.5px', fontFamily: 'Courier New, monospace' }}>

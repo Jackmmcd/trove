@@ -10,8 +10,9 @@ export interface Holding {
 export interface FundHoldings {
   cik: string;
   fundName: string;
-  quarter: string; // Format: "2024-Q1"
+  quarter: string; // Format: "2024-Q1" — derived from periodEnd, NOT filingDate
   filingDate: string;
+  periodEnd: string; // Report period the holdings are as of (EDGAR reportDate)
   holdings: Holding[];
   totalValue: number;
 }

@@ -45,3 +45,6 @@ next-env.d.ts
 # SQLite database
 prisma/*.db
 prisma/*.db-journal
+
+# local data dumps from scripts/seed-universe.js
+.backups/

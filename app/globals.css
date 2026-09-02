@@ -121,3 +121,10 @@ body {
 @media (max-width: 400px) {
   .r-grid-4 { grid-template-columns: 1fr; }
 }
+
+/* Ticker side panel: on wide screens it sits beside the conversation, so the
+   scrim would needlessly dim readable content. Only dim on narrow screens,
+   where the panel covers the page. */
+@media (min-width: 1100px) {
+  .ticker-panel-scrim { display: none; }
+}

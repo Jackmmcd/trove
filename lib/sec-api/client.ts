@@ -34,19 +34,22 @@ export class SECApiClient {
     // Resolve CUSIPs to tickers via OpenFIGI
     await this.resolveTickers(rawHoldings);
 
-    // Deduplicate by ticker — large filers (e.g. Berkshire) split holdings across
-    // multiple investment managers, resulting in duplicate CUSIP entries per filing.
-    const tickerMap = new Map<string, Holding>();
+    // Deduplicate — large filers (e.g. Berkshire, Coatue) split holdings across
+    // multiple investment managers, producing repeated entries per filing.
+    // Key on CUSIP where present: it is the security's real identity, whereas the
+    // ticker is a guess from OpenFIGI that may be missing or wrong.
+    const positionMap = new Map<string, Holding>();
     for (const h of rawHoldings) {
-      const existing = tickerMap.get(h.ticker);
+      const key = h.cusip ?? `t:${h.ticker}`;
+      const existing = positionMap.get(key);
       if (existing) {
         existing.shares += h.shares;
         existing.value += h.value;
       } else {
-        tickerMap.set(h.ticker, { ...h });
+        positionMap.set(key, { ...h });
       }
     }
-    const holdings = Array.from(tickerMap.values());
+    const holdings = Array.from(positionMap.values());
 
     const totalValue = holdings.reduce((sum, h) => sum + h.value, 0);
     holdings.forEach(h => {
@@ -59,8 +62,12 @@ export class SECApiClient {
     return {
       cik: normalizedCik,
       fundName: filing.companyName,
-      quarter: this.dateToQuarter(filing.filingDate),
+      // Quarter comes from the report period, not the filing date. A filing lodged
+      // 2026-08-14 covers positions as of 2026-06-30 — labelling that Q3 overstates
+      // the data's freshness by a full quarter.
+      quarter: this.dateToQuarter(filing.periodEnd),
       filingDate: filing.filingDate,
+      periodEnd: filing.periodEnd,
       holdings,
       totalValue,
     };
@@ -85,6 +92,7 @@ export class SECApiClient {
   private async getLatest13FFiling(cik: string, quarter?: string): Promise<{
     companyName: string;
     filingDate: string;
+    periodEnd: string;
     xmlContent: string;
     accessionNumber: string;
   }> {
@@ -99,13 +107,15 @@ export class SECApiClient {
     const forms: string[] = recent.form ?? [];
     const accessionNumbers: string[] = recent.accessionNumber ?? [];
     const filingDates: string[] = recent.filingDate ?? [];
+    const reportDates: string[] = recent.reportDate ?? [];
     const primaryDocuments: string[] = recent.primaryDocument ?? [];
 
-    // Find the latest 13F-HR matching the requested quarter
+    // Find the latest 13F-HR matching the requested quarter. Match on the report
+    // period, so `quarter` means "positions as of", not "paperwork filed in".
     let targetIdx = -1;
     for (let i = 0; i < forms.length; i++) {
       if (forms[i] !== '13F-HR' && forms[i] !== '13F-HR/A') continue;
-      if (quarter && this.dateToQuarter(filingDates[i]) !== quarter) continue;
+      if (quarter && this.dateToQuarter(reportDates[i] ?? filingDates[i]) !== quarter) continue;
       targetIdx = i;
       break;
     }
@@ -125,6 +135,7 @@ export class SECApiClient {
     return {
       companyName: data.name as string,
       filingDate,
+      periodEnd: reportDates[targetIdx] ?? filingDate,
       xmlContent: infoTableXml,
       accessionNumber: rawAccession,
     };
