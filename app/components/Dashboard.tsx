@@ -174,6 +174,17 @@ export default function Dashboard() {
       }
 
       // ── Live Tastytrade path ──────────────────────────────────────
+      // Off by default. The brokerage routes authenticate with shared env
+      // credentials, so this shows ONE real account to whoever reaches it —
+      // falling through here on an error meant every user without a paper
+      // account saw the same brokerage data. Paper accounts are now
+      // provisioned on demand, so this should be unreachable in normal use.
+      if (process.env.NEXT_PUBLIC_ENABLE_BROKER_VIEW !== '1') {
+        setError('Could not load your account. Please refresh, or sign out and back in.');
+        setLoading(false);
+        return;
+      }
+
       const [balanceRes, positionsRes] = await Promise.all([
         fetch('/api/tastytrade/balance'),
         fetch('/api/tastytrade/positions'),

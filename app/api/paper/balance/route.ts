@@ -4,6 +4,9 @@ import { createClient } from '@/utils/supabase/server';
 import { db } from '@/lib/supabase/admin';
 import axios from 'axios';
 
+/** Matches scripts/init-paper-accounts.js so provisioning is consistent. */
+const STARTING_CASH = 10000;
+
 async function fetchPrices(symbols: string[]): Promise<Record<string, number>> {
   if (!symbols.length) return {};
   const prices: Record<string, number> = {};
@@ -30,13 +33,31 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
-    const { data: account, error } = await db
+    let { data: account } = await db
       .from('paper_accounts')
       .select('cash')
       .eq('user_id', user.id)
       .maybeSingle();
 
-    if (error || !account) return NextResponse.json({ success: false, error: 'No paper account' }, { status: 404 });
+    // Provision on first visit. A 404 here used to send the dashboard down its
+    // Tastytrade fallback, which authenticates with shared env credentials — so
+    // every user without a paper account was shown the same real brokerage
+    // account. Never let a missing row become someone else's data.
+    if (!account) {
+      const { data: created, error: createError } = await db
+        .from('paper_accounts')
+        .upsert({ user_id: user.id, cash: STARTING_CASH }, { onConflict: 'user_id' })
+        .select('cash')
+        .single();
+
+      if (createError || !created) {
+        return NextResponse.json(
+          { success: false, error: 'Could not open a paper account' },
+          { status: 500 }
+        );
+      }
+      account = created;
+    }
 
     const { data: positions } = await db
       .from('paper_positions')
