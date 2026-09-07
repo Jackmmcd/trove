@@ -1,5 +1,24 @@
 import axios from 'axios';
-import { FundHoldings, Holding } from './types';
+import { FundHoldings, Holding, InstrumentType } from './types';
+
+/**
+ * A CUSIP is 6 issuer characters, 2 issue characters, 1 check digit. The issue
+ * half says what kind of security it is: numeric codes are equity (10 is common
+ * stock, 88-99 are rights and warrants), alphabetic codes are fixed income.
+ *
+ * This matters because a 13F can report a company's bonds and its stock as
+ * separate line items — EchoStar appears as both 278768106 (common) and
+ * 278768AB2 (a 2030 note). Treating those as the same holding overstates
+ * conviction; treating them as unrelated companies loses the fact that two
+ * funds are both exposed to EchoStar.
+ */
+export function classifyInstrument(cusip: string | null | undefined): InstrumentType {
+  if (!cusip || cusip.length < 8) return 'unknown';
+  const issue = cusip.slice(6, 8);
+  if (!/^\d{2}$/.test(issue)) return 'debt';
+  const n = parseInt(issue, 10);
+  return n >= 88 ? 'warrant' : 'equity';
+}
 
 const USER_AGENT = process.env.SEC_USER_AGENT || '13F Follower App contact@example.com';
 
@@ -221,6 +240,8 @@ export class SECApiClient {
         value,
         weight: 0,
         cusip: cusip ?? undefined,
+        cusip6: cusip ? cusip.slice(0, 6) : undefined,
+        instrumentType: classifyInstrument(cusip),
         name: name ?? undefined,
       });
     }

@@ -83,6 +83,9 @@ export async function syncFund(cik: string, userId?: string, quarter?: string): 
         existing.shares += h.shares;
         existing.value += h.value;
         existing.weight += h.weight;
+        // Merging a bond into a stock under one ticker would silently claim the
+        // combined position is equity. Say we don't know rather than lie.
+        if (existing.instrumentType !== h.instrumentType) existing.instrumentType = 'unknown';
       } else {
         byTicker.set(h.ticker, { ...h });
       }
@@ -96,6 +99,8 @@ export async function syncFund(cik: string, userId?: string, quarter?: string): 
           user_id: userId ?? null,
           ticker: h.ticker,
           cusip: h.cusip ?? null,
+          cusip6: h.cusip6 ?? null,
+          instrument_type: h.instrumentType ?? 'unknown',
           issuer_name: h.name ?? null,
           shares: h.shares,
           value: h.value,

@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import TickerPanel from './TickerPanel';
+import { suggestFollowUps } from '@/lib/analyst/followups';
 
 interface Msg {
   role: 'user' | 'assistant';
@@ -12,8 +13,21 @@ interface Msg {
   usage?: { cacheRead: number; cacheWrite: number; input: number; output: number };
 }
 
+interface ConvSummary { id: string; title: string; createdAt: string; updatedAt: string }
+
 const AMBER = '#ff8c00';
 const DIM = '#666';
+
+function timeAgo(iso: string): string {
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
 
 /**
  * Minimal inline renderer: **bold**, `code`, and $-prefixed figures.
@@ -50,7 +64,13 @@ function renderInline(
 }
 
 /**
- * Turn every recognised symbol into a control that opens the side panel.
+ * Turn every recognised symbol into a link to its company page.
+ *
+ * Primary click opens /company/<T> in a new tab; alt-click peeks at the side
+ * panel instead. Reading the full page is the more common intent, and a new tab
+ * means following a symbol never costs the reader the conversation they were in
+ * the middle of. The panel stays for what it was built for — checking one figure
+ * mid-sentence — but it is now the deliberate gesture, and the tooltip says so.
  *
  * Matching is gated on `known` — the set of tickers actually reported by a
  * tracked fund. A symbol Analyst invented stays plain text, so the reader never gets
@@ -73,18 +93,20 @@ function linkifyTickers(
     if (!known.has(sym)) continue;
     if (m.index > last) out.push(text.slice(last, m.index));
     out.push(
-      <button
+      <a
         key={`${keyPrefix}-t${i++}`}
-        onClick={() => onTicker(sym)}
-        title={`${sym} — open details`}
+        href={`/company/${sym}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={e => { if (e.altKey) { e.preventDefault(); onTicker(sym); } }}
+        title={`${sym} — open company page (alt-click to peek here)`}
         style={{
-          background: 'none', border: 'none', padding: 0,
-          font: 'inherit', color: '#ffb454', cursor: 'pointer',
-          borderBottom: '1px dotted #7a5a20',
+          font: 'inherit', color: '#ffb454', textDecoration: 'none',
+          borderBottom: '1px dotted #7a5a20', cursor: 'pointer',
         }}
       >
         {sym}
-      </button>
+      </a>
     );
     last = m.index + sym.length;
   }
@@ -140,6 +162,9 @@ export default function AnalystChat() {
   const [fundCount, setFundCount] = useState<number | null>(null);
   const [knownTickers, setKnownTickers] = useState<Set<string>>(new Set());
   const [panelTicker, setPanelTicker] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<ConvSummary[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [loadingConv, setLoadingConv] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -151,7 +176,51 @@ export default function AnalystChat() {
       .catch(() => {});
   }, []);
 
+  const loadConversations = useCallback(() => {
+    fetch('/api/advisor/conversations')
+      .then(r => r.ok ? r.json() : { conversations: [] })
+      .then(d => setConversations(d.conversations ?? []))
+      .catch(() => {});
+  }, []);
+
+  // Sidebar defaults open only where it does not steal reading width. Decided
+  // after mount so the server and first client render agree.
+  useEffect(() => {
+    loadConversations();
+    if (window.innerWidth >= 1100) setSidebarOpen(true);
+  }, [loadConversations]);
+
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, busy]);
+
+  const openConversation = useCallback(async (id: string) => {
+    if (busy) return;
+    setLoadingConv(true); setError(null);
+    try {
+      const res = await fetch(`/api/advisor/conversations/${id}`);
+      if (!res.ok) throw new Error('Could not open that conversation.');
+      const d: { messages?: { role: 'user' | 'assistant'; text: string }[] } = await res.json();
+      setMessages((d.messages ?? []).map(m => ({ role: m.role, text: m.text })));
+      setConvId(id);
+      if (window.innerWidth < 1100) setSidebarOpen(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not open that conversation.');
+    } finally {
+      setLoadingConv(false);
+    }
+  }, [busy]);
+
+  const newChat = useCallback(() => {
+    if (busy) return;
+    setMessages([]); setConvId(null); setError(null);
+    if (window.innerWidth < 1100) setSidebarOpen(false);
+    inputRef.current?.focus();
+  }, [busy]);
+
+  const deleteConversation = useCallback(async (id: string) => {
+    setConversations(cs => cs.filter(c => c.id !== id));
+    if (id === convId) { setMessages([]); setConvId(null); }
+    await fetch(`/api/advisor/conversations/${id}`, { method: 'DELETE' }).catch(() => {});
+  }, [convId]);
 
   const send = useCallback(async (text: string) => {
     if (!text.trim() || busy) return;
@@ -219,12 +288,104 @@ export default function AnalystChat() {
     } finally {
       setBusy(false);
       inputRef.current?.focus();
+      // The first turn of a new thread creates the row server-side, so the
+      // sidebar only learns about it once the turn has finished.
+      loadConversations();
     }
-  }, [busy, convId]);
+  }, [busy, convId, loadConversations]);
 
   const empty = messages.length === 0;
+  const last = messages[messages.length - 1];
+
+  // Chips hang off the newest assistant reply only, and never mid-stream —
+  // suggestions derived from half a sentence point at the wrong things.
+  const followUps = useMemo(
+    () => (!busy && last?.role === 'assistant' && last.text
+      ? suggestFollowUps(last.text, knownTickers)
+      : []),
+    [busy, last, knownTickers],
+  );
 
   return (
+    <>
+      {sidebarOpen && (
+        <>
+          {/* Scrim and drawer both stop above the composer, so on a narrow
+              screen the input stays reachable with history open. */}
+          <div className="analyst-sidebar-scrim" onClick={() => setSidebarOpen(false)} />
+
+          <aside className="analyst-sidebar">
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '14px 14px 10px', borderBottom: '1px solid #1a1a1a',
+            }}>
+              <span style={{ color: DIM, fontSize: '10px', letterSpacing: '2px' }}>HISTORY</span>
+              <button onClick={() => setSidebarOpen(false)} aria-label="Close history" style={{
+                background: 'none', border: '1px solid #222', color: DIM,
+                fontFamily: 'inherit', fontSize: '11px', lineHeight: 1,
+                padding: '4px 8px', cursor: 'pointer',
+              }}>✕</button>
+            </div>
+
+            <div style={{ padding: '12px 14px', borderBottom: '1px solid #1a1a1a' }}>
+              <button onClick={newChat} disabled={busy} style={{
+                width: '100%', background: 'transparent', border: `1px solid ${AMBER}`,
+                color: AMBER, fontFamily: 'inherit', fontSize: '10.5px', letterSpacing: '2px',
+                padding: '9px', cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.4 : 1,
+              }}>+ NEW CHAT</button>
+            </div>
+
+            <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
+              {conversations.length === 0 && (
+                <div style={{ color: '#444', fontSize: '11px', padding: '12px 14px', lineHeight: 1.6 }}>
+                  No past conversations yet.
+                </div>
+              )}
+              {conversations.map(c => {
+                const active = c.id === convId;
+                return (
+                  <div key={c.id} style={{
+                    display: 'flex', alignItems: 'flex-start', gap: '6px',
+                    padding: '9px 10px 9px 14px',
+                    borderLeft: `2px solid ${active ? AMBER : 'transparent'}`,
+                    background: active ? '#101010' : 'transparent',
+                  }}>
+                    <button
+                      onClick={() => openConversation(c.id)}
+                      disabled={busy || loadingConv}
+                      title={c.title}
+                      style={{
+                        flex: 1, minWidth: 0, textAlign: 'left', background: 'none',
+                        border: 'none', padding: 0, cursor: busy ? 'default' : 'pointer',
+                        fontFamily: 'inherit',
+                      }}
+                    >
+                      <div style={{
+                        color: active ? '#e8e2d8' : '#999', fontSize: '11.5px', lineHeight: 1.4,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>{c.title}</div>
+                      <div style={{ color: '#444', fontSize: '9.5px', marginTop: '3px', letterSpacing: '.5px' }}>
+                        {timeAgo(c.updatedAt)}
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => deleteConversation(c.id)}
+                      aria-label={`Delete ${c.title}`}
+                      title="Delete"
+                      style={{
+                        background: 'none', border: 'none', color: '#3a3a3a',
+                        fontFamily: 'inherit', fontSize: '11px', cursor: 'pointer', padding: '0 2px',
+                      }}
+                    >✕</button>
+                  </div>
+                );
+              })}
+            </div>
+          </aside>
+        </>
+      )}
+
+    <div className={sidebarOpen ? 'analyst-shifted' : undefined}>
     <div style={{
       maxWidth: '860px', margin: '0 auto', padding: '0 16px 140px',
       fontFamily: 'Courier New, monospace',
@@ -233,6 +394,11 @@ export default function AnalystChat() {
 
       <div style={{ padding: '28px 0 18px', borderBottom: `1px solid #1a1a1a` }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>
+          <button onClick={() => setSidebarOpen(o => !o)} style={{
+            background: 'none', border: '1px solid #222', color: DIM,
+            fontFamily: 'inherit', fontSize: '10px', letterSpacing: '1.5px',
+            padding: '5px 9px', cursor: 'pointer',
+          }}>{sidebarOpen ? '✕' : '☰'} HISTORY</button>
           <h1 style={{ color: AMBER, fontSize: '22px', fontWeight: 900, letterSpacing: '3px', margin: 0 }}>ANALYST</h1>
           <span style={{ color: DIM, fontSize: '11px', letterSpacing: '1px' }}>
             13F RESEARCH ASSISTANT{fundCount ? ` · ${fundCount} FUNDS IN CONTEXT` : ''}
@@ -296,6 +462,20 @@ export default function AnalystChat() {
                       : null)}
             </div>
 
+            {m.role === 'assistant' && i === messages.length - 1 && followUps.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px', marginTop: '12px' }}>
+                {followUps.map(q => (
+                  <button key={q} onClick={() => send(q)} style={{
+                    background: 'transparent', border: '1px solid #2a2a2a', color: '#9a9a9a',
+                    fontFamily: 'Courier New, monospace', fontSize: '11.5px',
+                    padding: '7px 11px', cursor: 'pointer', lineHeight: 1.4, textAlign: 'left',
+                  }}>
+                    {q}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {m.usage && (
               <div style={{ color: '#3f3f3f', fontSize: '10px', letterSpacing: '.5px', marginTop: '9px' }}>
                 cache read {m.usage.cacheRead.toLocaleString()} · write {m.usage.cacheWrite.toLocaleString()} ·
@@ -320,8 +500,8 @@ export default function AnalystChat() {
         <TickerPanel ticker={panelTicker} onClose={() => setPanelTicker(null)} />
       )}
 
-      <div style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0,
+      <div className={sidebarOpen ? 'analyst-shifted' : undefined} style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 85,
         background: '#000', borderTop: '1px solid #1a1a1a', padding: '12px 16px',
       }}>
         <form
@@ -364,5 +544,7 @@ export default function AnalystChat() {
         </div>
       </div>
     </div>
+    </div>
+    </>
   );
 }

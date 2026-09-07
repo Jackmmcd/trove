@@ -45,7 +45,8 @@ interface FundRow {
 interface HoldingRow {
   fund_id: string; ticker: string; value: number; weight: number;
   quarter: string; period_end: string | null;
-  cusip: string | null; issuer_name: string | null;
+  cusip: string | null; cusip6: string | null;
+  instrument_type: string | null; issuer_name: string | null;
 }
 
 /**
@@ -55,7 +56,19 @@ interface HoldingRow {
  * held as SPOT by one fund and SPOTIF by another never aggregates.
  */
 function securityKey(h: HoldingRow): string {
+  // Issuer, not security. A company's stock and its bonds are separate CUSIPs;
+  // keying on the full 9 characters made "who holds EchoStar" answerable only
+  // per-instrument, so a fund holding the bond and a fund holding the stock
+  // looked like holders of two unrelated things.
+  if (h.cusip6) return `i:${h.cusip6}`;
   return h.cusip ? `c:${h.cusip}` : `t:${h.ticker}`;
+}
+
+/** Short marker so a non-equity line is never read as a stock position. */
+function instrumentTag(t: string | null): string {
+  if (t === 'debt') return ' [debt]';
+  if (t === 'warrant') return ' [warrant]';
+  return '';
 }
 
 /** Prefer a resolved ticker for display; fall back to the issuer name. */
@@ -116,7 +129,7 @@ export async function buildDigest(): Promise<{ digest: string; fundCount: number
   // and a truncated read here silently produces a digest missing most funds.
   const holdings = await fetchAllRows<HoldingRow>((from, to) =>
     db.from('holdings')
-      .select('fund_id, ticker, value, weight, quarter, period_end, cusip, issuer_name')
+      .select('fund_id, ticker, value, weight, quarter, period_end, cusip, cusip6, instrument_type, issuer_name')
       .in('fund_id', fundRows.map(f => f.id))
       .order('id')
       .range(from, to)
@@ -136,7 +149,10 @@ export async function buildDigest(): Promise<{ digest: string; fundCount: number
   // security key -> { funds holding it, summed weight, net new positions }
   const consensus = new Map<
     string,
-    { label: string; ticker: string; cap?: string; holders: string[]; weight: number; added: number }
+    {
+      label: string; ticker: string; cap?: string; issuer: string | null;
+      holders: string[]; instruments: Set<string>; weight: number; added: number;
+    }
   >();
 
   for (const fund of fundRows) {
@@ -182,15 +198,22 @@ export async function buildDigest(): Promise<{ digest: string; fundCount: number
       }
       const label = displayName(r.ticker, r.issuer_name);
       const cap = caps.get(r.ticker);
-      lines.push(`${label} ${r.weight.toFixed(1)}%${delta}${cap ? ` [${cap}]` : ''}`);
+      lines.push(`${label} ${r.weight.toFixed(1)}%${delta}${instrumentTag(r.instrument_type)}${cap ? ` [${cap}]` : ''}`);
 
       // Aggregate on the security's real identity, and exclude only genuine
       // non-equity products — never on the shape of the ticker string, which
       // would drop every position OpenFIGI failed to resolve.
       if (!NON_EQUITY.has(r.ticker) && r.weight >= 0.25) {
         const key = securityKey(r);
-        const c = consensus.get(key) ?? { label, ticker: r.ticker, cap, holders: [], weight: 0, added: 0 };
+        const c = consensus.get(key) ?? {
+          label, ticker: r.ticker, cap, issuer: r.issuer_name,
+          holders: [], instruments: new Set<string>(), weight: 0, added: 0,
+        };
+        // A resolved equity ticker is the best label for the issuer; an
+        // unresolved bond descriptor ("ECHO 3.875 11/30/30") is the worst.
+        if (r.instrument_type === 'equity' && EQUITY_TICKER.test(r.ticker)) c.label = r.ticker;
         if (!c.holders.includes(fund.name)) c.holders.push(fund.name);
+        c.instruments.add(r.instrument_type ?? 'unknown');
         c.weight += r.weight;
         if (hasHistory && !prevWeight.has(r.ticker)) c.added++;
         consensus.set(key, c);
@@ -216,6 +239,11 @@ export async function buildDigest(): Promise<{ digest: string; fundCount: number
     .map(c => ({
       label: c.label,
       cap: c.cap,
+      issuer: c.issuer,
+      // Flagged when the holders are not all exposed the same way — one fund's
+      // bond and another's stock are both "holding the company", but they are
+      // not the same bet and should not read as agreement.
+      mixed: c.instruments.size > 1 || (!c.instruments.has('equity') && c.instruments.size > 0),
       holders: c.holders.length,
       weight: c.weight,
       added: c.added,
@@ -232,8 +260,12 @@ export async function buildDigest(): Promise<{ digest: string; fundCount: number
     'Entries shown as a company name rather than a ticker are ones whose ticker',
     'could not be resolved — the position is real, the symbol is simply unknown.',
     'Market cap is a day-end figure and may be blank for names not yet priced.',
-    'security | held | agg% | new | mkt cap',
-    ...ranked.map(r => `${r.label} | ${r.holders} | ${r.weight.toFixed(1)} | ${r.added} | ${r.cap ?? '-'}`),
+    'Rows are grouped by ISSUER, so a fund holding the bonds of a company and a fund',
+    'holding its stock both count as holders. "mixed" marks exactly that case —',
+    'the holders are not all expressing the same trade, so do not call it',
+    'agreement without checking which instrument each fund actually holds.',
+    'security | held | agg% | new | mkt cap | mixed | issuer',
+    ...ranked.map(r => `${r.label} | ${r.holders} | ${r.weight.toFixed(1)} | ${r.added} | ${r.cap ?? '-'} | ${r.mixed ? 'yes' : 'no'} | ${r.issuer ?? '-'}`),
   ].join('\n');
 
   const digest = [

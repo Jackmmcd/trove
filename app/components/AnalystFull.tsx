@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { suggestFollowUps } from '@/lib/analyst/followups';
 
 const B = {
   amber: '#ff8c00',
@@ -18,19 +19,56 @@ const STARTERS = [
 
 interface Turn { role: 'user' | 'assistant'; text: string }
 
+/**
+ * Every recognised symbol becomes a link to its company page, opened in a new
+ * tab so a signed-out visitor never loses the conversation they are mid-way
+ * through. Gated on `known` — the symbols tracked funds actually report — so a
+ * ticker the model invented stays plain text rather than offering a dead link.
+ */
+function linkify(text: string, keyPrefix: string, known: Set<string>): React.ReactNode[] {
+  if (!known.size) return [text];
+  const out: React.ReactNode[] = [];
+  const re = /[A-Z]{1,5}(?:\.[A-Z]{1,2})?/g;
+  let last = 0, m: RegExpExecArray | null, i = 0;
+  while ((m = re.exec(text)) !== null) {
+    const sym = m[0];
+    if (!known.has(sym)) continue;
+    if (m.index > last) out.push(text.slice(last, m.index));
+    out.push(
+      <a
+        key={`${keyPrefix}-t${i++}`}
+        href={`/company/${sym}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={`${sym} — open company page`}
+        style={{
+          font: 'inherit', color: '#ffb454', textDecoration: 'none',
+          borderBottom: '1px dotted #7a5a20',
+        }}
+      >
+        {sym}
+      </a>
+    );
+    last = m.index + sym.length;
+  }
+  if (!out.length) return [text];
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+}
+
 /** Renders **bold** and hyphen bullets — the only markup the Analyst is told to emit. */
-function Rich({ text }: { text: string }) {
+function Rich({ text, known }: { text: string; known: Set<string> }) {
   const blocks = text.split(/\n{2,}/).filter(b => b.trim());
   const inline = (s: string, k: string) => {
     const out: React.ReactNode[] = [];
     const re = /\*\*(.+?)\*\*/g;
     let last = 0, m: RegExpExecArray | null, i = 0;
     while ((m = re.exec(s)) !== null) {
-      if (m.index > last) out.push(s.slice(last, m.index));
+      if (m.index > last) out.push(...linkify(s.slice(last, m.index), `${k}-p${i}`, known));
       out.push(<strong key={`${k}-${i++}`} style={{ color: '#ffb454', fontWeight: 700 }}>{m[1]}</strong>);
       last = m.index + m[0].length;
     }
-    if (last < s.length) out.push(s.slice(last));
+    if (last < s.length) out.push(...linkify(s.slice(last), `${k}-tail`, known));
     return out;
   };
 
@@ -65,12 +103,21 @@ export default function AnalystFull() {
   const [thinking, setThinking] = useState('');
   const [fundCount, setFundCount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [knownTickers, setKnownTickers] = useState<Set<string>>(new Set());
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch('/api/advisor/access').then(r => r.json())
       .then(d => setAccess(!!d.access)).catch(() => setAccess(false));
+  }, []);
+
+  // Which symbols are real. Public endpoint — this page runs signed out.
+  useEffect(() => {
+    fetch('/api/advisor/tickers')
+      .then(r => r.ok ? r.json() : { tickers: [] })
+      .then(d => setKnownTickers(new Set(d.tickers ?? [])))
+      .catch(() => {});
   }, []);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [turns, thinking]);
@@ -135,6 +182,17 @@ export default function AnalystFull() {
     } catch (err: any) { setError(err.message); }
     finally { setBusy(false); setThinking(''); inputRef.current?.focus(); }
   }, [busy, turns]);
+
+  const lastTurn = turns[turns.length - 1];
+
+  // Only the newest reply gets chips, and never mid-stream — suggestions drawn
+  // from half a sentence point at the wrong things.
+  const followUps = useMemo(
+    () => (!busy && lastTurn?.role === 'assistant' && lastTurn.text
+      ? suggestFollowUps(lastTurn.text, knownTickers)
+      : []),
+    [busy, lastTurn, knownTickers],
+  );
 
   // Fills everything below the 40px tab bar.
   const shell: React.CSSProperties = {
@@ -218,13 +276,27 @@ export default function AnalystFull() {
                   {t.role === 'user'
                     ? t.text
                     : t.text
-                      ? <Rich text={t.text} />
+                      ? <Rich text={t.text} known={knownTickers} />
                       : (busy && i === turns.length - 1
                           ? <span style={{ color: '#6f6552', fontFamily: 'Courier New, monospace', fontSize: '11.5px', fontStyle: 'italic', whiteSpace: 'pre-wrap' }}>
                               {thinking || 'thinking…'}
                             </span>
                           : null)}
                 </div>
+
+                {t.role === 'assistant' && i === turns.length - 1 && followUps.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px', marginTop: '14px' }}>
+                    {followUps.map(q => (
+                      <button key={q} onClick={() => ask(q)} style={{
+                        background: 'transparent', border: `1px solid ${B.border}`, color: '#9a9a9a',
+                        fontFamily: 'Courier New, monospace', fontSize: '11.5px',
+                        padding: '7px 11px', cursor: 'pointer', lineHeight: 1.4, textAlign: 'left',
+                      }}>
+                        {q}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
             <div ref={bottomRef} />

@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import axios from 'axios';
 import { db } from '@/lib/supabase/admin';
+import { fetchAllRows } from '@/lib/supabase/paginate';
 
 /**
  * Tool definitions and handlers.
@@ -55,6 +56,20 @@ export const ANALYST_TOOLS: Anthropic.Beta.BetaTool[] = [
     strict: true,
   },
   {
+    name: 'find_institutional_holders',
+    description:
+      'Institutions beyond the funds Trove tracks that reported this company in a recent 13F, searched directly against SEC EDGAR by CUSIP. Use when the user asks who owns a company generally, or who the largest institutional shareholders are. Returns which institutions disclosed a position, NOT how big each position is.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        ticker: { type: 'string', description: 'Equity ticker, uppercase.' },
+      },
+      required: ['ticker'],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
     name: 'get_user_portfolio',
     description:
       'The user\'s current Trove paper positions with cost basis and cash. Use before commenting on overlap, concentration, or what they already own.',
@@ -87,6 +102,11 @@ Bear Case:
 - <point>
 - <point>
 - <point>`;
+
+interface HolderRow {
+  fund_id: string; ticker: string; weight: number; value: number;
+  quarter: string; instrument_type: string | null; issuer_name: string | null;
+}
 
 function prevQuarter(q: string): string {
   const [y, n] = q.split('-Q');
@@ -139,43 +159,87 @@ async function getFundDetail(cik: string, quarter?: string) {
 
 async function getTickerHolders(ticker: string) {
   const sym = ticker.toUpperCase().trim();
+
   const { data: funds } = await db
     .from('funds').select('id, name, cik, entity_type').is('user_id', null).eq('enabled', true);
   const fundMap = new Map((funds ?? []).map(f => [f.id, f]));
+  const fundIds = [...fundMap.keys()];
 
-  const { data: rows } = await db
-    .from('holdings')
-    .select('fund_id, weight, value, quarter')
-    .eq('ticker', sym)
-    .in('fund_id', [...fundMap.keys()]);
-
-  if (!rows?.length) return { ticker: sym, holders: [], note: 'No tracked fund reports this ticker.' };
-
-  const byFund = new Map<string, typeof rows>();
-  for (const r of rows) {
-    if (!byFund.has(r.fund_id)) byFund.set(r.fund_id, []);
-    byFund.get(r.fund_id)!.push(r);
+  // Resolve the ticker to an ISSUER first. Matching on ticker alone misses every
+  // other instrument the same company issued — a query for ECHO finds EchoStar
+  // common but not its 2030 notes, which a different fund holds at a larger
+  // weight. That produced "no other fund holds it" about a company two funds own.
+  // Falls back to ticker matching when the issuer column is absent, so this
+  // keeps working before supabase-migration-issuer.sql has been applied —
+  // degraded (it will miss a company's other instruments) rather than broken.
+  let seed: { cusip6?: string | null; issuer_name?: string | null } | null = null;
+  try {
+    const { data, error } = await db
+      .from('holdings').select('cusip6, issuer_name')
+      .eq('ticker', sym).not('cusip6', 'is', null).limit(1).maybeSingle();
+    if (error) throw new Error(error.message);
+    seed = data;
+  } catch {
+    seed = null;
   }
 
-  const holders = [...byFund.entries()].map(([fundId, hs]) => {
-    const fund = fundMap.get(fundId)!;
-    const latest = hs.sort((a, b) => b.quarter.localeCompare(a.quarter))[0];
-    const firstSeen = hs.map(h => h.quarter).sort()[0];
+  const cols = 'fund_id, ticker, weight, value, quarter, instrument_type, issuer_name';
+  const byIssuer = async () => fetchAllRows<HolderRow>((from, to) =>
+    db.from('holdings').select(cols).eq('cusip6', seed!.cusip6!).in('fund_id', fundIds).order('id').range(from, to));
+  const byTicker = async () => fetchAllRows<HolderRow>((from, to) =>
+    db.from('holdings').select(cols).eq('ticker', sym).in('fund_id', fundIds).order('id').range(from, to));
+
+  let rows: HolderRow[];
+  try {
+    rows = seed?.cusip6 ? await byIssuer() : await byTicker();
+  } catch {
+    const legacy = await fetchAllRows<Omit<HolderRow, 'instrument_type'>>((from, to) =>
+      db.from('holdings')
+        .select('fund_id, ticker, weight, value, quarter, issuer_name')
+        .eq('ticker', sym).in('fund_id', fundIds).order('id').range(from, to));
+    rows = legacy.map(r => ({ ...r, instrument_type: null }));
+  }
+
+  if (!rows.length) return { ticker: sym, holders: [], note: 'No tracked fund reports this ticker.' };
+
+  // One row per fund per instrument: a fund can hold both the stock and the bonds.
+  const byKey = new Map<string, HolderRow[]>();
+  for (const r of rows) {
+    const k = `${r.fund_id}|${r.instrument_type ?? 'unknown'}|${r.ticker}`;
+    if (!byKey.has(k)) byKey.set(k, []);
+    byKey.get(k)!.push(r);
+  }
+
+  const holders = [...byKey.values()].map(hs => {
+    const fund = fundMap.get(hs[0].fund_id)!;
+    const latest = [...hs].sort((a, b) => b.quarter.localeCompare(a.quarter))[0];
     return {
       fund: fund.name,
       entity_type: fund.entity_type,
+      instrument: latest.instrument_type ?? 'unknown',
+      reported_as: latest.ticker,
       quarter: latest.quarter,
       weight: Number(latest.weight.toFixed(2)),
       value: Math.round(latest.value),
-      first_reported: firstSeen,
+      first_reported: hs.map(h => h.quarter).sort()[0],
     };
   }).sort((a, b) => b.weight - a.weight);
 
+  const equityHolders = holders.filter(h => h.instrument === 'equity');
+  const distinctFunds = new Set(holders.map(h => h.fund));
+
   return {
     ticker: sym,
-    holder_count: holders.length,
+    issuer: seed?.issuer_name ?? rows[0]?.issuer_name ?? null,
+    fund_count: distinctFunds.size,
+    equity_holder_count: new Set(equityHolders.map(h => h.fund)).size,
     funds_tracked: fundMap.size,
-    aggregate_weight: Number(holders.reduce((s, h) => s + h.weight, 0).toFixed(2)),
+    // Only equity weights are comparable; summing a bond weight into an equity
+    // total produces a number that means nothing.
+    aggregate_equity_weight: Number(equityHolders.reduce((s, h) => s + h.weight, 0).toFixed(2)),
+    note: holders.some(h => h.instrument !== 'equity')
+      ? 'Some holders hold debt or warrants, not stock. Those are different bets — say which is which.'
+      : undefined,
     holders,
   };
 }
@@ -330,6 +394,60 @@ async function getStockAnalysis(ticker: string) {
   }
 }
 
+/**
+ * Institutional ownership beyond the tracked universe, via EDGAR full-text
+ * search over 13F filings for the company's CUSIP.
+ *
+ * EDGAR indexes filing *text*, not position sizes, so this answers "who
+ * disclosed this" and cannot rank by stake. Saying otherwise would invent a
+ * league table out of a word search, so the result labels the limit explicitly
+ * and the Analyst is told to repeat it.
+ */
+async function findInstitutionalHolders(ticker: string) {
+  const sym = ticker.toUpperCase().trim();
+
+  const { data: seed } = await db
+    .from('holdings').select('cusip, cusip6, issuer_name')
+    .eq('ticker', sym).eq('instrument_type', 'equity')
+    .not('cusip', 'is', null).limit(1).maybeSingle();
+
+  if (!seed?.cusip) {
+    return { ticker: sym, error: `No CUSIP on record for ${sym}, so EDGAR cannot be searched for it.` };
+  }
+
+  const year = new Date().getFullYear();
+  try {
+    const res = await axios.get('https://efts.sec.gov/LATEST/search-index', {
+      params: {
+        q: `"${seed.cusip}"`, forms: '13F-HR',
+        dateRange: 'custom', startdt: `${year - 1}-01-01`, enddt: `${year}-12-31`,
+      },
+      headers: { 'User-Agent': process.env.SEC_USER_AGENT || 'Trove 13F Follower' },
+      timeout: 20000,
+    });
+
+    const buckets: { key: string; doc_count: number }[] =
+      res.data?.aggregations?.entity_filter?.buckets ?? [];
+
+    const institutions = buckets.map(b => {
+      const cik = (b.key.match(/CIK (\d{10})/) || [])[1] ?? null;
+      const name = b.key.replace(/\s*\(CIK \d{10}\)\s*$/, '').replace(/\s{2,}/g, ' ').trim();
+      return { name, cik, filings_mentioning: b.doc_count };
+    });
+
+    return {
+      ticker: sym,
+      issuer: seed.issuer_name ?? null,
+      cusip: seed.cusip,
+      total_13f_filings_mentioning: res.data?.hits?.total?.value ?? null,
+      institutions,
+      note: 'From EDGAR full-text search of 13F filings. It shows which institutions disclosed the CUSIP, ranked by how many filings mention it — NOT by position size. Do not present this as largest-shareholder ranking. EDGAR caps the entity list, so this is a sample, not the complete holder list.',
+    };
+  } catch (e: any) {
+    return { ticker: sym, error: `EDGAR search failed: ${e.response?.status ?? e.message}` };
+  }
+}
+
 async function getUserPortfolio(userId: string) {
   const [{ data: account }, { data: positions }] = await Promise.all([
     db.from('paper_accounts').select('cash').eq('user_id', userId).maybeSingle(),
@@ -360,6 +478,7 @@ export async function runTool(name: string, input: any, userId: string): Promise
     case 'get_fund_detail':     return getFundDetail(input.cik, input.quarter);
     case 'get_ticker_holders':  return getTickerHolders(input.ticker);
     case 'get_stock_analysis':  return getStockAnalysis(input.ticker);
+    case 'find_institutional_holders': return findInstitutionalHolders(input.ticker);
     case 'get_user_portfolio':  return getUserPortfolio(userId);
     default:                    return { error: `Unknown tool: ${name}` };
   }

@@ -36,9 +36,16 @@ export async function updateSession(request: NextRequest) {
 
   // The Analyst demo on the landing page runs before login. It gates itself on the
   // email allowlist in lib/advisor/access.ts rather than a Supabase session.
+  // The company page is reachable because the public Analyst links tickers to
+  // it; it renders its own "sign in to view" state rather than bouncing a
+  // visitor who was mid-conversation straight to a login form. Its data still
+  // comes from /api/advisor/stock, which stays behind auth.
   const isPublicDemo =
     pathname.startsWith('/api/advisor/access') ||
-    pathname.startsWith('/api/advisor/public-chat');
+    pathname.startsWith('/api/advisor/public-chat') ||
+    pathname.startsWith('/api/advisor/tickers') ||
+    pathname.startsWith('/api/advisor/stock') ||
+    pathname.startsWith('/company/');
 
   const isPublic =
     isMachineRoute ||

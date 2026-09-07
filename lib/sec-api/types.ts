@@ -1,9 +1,13 @@
+export type InstrumentType = 'equity' | 'debt' | 'warrant' | 'unknown';
+
 export interface Holding {
   ticker: string;
   shares: number;
   value: number;
   weight: number; // Percentage of fund
   cusip?: string;
+  cusip6?: string;          // Issuer half — same company across instruments
+  instrumentType?: InstrumentType;
   name?: string;
 }
 

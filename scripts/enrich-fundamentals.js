@@ -23,6 +23,64 @@ const sb = createClient(
 );
 
 const KEY = process.env.POLYGON_API_KEY;
+const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
+const SKIP_ANALYSIS = process.argv.includes('--no-analysis');
+
+// Same prompt as app/api/stock/analysis/route.ts so a company reads identically
+// in the Analyst, on its stock page, and on its company page.
+const ANALYSIS_SYSTEM = `You are a sharp equity analyst. Given a company description, output three things in plain English — no jargon, no filler.
+
+Rules:
+- Summary: 1–2 sentences max. Explain what the company does and how it makes money, as if explaining to a smart teenager.
+- Bull Case: exactly 3 bullets, each under 15 words. Real macro tailwinds specific to this company.
+- Bear Case: exactly 3 bullets, each under 15 words. Specific structural risks, not generic ones.
+- Every bullet must be a cause → effect statement. No vague claims.
+
+Format exactly:
+
+Summary:
+<sentences>
+
+Bull Case:
+- <point>
+- <point>
+- <point>
+
+Bear Case:
+- <point>
+- <point>
+- <point>`;
+
+/**
+ * Generate the description and pros/cons in the SAME pass as the market cap.
+ * Polygon allows 5 requests a minute, so a separate crawl for descriptions
+ * would double a job already measured in hours — and the description is already
+ * in the reference response we just paid for.
+ */
+async function writeAnalysis(ticker, description) {
+  if (SKIP_ANALYSIS || !ANTHROPIC_KEY || !description) return null;
+  const { data: existing } = await sb.from('stock_analyses').select('summary').eq('ticker', ticker).maybeSingle();
+  if (existing?.summary) return 'cached';
+  try {
+    const res = await axios.post('https://api.anthropic.com/v1/messages', {
+      model: 'claude-haiku-4-5', max_tokens: 400, system: ANALYSIS_SYSTEM,
+      messages: [{ role: 'user', content: `Ticker: ${ticker}
+
+Description: ${description}` }],
+    }, {
+      headers: { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      timeout: 30000,
+    });
+    const text = (res.data?.content || []).find(b => b.type === 'text')?.text ?? '';
+    const summary = (text.match(/Summary:\s*([\s\S]*?)(?=Bull Case:|$)/i) || [])[1]?.trim() ?? '';
+    const bull = (text.match(/Bull Case:\s*([\s\S]*?)(?=Bear Case:|$)/i) || [])[1]?.trim() ?? '';
+    const bear = (text.match(/Bear Case:\s*([\s\S]*?)$/i) || [])[1]?.trim() ?? '';
+    if (!summary) return null;
+    await sb.from('stock_analyses').upsert(
+      { ticker, summary, bull_case: bull, bear_case: bear }, { onConflict: 'ticker' });
+    return 'written';
+  } catch { return null; }
+}
 const ALL = process.argv.includes('--all');
 const REFRESH = process.argv.includes('--refresh');
 
@@ -132,9 +190,12 @@ const val = (o, k) => o?.[k]?.value ?? null;
       }, { onConflict: 'ticker' });
       if (error) throw new Error(error.message);
 
+      const analysed = await writeAnalysis(ticker, d.description);
+
       ok++;
       const mc = d.market_cap ? `$${(d.market_cap / 1e9).toFixed(2)}B` : 'no mkt cap';
-      console.log(`${tag} ✓ ${ticker.padEnd(7)} ${mc.padStart(11)}  ${String(d.name ?? '').slice(0, 34)}`);
+      const aflag = analysed === 'written' ? ' +analysis' : analysed === 'cached' ? '' : ' (no analysis)';
+      console.log(`${tag} ✓ ${ticker.padEnd(7)} ${mc.padStart(11)}  ${String(d.name ?? '').slice(0, 30)}${aflag}`);
     } catch (e) {
       const notFound = e.notFound || e.response?.status === 404;
       const status = notFound ? 'not_found' : 'error';

@@ -128,3 +128,39 @@ body {
 @media (min-width: 1100px) {
   .ticker-panel-scrim { display: none; }
 }
+
+/* ── Analyst conversation history ──────────────────────────────────── */
+
+.analyst-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 250px;
+  background: #0a0a0a;
+  border-right: 1px solid #1a1a1a;
+  z-index: 88;
+  display: flex;
+  flex-direction: column;
+  font-family: "Courier New", Courier, monospace;
+}
+
+/* Wide screens: the sidebar sits beside the conversation, so nothing is
+   covered and no scrim is needed. */
+.analyst-sidebar-scrim { display: none; }
+
+.analyst-shifted { margin-left: 250px; }
+
+@media (max-width: 1099px) {
+  /* Narrow screens: the sidebar overlays the page, but both it and the scrim
+     stop above the fixed composer so the input stays usable with it open. */
+  .analyst-sidebar { width: min(280px, 82vw); bottom: 92px; border-bottom: 1px solid #1a1a1a; }
+  .analyst-shifted { margin-left: 0; }
+  .analyst-sidebar-scrim {
+    display: block;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 92px;
+    background: rgba(0, 0, 0, .6);
+    z-index: 87;
+  }
+}
