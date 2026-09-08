@@ -269,24 +269,40 @@ function money(v: number): string {
  */
 async function liveFundamentals(sym: string) {
   try {
-    const { getTickerDetails } = await import('@/lib/polygon/client');
-    const d = await getTickerDetails(sym);
+    const { getTickerDetails, getPrevClose } = await import('@/lib/polygon/client');
+
+    // Polygon allows 5 requests a minute on this plan, and a background
+    // enrichment run can consume the whole budget. Company facts change slowly
+    // and are already cached, so reuse a recent row and spend the request we
+    // can afford on the price — which is the part that actually goes stale.
+    const { data: cached } = await db
+      .from('security_fundamentals')
+      .select('name, sector, market_cap, shares_outstanding, employees, list_date, homepage, updated_at')
+      .eq('ticker', sym).eq('status', 'ok').maybeSingle();
+
+    const fresh = cached?.updated_at
+      && Date.now() - new Date(cached.updated_at).getTime() < 7 * 864e5;
+
+    // Price first: under contention this is the call worth winning.
+    const prev = await getPrevClose(sym).catch(() => null);
+
+    const d = fresh
+      ? {
+          name: cached!.name, sic_description: cached!.sector,
+          market_cap: cached!.market_cap,
+          share_class_shares_outstanding: cached!.shares_outstanding,
+          total_employees: cached!.employees, list_date: cached!.list_date,
+          homepage_url: cached!.homepage, description: undefined as string | undefined,
+        }
+      : await getTickerDetails(sym);
     if (!d) return null;
 
     // Last daily close. Polygon's realtime snapshot is not on this plan, so this
     // is an end-of-day price, and it is labelled as one — quoting it as "the
     // price" would be wrong the moment the market opens.
-    let price: { close: number; asOf: string } | null = null;
-    try {
-      const { getPrevClose } = await import('@/lib/polygon/client');
-      const prev = await getPrevClose(sym);
-      if (prev?.c) {
-        price = {
-          close: prev.c,
-          asOf: prev.t ? new Date(prev.t).toISOString().slice(0, 10) : 'last close',
-        };
-      }
-    } catch { /* price is a bonus; the rest of the record still stands */ }
+    const price = prev?.c
+      ? { close: prev.c, asOf: prev.t ? new Date(prev.t).toISOString().slice(0, 10) : 'last close' }
+      : null;
 
     const out = {
       name: d.name ?? sym,
