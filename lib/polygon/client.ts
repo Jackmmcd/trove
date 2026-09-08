@@ -10,7 +10,9 @@ function p(extra: Record<string, any> = {}) {
 }
 
 /** Previous trading day OHLCV — used for Day P&L */
-export async function getPrevClose(ticker: string): Promise<{ o: number; h: number; l: number; c: number; v: number } | null> {
+// `t` is the bar's timestamp in epoch ms — needed to state which session's
+// close a price came from, since this plan has no realtime quote.
+export async function getPrevClose(ticker: string): Promise<{ o: number; h: number; l: number; c: number; v: number; t?: number } | null> {
   try {
     const res = await http.get(`/v2/aggs/ticker/${ticker}/prev`, { params: p({ adjusted: true }) });
     return res.data?.results?.[0] ?? null;

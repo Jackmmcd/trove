@@ -26,8 +26,8 @@ interface Turn { role: 'user' | 'assistant'; text: string }
  * through. Gated on `known` — the symbols tracked funds actually report — so a
  * ticker the model invented stays plain text rather than offering a dead link.
  */
-function linkify(text: string, keyPrefix: string, known: Set<string>): React.ReactNode[] {
-  const matches = findTickerMatches(text, known);
+function linkify(text: string, keyPrefix: string, known: Set<string>, names: Record<string, string>): React.ReactNode[] {
+  const matches = findTickerMatches(text, known, names);
   if (!matches.length) return [text];
   const out: React.ReactNode[] = [];
   let last = 0;
@@ -45,7 +45,7 @@ function linkify(text: string, keyPrefix: string, known: Set<string>): React.Rea
           borderBottom: '1px dotted #7a5a20',
         }}
       >
-        {mt.symbol}
+        {mt.label}
       </a>
     );
     last = mt.end;
@@ -55,18 +55,18 @@ function linkify(text: string, keyPrefix: string, known: Set<string>): React.Rea
 }
 
 /** Renders **bold** and hyphen bullets — the only markup the Analyst is told to emit. */
-function Rich({ text, known }: { text: string; known: Set<string> }) {
+function Rich({ text, known, names }: { text: string; known: Set<string>; names: Record<string, string> }) {
   const blocks = text.split(/\n{2,}/).filter(b => b.trim());
   const inline = (s: string, k: string) => {
     const out: React.ReactNode[] = [];
     const re = /\*\*(.+?)\*\*/g;
     let last = 0, m: RegExpExecArray | null, i = 0;
     while ((m = re.exec(s)) !== null) {
-      if (m.index > last) out.push(...linkify(s.slice(last, m.index), `${k}-p${i}`, known));
+      if (m.index > last) out.push(...linkify(s.slice(last, m.index), `${k}-p${i}`, known, names));
       out.push(<strong key={`${k}-${i++}`} style={{ color: '#ffb454', fontWeight: 700 }}>{m[1]}</strong>);
       last = m.index + m[0].length;
     }
-    if (last < s.length) out.push(...linkify(s.slice(last), `${k}-tail`, known));
+    if (last < s.length) out.push(...linkify(s.slice(last), `${k}-tail`, known, names));
     return out;
   };
 
@@ -102,6 +102,7 @@ export default function AnalystFull() {
   const [fundCount, setFundCount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [knownTickers, setKnownTickers] = useState<Set<string>>(new Set());
+  const [tickerNames, setTickerNames] = useState<Record<string, string>>({});
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -114,7 +115,7 @@ export default function AnalystFull() {
   useEffect(() => {
     fetch('/api/advisor/tickers')
       .then(r => r.ok ? r.json() : { tickers: [] })
-      .then(d => setKnownTickers(new Set(d.tickers ?? [])))
+      .then(d => { setKnownTickers(new Set(d.tickers ?? [])); setTickerNames(d.names ?? {}); })
       .catch(() => {});
   }, []);
 
@@ -274,7 +275,7 @@ export default function AnalystFull() {
                   {t.role === 'user'
                     ? t.text
                     : t.text
-                      ? <Rich text={t.text} known={knownTickers} />
+                      ? <Rich text={t.text} known={knownTickers} names={tickerNames} />
                       : (busy && i === turns.length - 1
                           ? <span style={{ color: '#6f6552', fontFamily: 'Courier New, monospace', fontSize: '11.5px', fontStyle: 'italic', whiteSpace: 'pre-wrap' }}>
                               {thinking || 'thinking…'}

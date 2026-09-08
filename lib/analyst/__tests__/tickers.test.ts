@@ -1,4 +1,4 @@
-import { findTickers } from '../tickers';
+import { findTickers, findTickerMatches } from '../tickers';
 
 /**
  * Cases taken from real Analyst output. The naive matcher highlighted the B in
@@ -60,5 +60,44 @@ describe('findTickers', () => {
 
   it('returns nothing when no symbols are known', () => {
     expect(findTickers('AMZN and META', new Set())).toEqual([]);
+  });
+});
+
+describe('findTickerMatches with company names', () => {
+  const names = {
+    'transdigm': 'TDG',
+    'boeing': 'BA',
+    'ge aerospace': 'GE',
+    'warner bros discovery': 'WBD',
+    'warner music': 'WMG',
+  };
+
+  it('links a company name to its ticker while displaying the name', () => {
+    const [m] = findTickerMatches('Pennant is leaning into TransDigm.', known, names);
+    expect(m).toMatchObject({ symbol: 'TDG', label: 'TransDigm' });
+  });
+
+  it('prefers the longest name when several overlap', () => {
+    const got = findTickerMatches('a new Warner Bros Discovery stake', known, names);
+    expect(got.map(m => m.symbol)).toEqual(['WBD']);
+  });
+
+  it('matches multi-word names', () => {
+    const got = findTickerMatches('none of them hold GE Aerospace', known, names);
+    expect(got.map(m => m.label)).toEqual(['GE Aerospace']);
+  });
+
+  it('does not double-match a symbol and a name covering the same text', () => {
+    const got = findTickerMatches('TSM and Boeing', known, names);
+    expect(got.map(m => m.symbol)).toEqual(['TSM', 'BA']);
+  });
+
+  it('returns matches in document order', () => {
+    const got = findTickerMatches('Boeing, then AMZN, then TransDigm', known, names);
+    expect(got.map(m => m.symbol)).toEqual(['BA', 'AMZN', 'TDG']);
+  });
+
+  it('ignores names when none are supplied', () => {
+    expect(findTickerMatches('TransDigm and Boeing', known)).toEqual([]);
   });
 });

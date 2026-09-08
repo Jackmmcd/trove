@@ -39,6 +39,7 @@ function renderInline(
   text: string,
   keyPrefix: string,
   known: Set<string>,
+  names: Record<string, string>,
   onTicker: (t: string) => void,
 ) {
   const parts: React.ReactNode[] = [];
@@ -46,7 +47,7 @@ function renderInline(
   let last = 0;
   let m: RegExpExecArray | null;
   let i = 0;
-  const plain = (chunk: string, k: string) => linkifyTickers(chunk, k, known, onTicker);
+  const plain = (chunk: string, k: string) => linkifyTickers(chunk, k, known, names, onTicker);
   while ((m = re.exec(text)) !== null) {
     if (m.index > last) parts.push(...plain(text.slice(last, m.index), `${keyPrefix}-p${i}`));
     if (m[1] !== undefined) {
@@ -81,9 +82,10 @@ function linkifyTickers(
   text: string,
   keyPrefix: string,
   known: Set<string>,
+  names: Record<string, string>,
   onTicker: (t: string) => void,
 ): React.ReactNode[] {
-  const matches = findTickerMatches(text, known);
+  const matches = findTickerMatches(text, known, names);
   if (!matches.length) return [text];
   const out: React.ReactNode[] = [];
   let last = 0;
@@ -102,7 +104,7 @@ function linkifyTickers(
           borderBottom: '1px dotted #7a5a20', cursor: 'pointer',
         }}
       >
-        {mt.symbol}
+        {mt.label}
       </a>
     );
     last = mt.end;
@@ -112,8 +114,8 @@ function linkifyTickers(
 }
 
 /** Split into paragraphs and bullet lists; render each block with spacing. */
-function RichText({ text, known, onTicker }: {
-  text: string; known: Set<string>; onTicker: (t: string) => void;
+function RichText({ text, known, names, onTicker }: {
+  text: string; known: Set<string>; names: Record<string, string>; onTicker: (t: string) => void;
 }) {
   const blocks = text.split(/\n{2,}/).filter(b => b.trim());
   return (
@@ -126,7 +128,7 @@ function RichText({ text, known, onTicker }: {
             <ul key={bi} style={{ margin: '0 0 14px', paddingLeft: '18px' }}>
               {lines.map((l, li) => (
                 <li key={li} style={{ marginBottom: '5px' }}>
-                  {renderInline(l.replace(/^\s*[-•*]\s+/, ''), `${bi}-${li}`, known, onTicker)}
+                  {renderInline(l.replace(/^\s*[-•*]\s+/, ''), `${bi}-${li}`, known, names, onTicker)}
                 </li>
               ))}
             </ul>
@@ -134,7 +136,7 @@ function RichText({ text, known, onTicker }: {
         }
         return (
           <p key={bi} style={{ margin: '0 0 14px' }}>
-            {renderInline(block.replace(/^#{1,6}\s+/gm, ''), String(bi), known, onTicker)}
+            {renderInline(block.replace(/^#{1,6}\s+/gm, ''), String(bi), known, names, onTicker)}
           </p>
         );
       })}
@@ -157,6 +159,7 @@ export default function AnalystChat() {
   const [error, setError] = useState<string | null>(null);
   const [fundCount, setFundCount] = useState<number | null>(null);
   const [knownTickers, setKnownTickers] = useState<Set<string>>(new Set());
+  const [tickerNames, setTickerNames] = useState<Record<string, string>>({});
   const [panelTicker, setPanelTicker] = useState<string | null>(null);
   const [conversations, setConversations] = useState<ConvSummary[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -168,7 +171,7 @@ export default function AnalystChat() {
   useEffect(() => {
     fetch('/api/advisor/tickers')
       .then(r => r.ok ? r.json() : { tickers: [] })
-      .then(d => setKnownTickers(new Set(d.tickers ?? [])))
+      .then(d => { setKnownTickers(new Set(d.tickers ?? [])); setTickerNames(d.names ?? {}); })
       .catch(() => {});
   }, []);
 
@@ -443,7 +446,7 @@ export default function AnalystChat() {
               {m.role === 'user'
                 ? m.text
                 : m.text
-                  ? <RichText text={m.text} known={knownTickers} onTicker={setPanelTicker} />
+                  ? <RichText text={m.text} known={knownTickers} names={tickerNames} onTicker={setPanelTicker} />
                   : (busy && i === messages.length - 1
                       // Show the reasoning summary while it streams. Without this
                       // the user stares at a static word for the whole think phase,

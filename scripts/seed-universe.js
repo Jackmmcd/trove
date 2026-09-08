@@ -52,6 +52,7 @@ const UNIVERSE = [
 // Deliberately excluded — never re-added by the inherit step below.
 const EXCLUDE = new Set([
   '0002045724', // Situational Awareness LP — removed 2026-09-01
+  '0001759176', // Pennant Investors, LP — removed 2026-09-08
 ]);
 
 async function edgarName(cik) {

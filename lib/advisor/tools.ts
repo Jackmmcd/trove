@@ -273,9 +273,27 @@ async function liveFundamentals(sym: string) {
     const d = await getTickerDetails(sym);
     if (!d) return null;
 
+    // Last daily close. Polygon's realtime snapshot is not on this plan, so this
+    // is an end-of-day price, and it is labelled as one — quoting it as "the
+    // price" would be wrong the moment the market opens.
+    let price: { close: number; asOf: string } | null = null;
+    try {
+      const { getPrevClose } = await import('@/lib/polygon/client');
+      const prev = await getPrevClose(sym);
+      if (prev?.c) {
+        price = {
+          close: prev.c,
+          asOf: prev.t ? new Date(prev.t).toISOString().slice(0, 10) : 'last close',
+        };
+      }
+    } catch { /* price is a bonus; the rest of the record still stands */ }
+
     const out = {
       name: d.name ?? sym,
       sector: d.sic_description ?? null,
+      last_close: price?.close ?? null,
+      last_close_date: price?.asOf ?? null,
+      price_note: price ? 'End-of-day close, not a live quote.' : 'No price available.',
       market_cap: d.market_cap ?? null,
       market_cap_display: d.market_cap ? money(d.market_cap) : null,
       shares_outstanding: d.share_class_shares_outstanding ?? d.weighted_shares_outstanding ?? null,
