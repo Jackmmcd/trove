@@ -1,4 +1,5 @@
 import { findTickers as extractTickers } from './tickers';
+
 /**
  * Follow-up chips derived from the reply text itself.
  *
@@ -28,7 +29,6 @@ const BARE_FUNDS = [
 
 const QUARTER_RE = /\b(20\d{2})[\s-]?Q([1-4])\b|\bQ([1-4])[\s-](20\d{2})\b/;
 
-
 /** Previous calendar quarter, in the `2025-Q3` form used across the corpus. */
 function prevQuarter(year: number, q: number): string {
   return q === 1 ? `${year - 1}-Q4` : `${year}-Q${q - 1}`;
@@ -54,9 +54,44 @@ function findFunds(text: string, known: Set<string>): string[] {
 }
 
 /**
- * Up to three questions the reader plausibly wants next. Ordered so the chips
- * cover different angles — a holder, a fund, a time period — rather than three
- * variations on whichever entity happened to be named first.
+ * What to ask next about a fund, given what the reply said it did. Evaluated in
+ * order, first match wins, so specific beats generic. A table rather than an
+ * if/else chain because these are data — reading them as a list is how you
+ * notice one is missing.
+ */
+const FUND_RULES: { when: RegExp; ask: (fund: string) => string }[] = [
+  { when: /\bactivist\b/i, ask: f => `What else has ${f} taken an activist position in?` },
+  { when: /\bexit(?:ed|s)?\b|\bsold out\b|closed (?:the|its) position|no longer holds/i, ask: f => `What else did ${f} exit?` },
+  { when: /\btrimmed\b|\breduced\b|\bcut\b|\bdown \d/i, ask: f => `What else did ${f} trim?` },
+  { when: /\bNEW\b|newly opened|\bopened\b|first reported|initiated/i, ask: f => `What else did ${f} open recently?` },
+  { when: /concentrat|top-\d|largest (?:holding|position)|% of (?:its|their) book/i, ask: f => `How concentrated is ${f}'s book?` },
+];
+
+/** Likewise for the company the reply is about. */
+const TICKER_RULES: { when: RegExp; ask: (t: string) => string }[] = [
+  { when: /\[debt\]|\bbonds?\b|\bnotes\b|convertible|credit-focused/i, ask: t => `Which funds hold ${t} equity rather than its debt?` },
+  { when: /only (?:one|1) fund|single holder|thin support|lonely/i, ask: () => 'Which similar names have broader support?' },
+];
+
+// The reply itself says history is missing, so anything time-based is a dead end.
+const NO_HISTORY = /no (?:prior|earlier)[\s-]?quarter filing|only one filing|nothing to compare|first (?:filing|disclosure) on record/i;
+
+// The reply declined or found nothing — don't offer chips that just re-ask it.
+const CAME_UP_EMPTY = /\bno fund\b|not among those|does not (?:hold|track)|isn't tracked|no tracked fund/i;
+
+// Non-hedge-fund filers are usually why a consensus number is weaker than it looks.
+const MIXED_FILERS = /endowment|sovereign|venture|private[\s-]equity|asset manager|treasury/i;
+
+/**
+ * Up to three questions the reader plausibly wants next.
+ *
+ * Driven by what the reply actually says, not just what it names. Two rules
+ * matter more than the rest:
+ *
+ *  - Never offer a question the reply already told us is unanswerable. If it
+ *    said a fund has no prior filing, a "how did it change" chip is a dead end
+ *    the reader has to click to discover.
+ *  - Vary the subject. Three chips about the same fund is one chip.
  */
 export function suggestFollowUps(reply: string, known: Set<string>): string[] {
   const text = reply.slice(0, 6000);
@@ -64,28 +99,58 @@ export function suggestFollowUps(reply: string, known: Set<string>): string[] {
 
   const tickers = extractTickers(text, known);
   const funds = findFunds(text, known);
+  const ticker = tickers[0];
+  const fund = funds[0];
+
+  const noHistory = NO_HISTORY.test(text);
+  const cameUpEmpty = CAME_UP_EMPTY.test(text);
+
   const q = QUARTER_RE.exec(text);
+  const period = q
+    ? { prev: prevQuarter(Number(q[1] ?? q[4]), Number(q[2] ?? q[3])), cur: `${q[1] ?? q[4]}-Q${q[2] ?? q[3]}` }
+    : null;
+
+  const candidates: { chip: string; subject: string }[] = [];
+  const push = (chip: string, subject: string) => candidates.push({ chip, subject });
+
+  if (fund) {
+    const rule = FUND_RULES.find(r => r.when.test(text));
+    push(rule ? rule.ask(fund) : `What else does ${fund} hold?`, fund);
+  }
+
+  if (ticker && !cameUpEmpty) {
+    const rule = TICKER_RULES.find(r => r.when.test(text));
+    push(rule ? rule.ask(ticker) : `Who else owns ${ticker}?`, ticker);
+  }
+
+  if (period && !noHistory) {
+    const subject = ticker ?? fund;
+    if (subject) push(`How did ${subject} change between ${period.prev} and ${period.cur}?`, `time:${subject}`);
+  }
+
+  if (tickers[1] && !cameUpEmpty) push(`How do ${ticker} and ${tickers[1]} compare across the funds?`, `pair:${ticker}`);
+  if (funds[1]) push(`What do ${fund} and ${funds[1]} both own?`, `pair:${fund}`);
+  if (MIXED_FILERS.test(text)) push('Which of these are actual hedge funds rather than other kinds of filer?', 'entity');
 
   const chips: string[] = [];
-  if (tickers[0]) chips.push(`Who else owns ${tickers[0]}?`);
-  if (funds[0]) chips.push(`What else does ${funds[0]} hold?`);
-
-  if (q) {
-    const year = Number(q[1] ?? q[4]);
-    const num = Number(q[2] ?? q[3]);
-    const subject = tickers[0] ?? funds[0] ?? 'the funds';
-    chips.push(`How did ${subject} change between ${prevQuarter(year, num)} and ${year}-Q${num}?`);
+  const usedSubjects = new Set<string>();
+  for (const c of candidates) {
+    if (usedSubjects.has(c.subject)) continue;
+    usedSubjects.add(c.subject);
+    if (!chips.includes(c.chip)) chips.push(c.chip);
+    if (chips.length === 3) return chips;
   }
 
-  if (tickers[1]) chips.push(`How do ${tickers[0]} and ${tickers[1]} compare across the funds?`);
-  if (funds[1]) chips.push(`What do ${funds[0]} and ${funds[1]} both own?`);
-
-  // Nothing nameable in the reply — still offer a way forward, but only
-  // questions that are answerable from the corpus no matter what was asked.
-  if (chips.length < 2) {
-    chips.push('Which names are the most funds crowding into?');
-    chips.push('What were the biggest position changes last quarter?');
+  // Nothing nameable, or the reply came up empty — offer questions answerable
+  // from the tracked filings whatever was asked.
+  for (const generic of [
+    'Which names are the most funds crowding into?',
+    'What were the biggest position changes last quarter?',
+    'Which funds does Trove track?',
+  ]) {
+    if (chips.length === 3) break;
+    if (!chips.includes(generic)) chips.push(generic);
   }
 
-  return [...new Set(chips)].slice(0, 3);
+  return chips.slice(0, 3);
 }

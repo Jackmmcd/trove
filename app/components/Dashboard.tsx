@@ -152,10 +152,17 @@ export default function Dashboard() {
       setError(null);
       setRequiresAuth(false);
 
-      // Check if this user has a paper account first
-      const paperBalanceRes = await fetch('/api/paper/balance');
+      // Ask the server which account this user should see. The brokerage
+      // credentials are a single set in the environment, so only their owner
+      // gets the live view; everyone else gets their own paper account.
+      const sourceRes = await fetch('/api/account/source');
+      const source = sourceRes.ok ? (await sourceRes.json()).source : 'paper';
 
-      if (paperBalanceRes.ok) {
+      const paperBalanceRes = source === 'paper'
+        ? await fetch('/api/paper/balance')
+        : null;
+
+      if (paperBalanceRes?.ok) {
         // ── Paper trading path ────────────────────────────────────────
         const paperBalance = await paperBalanceRes.json();
         const balanceVal: AccountBalance = paperBalance.data;
@@ -174,12 +181,10 @@ export default function Dashboard() {
       }
 
       // ── Live Tastytrade path ──────────────────────────────────────
-      // Off by default. The brokerage routes authenticate with shared env
-      // credentials, so this shows ONE real account to whoever reaches it —
-      // falling through here on an error meant every user without a paper
-      // account saw the same brokerage data. Paper accounts are now
-      // provisioned on demand, so this should be unreachable in normal use.
-      if (process.env.NEXT_PUBLIC_ENABLE_BROKER_VIEW !== '1') {
+      // Reached only when the server said this user owns the brokerage
+      // credentials. Guarded again here so a failed source lookup can never
+      // fall through and show a stranger someone else's live positions.
+      if (source !== 'broker') {
         setError('Could not load your account. Please refresh, or sign out and back in.');
         setLoading(false);
         return;
