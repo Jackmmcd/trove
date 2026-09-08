@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import TickerPanel from './TickerPanel';
+import { findTickerMatches } from '@/lib/analyst/tickers';
 import { suggestFollowUps } from '@/lib/analyst/followups';
 
 interface Msg {
@@ -82,35 +83,30 @@ function linkifyTickers(
   known: Set<string>,
   onTicker: (t: string) => void,
 ): React.ReactNode[] {
-  if (!known.size) return [text];
+  const matches = findTickerMatches(text, known);
+  if (!matches.length) return [text];
   const out: React.ReactNode[] = [];
-  const re = /[A-Z]{1,5}(?:\.[A-Z]{1,2})?/g;
   let last = 0;
-  let m: RegExpExecArray | null;
-  let i = 0;
-  while ((m = re.exec(text)) !== null) {
-    const sym = m[0];
-    if (!known.has(sym)) continue;
-    if (m.index > last) out.push(text.slice(last, m.index));
+  matches.forEach((mt, i) => {
+    if (mt.start > last) out.push(text.slice(last, mt.start));
     out.push(
       <a
-        key={`${keyPrefix}-t${i++}`}
-        href={`/company/${sym}`}
+        key={`${keyPrefix}-t${i}`}
+        href={`/company/${mt.symbol}`}
         target="_blank"
         rel="noopener noreferrer"
-        onClick={e => { if (e.altKey) { e.preventDefault(); onTicker(sym); } }}
-        title={`${sym} — open company page (alt-click to peek here)`}
+        onClick={e => { if (e.altKey) { e.preventDefault(); onTicker(mt.symbol); } }}
+        title={`${mt.symbol} — open company page (alt-click to peek here)`}
         style={{
           font: 'inherit', color: '#ffb454', textDecoration: 'none',
           borderBottom: '1px dotted #7a5a20', cursor: 'pointer',
         }}
       >
-        {sym}
+        {mt.symbol}
       </a>
     );
-    last = m.index + sym.length;
-  }
-  if (!out.length) return [text];
+    last = mt.end;
+  });
   if (last < text.length) out.push(text.slice(last));
   return out;
 }

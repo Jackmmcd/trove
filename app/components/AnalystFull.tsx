@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { suggestFollowUps } from '@/lib/analyst/followups';
+import { findTickerMatches } from '@/lib/analyst/tickers';
 
 const B = {
   amber: '#ff8c00',
@@ -26,32 +27,29 @@ interface Turn { role: 'user' | 'assistant'; text: string }
  * ticker the model invented stays plain text rather than offering a dead link.
  */
 function linkify(text: string, keyPrefix: string, known: Set<string>): React.ReactNode[] {
-  if (!known.size) return [text];
+  const matches = findTickerMatches(text, known);
+  if (!matches.length) return [text];
   const out: React.ReactNode[] = [];
-  const re = /[A-Z]{1,5}(?:\.[A-Z]{1,2})?/g;
-  let last = 0, m: RegExpExecArray | null, i = 0;
-  while ((m = re.exec(text)) !== null) {
-    const sym = m[0];
-    if (!known.has(sym)) continue;
-    if (m.index > last) out.push(text.slice(last, m.index));
+  let last = 0;
+  matches.forEach((mt, i) => {
+    if (mt.start > last) out.push(text.slice(last, mt.start));
     out.push(
       <a
-        key={`${keyPrefix}-t${i++}`}
-        href={`/company/${sym}`}
+        key={`${keyPrefix}-t${i}`}
+        href={`/company/${mt.symbol}`}
         target="_blank"
         rel="noopener noreferrer"
-        title={`${sym} — open company page`}
+        title={`${mt.symbol} — open company page`}
         style={{
           font: 'inherit', color: '#ffb454', textDecoration: 'none',
           borderBottom: '1px dotted #7a5a20',
         }}
       >
-        {sym}
+        {mt.symbol}
       </a>
     );
-    last = m.index + sym.length;
-  }
-  if (!out.length) return [text];
+    last = mt.end;
+  });
   if (last < text.length) out.push(text.slice(last));
   return out;
 }

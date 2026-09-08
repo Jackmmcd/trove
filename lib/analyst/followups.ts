@@ -1,3 +1,4 @@
+import { findTickers as extractTickers } from './tickers';
 /**
  * Follow-up chips derived from the reply text itself.
  *
@@ -27,20 +28,10 @@ const BARE_FUNDS = [
 
 const QUARTER_RE = /\b(20\d{2})[\s-]?Q([1-4])\b|\bQ([1-4])[\s-](20\d{2})\b/;
 
-const TICKER_RE = /[A-Z]{1,5}(?:\.[A-Z]{1,2})?/g;
 
 /** Previous calendar quarter, in the `2025-Q3` form used across the corpus. */
 function prevQuarter(year: number, q: number): string {
   return q === 1 ? `${year - 1}-Q4` : `${year}-Q${q - 1}`;
-}
-
-function findTickers(text: string, known: Set<string>): string[] {
-  if (!known.size) return [];
-  const out: string[] = [];
-  for (const m of text.matchAll(TICKER_RE)) {
-    if (known.has(m[0]) && !out.includes(m[0])) out.push(m[0]);
-  }
-  return out;
 }
 
 function findFunds(text: string, known: Set<string>): string[] {
@@ -71,7 +62,7 @@ export function suggestFollowUps(reply: string, known: Set<string>): string[] {
   const text = reply.slice(0, 6000);
   if (text.trim().length < 40) return [];
 
-  const tickers = findTickers(text, known);
+  const tickers = extractTickers(text, known);
   const funds = findFunds(text, known);
   const q = QUARTER_RE.exec(text);
 
