@@ -34,21 +34,15 @@ function hhi(weights: number[]): number {
   return weights.reduce((s, w) => s + (w / 100) ** 2, 0);
 }
 
-export async function deriveProfile(userId: string, declared: DeclaredProfile): Promise<DerivedProfile> {
-  const [{ data: account }, { data: positions }] = await Promise.all([
-    db.from('paper_accounts').select('cash').eq('user_id', userId).maybeSingle(),
-    db.from('paper_positions').select('symbol, quantity, avg_open_price').eq('user_id', userId),
-  ]);
+export async function deriveProfile(userId: string, declared: DeclaredProfile, email?: string | null): Promise<DerivedProfile> {
+  // Whichever account is actually theirs. Deriving risk from a practice
+  // account while the user is trading a real one describes the wrong person.
+  const { getPortfolio } = await import('./portfolio');
+  const portfolio = await getPortfolio(userId, email);
+  const rows = portfolio.positions;
+  const cash = portfolio.cash;
 
-  const rows = positions ?? [];
-  const cash = account?.cash ?? 0;
-
-  // Cost basis, not market value. The chat route enriches with live prices when
-  // available; this stays dependency-free so the profile can always be computed.
-  const valued = rows.map(p => ({
-    ticker: p.symbol,
-    value: Math.abs((p.quantity ?? 0) * (p.avg_open_price ?? 0)),
-  }));
+  const valued = rows.map(p => ({ ticker: p.ticker, value: Math.abs(p.value) }));
   const equityValue = valued.reduce((s, p) => s + p.value, 0);
   const total = equityValue + cash;
 
@@ -97,7 +91,7 @@ export async function deriveProfile(userId: string, declared: DeclaredProfile): 
   };
 }
 
-export async function getProfile(userId: string) {
+export async function getProfile(userId: string, email?: string | null) {
   const { data } = await db
     .from('investor_profiles')
     .select('declared, derived, derived_at')
@@ -105,7 +99,7 @@ export async function getProfile(userId: string) {
     .maybeSingle();
 
   const declared: DeclaredProfile = data?.declared ?? {};
-  const derived = await deriveProfile(userId, declared);
+  const derived = await deriveProfile(userId, declared, email);
 
   await db.from('investor_profiles').upsert(
     { user_id: userId, declared, derived, derived_at: new Date().toISOString() },
@@ -134,7 +128,7 @@ export function renderProfileBlock(
   lines.push(d.length ? `Declared: ${d.join(' · ')}` : 'Declared: not yet completed — ask before assuming anything about risk tolerance.');
 
   if (derived.positions === 0) {
-    lines.push('Portfolio: empty paper account — no derived risk signals available.');
+    lines.push('Portfolio: no positions on record — no derived risk signals available.');
   } else {
     lines.push(
       `Derived: ${derived.band.toUpperCase()} · ${derived.positions} positions · ` +

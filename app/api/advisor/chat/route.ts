@@ -81,7 +81,7 @@ export async function POST(req: Request) {
     // Profile + watchlist, themselves parallel internally.
     (async () => {
       const [{ declared, derived }, watched] = await Promise.all([
-        getProfile(user.id),
+        getProfile(user.id, user.email),
         db.from('user_watched_funds').select('fund_id').eq('user_id', user.id)
           .then(async r => {
             const ids = (r.data ?? []).map(w => w.fund_id);
@@ -177,7 +177,7 @@ export async function POST(req: Request) {
           for (const use of toolUses) {
             send('tool', { name: use.name, input: use.input });
             try {
-              const out = await runTool(use.name, use.input, user.id);
+              const out = await runTool(use.name, use.input, user.id, user.email);
               if (use.name === 'get_ticker_holders' && (use.input as any)?.ticker) {
                 evidence.push(String((use.input as any).ticker).toUpperCase());
               }

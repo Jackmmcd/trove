@@ -482,38 +482,34 @@ async function findInstitutionalHolders(ticker: string) {
   }
 }
 
-async function getUserPortfolio(userId: string) {
-  const [{ data: account }, { data: positions }] = await Promise.all([
-    db.from('paper_accounts').select('cash').eq('user_id', userId).maybeSingle(),
-    db.from('paper_positions').select('symbol, quantity, avg_open_price').eq('user_id', userId),
-  ]);
-
-  const rows = positions ?? [];
-  const valued = rows.map(p => ({
-    ticker: p.symbol,
-    shares: p.quantity,
-    cost_basis: Number((p.quantity * p.avg_open_price).toFixed(2)),
-  }));
-  const equity = valued.reduce((s, p) => s + p.cost_basis, 0);
+async function getUserPortfolio(userId: string, email?: string | null) {
+  const { getPortfolio } = await import('./portfolio');
+  const p = await getPortfolio(userId, email);
 
   return {
-    cash: Number((account?.cash ?? 0).toFixed(2)),
-    equity_at_cost: Number(equity.toFixed(2)),
-    position_count: valued.length,
-    positions: valued
-      .map(p => ({ ...p, weight: equity > 0 ? Number(((p.cost_basis / equity) * 100).toFixed(1)) : 0 }))
-      .sort((a, b) => b.cost_basis - a.cost_basis),
-    note: 'Values are cost basis, not live market prices.',
+    account: p.source === 'broker' ? 'connected brokerage' : 'Trove paper account',
+    cash: Number(p.cash.toFixed(2)),
+    equity: Number(p.equity.toFixed(2)),
+    position_count: p.positionCount,
+    positions: p.positions.map(h => ({
+      ticker: h.ticker,
+      shares: Number(h.shares.toFixed(4)),
+      value: Number(h.value.toFixed(2)),
+      weight: Number(h.weight.toFixed(1)),
+    })),
+    note: p.basis === 'market'
+      ? 'Real holdings, valued at the most recent close.'
+      : 'Paper-trading holdings, valued at cost basis rather than market.',
   };
 }
 
-export async function runTool(name: string, input: any, userId: string): Promise<unknown> {
+export async function runTool(name: string, input: any, userId: string, email?: string | null): Promise<unknown> {
   switch (name) {
     case 'get_fund_detail':     return getFundDetail(input.cik, input.quarter);
     case 'get_ticker_holders':  return getTickerHolders(input.ticker);
     case 'get_stock_analysis':  return getStockAnalysis(input.ticker);
     case 'find_institutional_holders': return findInstitutionalHolders(input.ticker);
-    case 'get_user_portfolio':  return getUserPortfolio(userId);
+    case 'get_user_portfolio':  return getUserPortfolio(userId, email);
     default:                    return { error: `Unknown tool: ${name}` };
   }
 }

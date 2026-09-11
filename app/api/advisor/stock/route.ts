@@ -33,8 +33,8 @@ export async function GET(request: Request) {
   if (!ticker) return NextResponse.json({ error: 'No ticker' }, { status: 400 });
 
   const [analysis, holders] = await Promise.all([
-    runTool('get_stock_analysis', { ticker }, user?.id ?? ''),
-    runTool('get_ticker_holders', { ticker }, user?.id ?? ''),
+    runTool('get_stock_analysis', { ticker }, user?.id ?? '', user?.email),
+    runTool('get_ticker_holders', { ticker }, user?.id ?? '', user?.email),
   ]);
 
   // The user's own position, if any — the first thing you want to know.
