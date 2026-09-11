@@ -199,7 +199,7 @@ async function authenticateWithSession(): Promise<string | null> {
  * Authenticate using OAuth refresh token
  */
 async function authenticateWithRefreshToken(): Promise<string | null> {
-  const refreshToken = process.env.TASTYTRADE_REFRESH_TOKEN;
+  const refreshToken = (process.env.TASTYTRADE_REFRESH_TOKEN ?? '').trim();
 
   if (!refreshToken) {
     return null;

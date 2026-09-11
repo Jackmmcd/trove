@@ -37,7 +37,7 @@ export class TastytradeClient {
    * Generate OAuth2 authorization URL
    */
   getAuthorizationUrl(state?: string): string {
-    const clientId = process.env.TASTYTRADE_CLIENT_ID!;
+    const clientId = (process.env.TASTYTRADE_CLIENT_ID ?? '').trim();
     const redirectUri = process.env.TASTYTRADE_REDIRECT_URI!;
     const scopes = process.env.TASTYTRADE_SCOPES || 'read trade openid';
 
@@ -61,8 +61,8 @@ export class TastytradeClient {
     expires_in: number;
     token_type: string;
   }> {
-    const clientId = process.env.TASTYTRADE_CLIENT_ID!;
-    const clientSecret = process.env.TASTYTRADE_CLIENT_SECRET!;
+    const clientId = (process.env.TASTYTRADE_CLIENT_ID ?? '').trim();
+    const clientSecret = (process.env.TASTYTRADE_CLIENT_SECRET ?? '').trim();
     const redirectUri = process.env.TASTYTRADE_REDIRECT_URI!;
 
     try {
@@ -102,13 +102,13 @@ export class TastytradeClient {
     refresh_token: string;
     expires_in: number;
   }> {
-    const clientId = process.env.TASTYTRADE_CLIENT_ID!;
-    const clientSecret = process.env.TASTYTRADE_CLIENT_SECRET!;
+    const clientId = (process.env.TASTYTRADE_CLIENT_ID ?? '').trim();
+    const clientSecret = (process.env.TASTYTRADE_CLIENT_SECRET ?? '').trim();
 
     try {
       const response = await axios.post('https://api.tastytrade.com/oauth/token', {
         grant_type: 'refresh_token',
-        refresh_token: refreshToken,
+        refresh_token: refreshToken.trim(),
         client_id: clientId,
         client_secret: clientSecret,
       }, {
@@ -127,6 +127,7 @@ export class TastytradeClient {
       return { access_token, refresh_token: new_refresh_token, expires_in };
     } catch (error: any) {
       if (axios.isAxiosError(error)) {
+        console.error('Tastytrade token refresh failed:', error.response?.status, JSON.stringify(error.response?.data ?? {}).slice(0, 300));
         throw new Error(`Token refresh failed: ${error.response?.data?.error_description || error.message}`);
       }
       throw error;
