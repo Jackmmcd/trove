@@ -252,48 +252,39 @@ export async function getSessionToken(): Promise<string | null> {
  * Get a valid access token, refreshing if necessary
  */
 export async function getValidAccessToken(): Promise<string | null> {
+  // The environment-configured OAuth token wins.
+  //
+  // There is exactly one brokerage account here and it is configured
+  // server-side, so a per-browser session cookie can only ever diverge from
+  // it. Preferring the cookie meant a stale one — from an old or demo
+  // connection — kept being refreshed indefinitely, and the dashboard showed
+  // that account instead of the real one no matter how often you signed in.
+  const configured = await authenticateWithRefreshToken();
+  if (configured) return configured;
+
+  // No configured token: fall back to whatever this browser negotiated.
   const session = await getSession();
+  if (session && !isSessionExpired(session)) return session.access_token;
 
-  // If we have a valid session, return the token
-  if (session && !isSessionExpired(session)) {
-    return session.access_token;
-  }
-
-  // If session exists but is expired, try to refresh
   if (session && isSessionExpired(session)) {
     try {
       const { getTastytradeClient } = await import('../tastytrade/client');
-      const client = getTastytradeClient();
-
-      const refreshed = await client.refreshAccessToken(session.refresh_token);
-
+      const refreshed = await getTastytradeClient().refreshAccessToken(session.refresh_token);
       await setSession({
         access_token: refreshed.access_token,
         refresh_token: refreshed.refresh_token,
         expires_in: refreshed.expires_in,
         token_type: 'Bearer',
       });
-
       return refreshed.access_token;
     } catch (error) {
       console.error('Failed to refresh token:', error);
       await clearSession();
-      // Fall through to try other auth methods
     }
   }
 
-  // No valid session, try to authenticate using environment variables
-  // Try OAuth refresh token first (preferred method)
-  const oauthToken = await authenticateWithRefreshToken();
-  if (oauthToken) {
-    return oauthToken;
-  }
-
-  // Fall back to session-based auth (deprecated but works)
-  const sessionToken = await authenticateWithSession();
-  if (sessionToken) {
-    return sessionToken;
-  }
-
-  return null;
+  // Username/password. Tastytrade now answers this with
+  // device_challenge_required, so it is effectively dead — kept only so an
+  // older deployment without an OAuth token still has something to try.
+  return await authenticateWithSession();
 }
