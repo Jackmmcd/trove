@@ -108,6 +108,10 @@ export default function CompanyPage() {
   // read "held by 0" above a table listing six funds.
   const heldBy = data?.holders?.fund_count ?? holders.length;
   const trackedTotal = data?.holders?.funds_tracked;
+  // One fund can appear twice — a company's stock and its bonds are separate
+  // positions. Saying so keeps the row count from looking like it contradicts
+  // the fund count.
+  const extraInstruments = holders.length > heldBy ? holders.length : 0;
   stats.push(['TRACKED HOLDERS', trackedTotal ? `${heldBy} / ${trackedTotal}` : String(heldBy)]);
 
   return (
@@ -227,6 +231,7 @@ export default function CompanyPage() {
               <div style={{ padding: '13px 18px', borderBottom: `1px solid ${B.border}` }}>
                 <div style={{ color: B.dim, fontSize: '9.5px', letterSpacing: '2px' }}>
                   HELD BY {heldBy}{trackedTotal ? ` OF ${trackedTotal}` : ''} TRACKED FUNDS
+                  {extraInstruments ? ` · ${extraInstruments} POSITIONS (SOME FUNDS HOLD MORE THAN ONE INSTRUMENT)` : ''}
                   {data.holders?.aggregate_equity_weight ? ` · ${data.holders.aggregate_equity_weight.toFixed(1)}% AGGREGATE EQUITY WEIGHT` : ''}
                 </div>
               </div>
