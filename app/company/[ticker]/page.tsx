@@ -30,8 +30,8 @@ interface CompanyData {
     } | null;
   };
   holders?: {
-    holder_count?: number; funds_tracked?: number;
-    aggregate_weight?: number; holders?: Holder[];
+    fund_count?: number; funds_tracked?: number;
+    aggregate_equity_weight?: number; holders?: Holder[];
   };
   position?: { quantity: number; avg_open_price: number } | null;
 }
@@ -103,7 +103,12 @@ export default function CompanyPage() {
   if (f?.employees) stats.push(['EMPLOYEES', f.employees.toLocaleString()]);
   if (f?.listed) stats.push(['LISTED', f.listed]);
   if (f?.shares_outstanding) stats.push(['SHARES OUT', f.shares_outstanding.toLocaleString()]);
-  stats.push(['TRACKED HOLDERS', `${data?.holders?.holder_count ?? 0} / ${data?.holders?.funds_tracked ?? 0}`]);
+  // Fall back to counting the rows we were given rather than trusting a single
+  // count field. A renamed field silently became `?? 0`, so the page confidently
+  // read "held by 0" above a table listing six funds.
+  const heldBy = data?.holders?.fund_count ?? holders.length;
+  const trackedTotal = data?.holders?.funds_tracked;
+  stats.push(['TRACKED HOLDERS', trackedTotal ? `${heldBy} / ${trackedTotal}` : String(heldBy)]);
 
   return (
     <div style={{ minHeight: '100vh', background: B.bg, color: B.text, fontFamily: 'Courier New, monospace' }}>
@@ -221,8 +226,8 @@ export default function CompanyPage() {
             <div style={{ background: B.panel, border: `1px solid ${B.border}` }}>
               <div style={{ padding: '13px 18px', borderBottom: `1px solid ${B.border}` }}>
                 <div style={{ color: B.dim, fontSize: '9.5px', letterSpacing: '2px' }}>
-                  HELD BY {data.holders?.holder_count ?? 0} OF {data.holders?.funds_tracked ?? 0} TRACKED FUNDS
-                  {data.holders?.aggregate_weight ? ` · ${data.holders.aggregate_weight.toFixed(1)}% AGGREGATE WEIGHT` : ''}
+                  HELD BY {heldBy}{trackedTotal ? ` OF ${trackedTotal}` : ''} TRACKED FUNDS
+                  {data.holders?.aggregate_equity_weight ? ` · ${data.holders.aggregate_equity_weight.toFixed(1)}% AGGREGATE EQUITY WEIGHT` : ''}
                 </div>
               </div>
 

@@ -24,7 +24,7 @@ interface PanelData {
       listed?: string | null;
     } | null;
   };
-  holders?: { holder_count?: number; funds_tracked?: number; aggregate_weight?: number; holders?: Holder[] };
+  holders?: { fund_count?: number; funds_tracked?: number; aggregate_equity_weight?: number; holders?: Holder[] };
   position?: { quantity: number; avg_open_price: number } | null;
 }
 
@@ -165,8 +165,8 @@ export default function TickerPanel({ ticker, onClose }: { ticker: string; onClo
 
               <div>
                 <Label>
-                  HELD BY {data?.holders?.holder_count ?? 0} OF {data?.holders?.funds_tracked ?? 0} FUNDS
-                  {data?.holders?.aggregate_weight ? ` · ${data.holders.aggregate_weight.toFixed(1)}% AGGREGATE` : ''}
+                  HELD BY {data?.holders?.fund_count ?? holders.length}{data?.holders?.funds_tracked ? ` OF ${data.holders.funds_tracked}` : ''} FUNDS
+                  {data?.holders?.aggregate_equity_weight ? ` · ${data.holders.aggregate_equity_weight.toFixed(1)}% AGGREGATE` : ''}
                 </Label>
                 {holders.length === 0 ? (
                   <div style={{ color: '#8a8070', fontSize: '12px' }}>No tracked fund reports this ticker.</div>
