@@ -11,9 +11,7 @@ const links = [
   { href: '/dashboard', label: 'PORTFOLIO' },
   { href: '/funds', label: 'FUNDS' },
   { href: '/baskets', label: 'BASKETS' },
-  { href: '/recommendations', label: 'INSIGHTS' },
   { href: '/advisor', label: 'ANALYST' },
-  { href: '/news', label: 'NEWS' },
 ];
 
 // The four destinations that earn a permanent slot on a phone; everything

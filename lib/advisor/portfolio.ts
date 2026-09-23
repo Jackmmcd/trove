@@ -1,4 +1,5 @@
 import { db } from '@/lib/supabase/admin';
+import { isBrokerOwner } from '@/lib/broker/owner';
 
 /**
  * The user's actual holdings, whichever account those live in.
@@ -27,15 +28,9 @@ export interface Portfolio {
   basis: 'market' | 'cost';
 }
 
-function ownerEmails(): string[] {
-  return (process.env.BROKER_OWNER_EMAILS ?? '')
-    .split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
-}
-
-export function isBrokerOwner(email: string | null | undefined): boolean {
-  const owners = ownerEmails();
-  return !!email && owners.length > 0 && owners.includes(email.toLowerCase());
-}
+// Ownership is decided in lib/broker/owner.ts, shared with /api/account/source
+// so the Analyst and the dashboard always name the same account.
+export { isBrokerOwner };
 
 async function brokerPortfolio(): Promise<Portfolio | null> {
   try {
