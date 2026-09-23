@@ -20,6 +20,13 @@ export const metadata: Metadata = {
 export const viewport = {
   width: 'device-width',
   initialScale: 1,
+  // Room to pinch-zoom a dense table without the browser zooming on its own.
+  maximumScale: 5,
+  userScalable: true,
+  // Lets the page paint into the notch / home-indicator area; the safe-area
+  // insets in globals.css keep content out of it.
+  viewportFit: 'cover',
+  themeColor: '#000000',
 };
 
 export default function RootLayout({

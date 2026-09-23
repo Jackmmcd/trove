@@ -105,9 +105,10 @@ function CandleChart({ candles, isUp }: { candles: Candle[]; isUp: boolean }) {
     import('lightweight-charts').then(({ createChart, CandlestickSeries }) => {
       const el = containerRef.current!;
       el.innerHTML = '';
+      const chartHeight = () => (window.innerWidth <= 640 ? 300 : 420);
       const chart = createChart(el, {
         width: el.clientWidth,
-        height: 420,
+        height: chartHeight(),
         layout: { background: { color: '#0d0d0d' }, textColor: '#888' },
         grid: { vertLines: { color: '#1a1a1a' }, horzLines: { color: '#1a1a1a' } },
         crosshair: { mode: 1 },
@@ -124,7 +125,7 @@ function CandleChart({ candles, isUp }: { candles: Candle[]; isUp: boolean }) {
         .map(c => ({ time: c.time as any, open: c.open, high: c.high, low: c.low, close: c.close }));
       series.setData(data);
       chart.timeScale().fitContent();
-      const ro = new ResizeObserver(() => chart.applyOptions({ width: el.clientWidth }));
+      const ro = new ResizeObserver(() => chart.applyOptions({ width: el.clientWidth, height: chartHeight() }));
       ro.observe(el);
       return () => { ro.disconnect(); chart.remove(); };
     });
@@ -281,7 +282,7 @@ export default function StockPage() {
       <Navigation />
 
       {/* Top bar */}
-      <div style={{ borderBottom: `1px solid ${B.border}`, padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+      <div style={{ borderBottom: `1px solid ${B.border}`, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
         <button onClick={() => router.back()} style={{ background: 'none', border: `1px solid ${B.border}`, color: B.label, cursor: 'pointer', padding: '4px 10px', fontFamily: 'inherit', fontSize: '11px', letterSpacing: '1px' }}>
           ← BACK
         </button>
@@ -291,7 +292,7 @@ export default function StockPage() {
 
         {/* Trade buttons */}
         {data && (
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+          <div className="stock-trade-desktop" style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
             <button
               onClick={() => setTradeModal('buy')}
               style={{ padding: '5px 18px', background: B.green, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '2px' }}
@@ -319,6 +320,27 @@ export default function StockPage() {
         <div style={{ padding: '40px', textAlign: 'center', color: B.red, letterSpacing: '1px' }}>ERROR: {error}</div>
       )}
 
+      {/* Mobile trade bar — BUY/SELL belong under the thumb, not in a top
+          bar the user has scrolled a whole chart away from. */}
+      {data && (
+        <div className="stock-trade-bar">
+          <button
+            onClick={() => setTradeModal('buy')}
+            style={{ flex: 1, padding: '13px', background: B.green, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '13px', letterSpacing: '2px' }}
+          >
+            BUY {ticker}
+          </button>
+          {heldShares > 0 && (
+            <button
+              onClick={() => setTradeModal('sell')}
+              style={{ flex: 1, padding: '13px', background: B.red, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '13px', letterSpacing: '2px' }}
+            >
+              SELL
+            </button>
+          )}
+        </div>
+      )}
+
       {tradeModal && data && (
         <TradeModal
           symbol={ticker}
@@ -341,12 +363,12 @@ export default function StockPage() {
       )}
 
       {data && (
-        <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: '1400px', margin: '0 auto' }}>
+        <div className="stock-body" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: '1400px', margin: '0 auto' }}>
 
           {/* Price + performance row */}
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: '24px', flexWrap: 'wrap' }}>
             <div>
-              <div style={{ fontSize: '38px', fontWeight: 'bold', color: B.text, letterSpacing: '1px', lineHeight: 1 }}>
+              <div style={{ fontSize: 'clamp(30px, 9vw, 38px)', fontWeight: 'bold', color: B.text, letterSpacing: '1px', lineHeight: 1 }}>
                 {data.currentPrice !== null ? `$${data.currentPrice.toFixed(2)}` : '—'}
               </div>
               <div style={{ display: 'flex', gap: '10px', marginTop: '6px', alignItems: 'center' }}>
@@ -362,7 +384,7 @@ export default function StockPage() {
             </div>
 
             {/* Period performance pills */}
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
+            <div className="r-hscroll" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
               {[
                 { label: '1D', val: data.change1d },
                 { label: '1M', val: data.change1m },
@@ -382,7 +404,7 @@ export default function StockPage() {
           </div>
 
           {/* Range selector */}
-          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+          <div className="r-hscroll" style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
             {RANGES.map(r => (
               <button key={r.label} onClick={() => setRange(r)}
                 style={{ padding: '4px 12px', background: range.label === r.label ? B.amber : 'transparent', color: range.label === r.label ? '#000' : B.label, border: `1px solid ${range.label === r.label ? B.amber : B.border}`, cursor: 'pointer', fontFamily: 'inherit', fontSize: '10px', letterSpacing: '1px', fontWeight: range.label === r.label ? 'bold' : 'normal' }}>
@@ -405,7 +427,7 @@ export default function StockPage() {
               CHART · {range.label}
             </div>
             {candlesLoading
-              ? <div style={{ height: '420px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ff8c00', fontSize: '11px', letterSpacing: '2px' }}>LOADING CHART...</div>
+              ? <div style={{ height: 'min(420px, 60vh)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ff8c00', fontSize: '11px', letterSpacing: '2px' }}>LOADING CHART...</div>
               : <CandleChart key={range.label + candles.length} candles={candles} isUp={isUp} />
             }
           </div>
@@ -424,7 +446,7 @@ export default function StockPage() {
                     <div style={{ color: B.label, fontSize: '9px', letterSpacing: '2px', marginBottom: '6px' }}>SUMMARY</div>
                     <p style={{ color: B.text, fontSize: '13px', lineHeight: 1.7, margin: 0 }}>{analysis.summary}</p>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div className="r-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div>
                       <div style={{ color: B.green, fontSize: '9px', letterSpacing: '2px', marginBottom: '8px' }}>BULL CASE</div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -459,7 +481,7 @@ export default function StockPage() {
               <div style={{ padding: '7px 14px', borderBottom: `1px solid ${B.border}`, color: B.amber, fontSize: '10px', letterSpacing: '3px', fontWeight: 'bold' }}>
                 RECENT ACTIVITY
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0' }}>
+              <div className="r-grid-2 stock-activity" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0' }}>
                 <div style={{ padding: '16px 18px', borderRight: `1px solid ${B.border}` }}>
                   <div style={{ color: B.label, fontSize: '9px', letterSpacing: '2px', marginBottom: '10px' }}>DIGEST</div>
                   {digestLoading ? (
@@ -495,7 +517,7 @@ export default function StockPage() {
           )}
 
           {/* Stats grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '8px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))', gap: '8px' }}>
 
             <Section title="PRICE">
               <Stat label="OPEN" value={fmt(data.open, 2, '$')} />

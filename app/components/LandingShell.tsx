@@ -32,10 +32,11 @@ export default function LandingShell({ children }: { children: React.ReactNode }
     fontWeight: 'bold',
     fontSize: '12px',
     letterSpacing: '1.5px',
-    padding: '0 18px',
+    padding: '0 20px',
     height: '40px',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
+    transition: 'background 140ms ease, color 140ms ease',
   });
 
   return (
@@ -54,7 +55,7 @@ export default function LandingShell({ children }: { children: React.ReactNode }
             TROVE
           </Link>
 
-          <button onClick={() => setTab('overview')} style={tabStyle(tab === 'overview')}>OVERVIEW</button>
+          {/* Analyst is the only destination in the bar; TROVE is the way back. */}
           <button onClick={() => setTab('analyst')} style={tabStyle(tab === 'analyst')}>ANALYST</button>
 
           <Link href="/login" style={{

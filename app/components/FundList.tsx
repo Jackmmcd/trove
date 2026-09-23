@@ -186,7 +186,7 @@ export default function FundList() {
   return (
     <div style={{ padding: '16px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
       {/* Toasts */}
-      <div style={{ position: 'fixed', top: '52px', right: '12px', zIndex: 100, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      <div className="toast-stack" style={{ position: 'fixed', top: '52px', right: '12px', zIndex: 100, display: 'flex', flexDirection: 'column', gap: '6px' }}>
         {toasts.map(t => (
           <div key={t.id} style={{ padding: '8px 14px', background: t.type === 'success' ? '#001a00' : '#1a0000', border: `1px solid ${t.type === 'success' ? B.green : B.red}`, color: t.type === 'success' ? B.green : B.red, fontSize: '11px', letterSpacing: '1px', maxWidth: '280px' }}>
             {t.message}
@@ -195,8 +195,8 @@ export default function FundList() {
       </div>
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ color: B.amber, fontSize: '14px', fontWeight: 'bold', letterSpacing: '3px' }}>FOLLOWED FUNDS</div>
           {isPaper && (
             <div style={{ background: '#002200', border: '1px solid #00ff41', color: '#00ff41', fontSize: '9px', fontWeight: 'bold', letterSpacing: '2px', padding: '2px 8px' }}>
@@ -225,7 +225,7 @@ export default function FundList() {
               FIND ON SEC EDGAR ↗
             </a>
           </p>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <input type="text" placeholder="CIK e.g. 1067983" value={addCik} onChange={e => { setAddCik(e.target.value); setAddName(''); }} style={inputStyle} />
             <button onClick={lookupCik} disabled={lookingUp || !addCik.trim()} style={{ ...btnGhost, opacity: lookingUp || !addCik.trim() ? 0.5 : 1 }}>
               {lookingUp ? 'LOOKING UP...' : 'LOOKUP'}
@@ -259,11 +259,11 @@ export default function FundList() {
             return (
               <div key={fund.id} style={{ ...panelStyle, opacity: fund.enabled ? 1 : 0.5 }} onMouseEnter={() => setHoveredFund(fund.id)} onMouseLeave={() => setHoveredFund(null)}>
                 {/* Fund header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderBottom: isExpanded ? `1px solid ${B.border}` : 'none' }}>
-                  <button onClick={() => toggleCollapsed(fund.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', padding: 0, textAlign: 'left' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap', padding: '10px 14px', borderBottom: isExpanded ? `1px solid ${B.border}` : 'none' }}>
+                  <button onClick={() => toggleCollapsed(fund.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', padding: 0, textAlign: 'left', minWidth: 0, flex: '1 1 180px' }}>
                     <span style={{ color: B.amber, fontSize: '10px', userSelect: 'none' }}>{isExpanded ? '▼' : '▶'}</span>
                     <div>
-                      <div style={{ color: B.amber, fontWeight: 'bold', fontSize: '13px', letterSpacing: '1px', fontFamily: 'Courier New, monospace' }}>{fund.name.toUpperCase()}</div>
+                      <div style={{ color: B.amber, fontWeight: 'bold', fontSize: '13px', letterSpacing: '1px', fontFamily: 'Courier New, monospace', overflowWrap: 'anywhere' }}>{fund.name.toUpperCase()}</div>
                       <div style={{ color: B.label, fontSize: '10px', letterSpacing: '1px' }}>CIK: {fund.cik}</div>
                     </div>
                   </button>
@@ -286,18 +286,21 @@ export default function FundList() {
                 </div>
 
                 {/* Fund thesis — revealed on hover */}
-                {fund.thesis && (
+                {fund.thesis && (() => {
+                  const showThesis = hoveredFund === fund.id || isExpanded;
+                  return (
                   <div style={{
                     overflow: 'hidden',
-                    maxHeight: hoveredFund === fund.id ? '300px' : '0px',
-                    opacity: hoveredFund === fund.id ? 1 : 0,
+                    maxHeight: showThesis ? '300px' : '0px',
+                    opacity: showThesis ? 1 : 0,
                     transition: 'max-height 0.35s ease, opacity 0.25s ease',
-                    borderBottom: hoveredFund === fund.id ? `1px solid ${B.border}` : 'none',
+                    borderBottom: showThesis ? `1px solid ${B.border}` : 'none',
                     background: '#050505',
                   }}>
                     <p style={{ color: '#aaa', fontSize: '14px', lineHeight: 1.9, margin: 0, padding: '14px 16px', letterSpacing: '0.3px' }}>{fund.thesis}</p>
                   </div>
-                )}
+                  );
+                })()}
 
                 {/* Holdings table */}
                 {isExpanded && (() => {
@@ -317,7 +320,7 @@ export default function FundList() {
                   const selectedHoldings = fund.holdings.filter(h => selected.has(h.ticker));
                   return (
                     <div style={{ padding: '10px 14px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
                         <span style={{ color: B.label, fontSize: '10px', letterSpacing: '1px' }}>
                           {fund.holdings.length} HOLDINGS — {selected.size} SELECTED
                         </span>
@@ -329,8 +332,8 @@ export default function FundList() {
                           BUY BASKET{selected.size < fund.holdings.length ? ` (${selected.size})` : ''}
                         </button>
                       </div>
-                      <div style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <div className="r-scroll">
+                        <table className="r-cards" style={{ width: '100%', borderCollapse: 'collapse' }}>
                           <thead>
                             <tr>
                               <th style={{ ...thStyle, width: '32px' }}>
@@ -352,11 +355,11 @@ export default function FundList() {
                                   onMouseEnter={e => (e.currentTarget.style.background = '#1a1a00')}
                                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                                 >
-                                  <td style={{ ...tdStyle, width: '32px' }} onClick={e => e.stopPropagation()}>
+                                  <td data-label="Include" style={{ ...tdStyle, width: '32px' }} onClick={e => e.stopPropagation()}>
                                     <input type="checkbox" checked={checked} onChange={() => toggleTicker(fund.id, h.ticker, fund.holdings)} style={{ cursor: 'pointer', accentColor: B.amber }} />
                                   </td>
-                                  <td style={{ ...tdStyle, color: B.label, fontSize: '10px' }}>{idx + 1}</td>
-                                  <td style={{ ...tdStyle, color: B.amber, fontWeight: 'bold', letterSpacing: '1px' }} onClick={e => e.stopPropagation()}>
+                                  <td data-label="" style={{ ...tdStyle, color: B.label, fontSize: '10px' }}>{idx + 1}</td>
+                                  <td data-head="" data-label="Ticker" style={{ ...tdStyle, color: B.amber, fontWeight: 'bold', letterSpacing: '1px' }} onClick={e => e.stopPropagation()}>
                                     <TickerTooltip ticker={h.ticker}>
                                       <span
                                         onClick={() => router.push(`/stock/${h.ticker}`)}
@@ -366,11 +369,11 @@ export default function FundList() {
                                       </span>
                                     </TickerTooltip>
                                   </td>
-                                  <td style={tdStyle}>{h.shares.toLocaleString()}</td>
-                                  <td style={{ ...tdStyle, color: B.cyan }}>
+                                  <td data-label="Shares" style={tdStyle}>{h.shares.toLocaleString()}</td>
+                                  <td data-label="Value" style={{ ...tdStyle, color: B.cyan }}>
                                     ${(h.value / 1e6).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}M
                                   </td>
-                                  <td style={tdStyle}>
+                                  <td data-label="Weight" style={tdStyle}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                       <div style={{ width: '60px', background: '#1a1a1a', height: '3px', position: 'relative' }}>
                                         <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${Math.min(h.weight, 100)}%`, background: B.amber }} />
@@ -378,7 +381,7 @@ export default function FundList() {
                                       <span style={{ color: B.label, fontSize: '11px' }}>{h.weight.toFixed(1)}%</span>
                                     </div>
                                   </td>
-                                  <td style={tdStyle} onClick={e => e.stopPropagation()}>
+                                  <td data-label="Trade" style={tdStyle} onClick={e => e.stopPropagation()}>
                                     <button onClick={() => setTradeTarget({ symbol: h.ticker, price: 0 })}
                                       style={{ padding: '2px 8px', background: B.green, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '10px', letterSpacing: '1px' }}>
                                       BUY

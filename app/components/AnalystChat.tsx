@@ -386,7 +386,8 @@ export default function AnalystChat() {
 
     <div className={sidebarOpen ? 'analyst-shifted' : undefined}>
     <div style={{
-      maxWidth: '860px', margin: '0 auto', padding: '0 16px 140px',
+      maxWidth: '860px', margin: '0 auto',
+      padding: '0 16px calc(160px + var(--tabbar-h))',
       fontFamily: 'Courier New, monospace',
       transition: 'margin-right .15s ease',
     }}>
@@ -499,8 +500,8 @@ export default function AnalystChat() {
         <TickerPanel ticker={panelTicker} onClose={() => setPanelTicker(null)} />
       )}
 
-      <div className={sidebarOpen ? 'analyst-shifted' : undefined} style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 85,
+      <div className={`analyst-composer${sidebarOpen ? ' analyst-shifted' : ''}`} style={{
+        position: 'fixed', bottom: 'var(--tabbar-h)', left: 0, right: 0, zIndex: 85,
         background: '#000', borderTop: '1px solid #1a1a1a', padding: '12px 16px',
       }}>
         <form
@@ -521,7 +522,7 @@ export default function AnalystChat() {
               flex: 1, background: '#0a0a0a', border: '1px solid #2a2a2a',
               color: '#e8e2d8', fontFamily: 'inherit', fontSize: '13.5px',
               padding: '10px 12px', outline: 'none', resize: 'none', lineHeight: 1.5,
-              maxHeight: '140px',
+              maxHeight: '120px', minWidth: 0,
             }}
           />
           <button type="submit" disabled={busy || !input.trim()} style={{

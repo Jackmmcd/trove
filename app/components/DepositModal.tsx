@@ -101,8 +101,8 @@ export default function DepositModal({ onClose }: DepositModalProps) {
   const inputStyle: React.CSSProperties = { background: '#000', border: `1px solid ${B.amber}`, color: B.amber, padding: '7px 12px', fontSize: '16px', fontFamily: 'Courier New, monospace', outline: 'none', width: '100%', boxSizing: 'border-box' };
 
   return (
-    <div style={overlayStyle}>
-      <div style={modalStyle}>
+    <div className="sheet-overlay" style={overlayStyle}>
+      <div className="sheet" style={modalStyle}>
         {/* Header */}
         <div style={headerStyle}>
           <span>FUND ACCOUNT</span>

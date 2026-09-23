@@ -131,8 +131,8 @@ export default function BasketModal({ fundId, fundName, holdings, isPaper = fals
   const tdStyle: React.CSSProperties = { padding: '5px 10px', borderBottom: '1px solid #111', fontSize: '12px', color: B.text };
 
   return (
-    <div style={overlayStyle}>
-      <div style={modalStyle}>
+    <div className="sheet-overlay" style={overlayStyle}>
+      <div className="sheet" style={modalStyle}>
         <div style={headerStyle}>
           <span>{isPaper ? '📄 PAPER ' : ''}BUY BASKET — {fundName.toUpperCase()}</span>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#000', cursor: 'pointer', fontSize: '18px', lineHeight: 1, fontFamily: 'inherit' }}>×</button>

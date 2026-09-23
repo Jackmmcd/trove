@@ -104,8 +104,8 @@ export default function TradeModal({ symbol, currentPrice, maxSellQuantity, init
 
   if (successMsg) {
     return (
-      <div style={overlayStyle}>
-        <div style={modalStyle}>
+      <div className="sheet-overlay" style={overlayStyle}>
+        <div className="sheet" style={modalStyle}>
           <div style={headerStyle}>
             <span>ORDER CONFIRMED</span>
             <button onClick={() => { onSuccess(); onClose(); }} style={{ background: 'none', border: 'none', color: '#000', cursor: 'pointer', fontSize: '18px', lineHeight: 1 }}>×</button>
@@ -122,8 +122,8 @@ export default function TradeModal({ symbol, currentPrice, maxSellQuantity, init
   }
 
   return (
-    <div style={overlayStyle}>
-      <div style={modalStyle}>
+    <div className="sheet-overlay" style={overlayStyle}>
+      <div className="sheet" style={modalStyle}>
         <div style={headerStyle}>
           <span>{isPaper ? '📄 PAPER TRADE ' : 'TRADE '}{symbol}</span>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#000', cursor: 'pointer', fontSize: '18px', lineHeight: 1 }}>×</button>

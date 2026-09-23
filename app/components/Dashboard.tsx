@@ -8,6 +8,7 @@ import {
   LineChart, Line, Area, AreaChart,
 } from 'recharts';
 import LoginButton from './LoginButton';
+import useIsMobile from './useIsMobile';
 import TradeModal from './TradeModal';
 import TickerTooltip from './TickerTooltip';
 
@@ -105,6 +106,7 @@ const CACHE_TTL = 3 * 60 * 1000;
 
 export default function Dashboard() {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [userId, setUserId] = useState<string | null>(null);
   const [balance, setBalance] = useState<AccountBalance | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
@@ -322,8 +324,8 @@ export default function Dashboard() {
     <div style={{ padding: '12px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ color: B.amber, fontSize: '14px', fontWeight: 'bold', letterSpacing: '3px' }}>
             ACCOUNT OVERVIEW
           </div>
@@ -360,7 +362,7 @@ export default function Dashboard() {
       {positions.length > 0 && (
         <>
           {/* Summary bar */}
-          <div style={{ ...panelStyle, display: 'flex', gap: '32px', flexWrap: 'wrap', alignItems: 'center', borderColor: B.amberDim }}>
+          <div className="r-stats" style={{ ...panelStyle, display: 'flex', gap: '32px', flexWrap: 'wrap', alignItems: 'center', borderColor: B.amberDim }}>
             <div>
               <div style={labelStyle}>Total Invested</div>
               <div style={{ color: B.text, fontSize: '16px', fontWeight: 'bold' }}>
@@ -419,7 +421,7 @@ export default function Dashboard() {
             return (
               <div style={panelStyle}>
                 <div style={sectionHeaderStyle}>PORTFOLIO VALUE — 3 MONTHS</div>
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={isMobile ? 160 : 200}>
                   <AreaChart data={portfolioHistory} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="portfolioGrad" x1="0" y1="0" x2="0" y2="1">
@@ -465,7 +467,7 @@ export default function Dashboard() {
           <div className="r-grid-2">
             <div style={panelStyle}>
               <div style={sectionHeaderStyle}>COST BASIS vs CURRENT VALUE</div>
-              <ResponsiveContainer width="100%" height={220}>
+              <ResponsiveContainer width="100%" height={isMobile ? 180 : 220}>
                 <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="2 2" vertical={false} stroke="#1a1a1a" />
                   <XAxis dataKey="symbol" tick={{ fontSize: 10, fill: '#888', fontFamily: 'Courier New' }} />
@@ -484,7 +486,7 @@ export default function Dashboard() {
 
             <div style={panelStyle}>
               <div style={sectionHeaderStyle}>GAIN / LOSS BY POSITION</div>
-              <ResponsiveContainer width="100%" height={220}>
+              <ResponsiveContainer width="100%" height={isMobile ? 180 : 220}>
                 <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="2 2" vertical={false} stroke="#1a1a1a" />
                   <XAxis dataKey="symbol" tick={{ fontSize: 10, fill: '#888', fontFamily: 'Courier New' }} />
@@ -505,15 +507,17 @@ export default function Dashboard() {
 
       {/* Positions table */}
       <div style={panelStyle}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-          <div style={sectionHeaderStyle}>CURRENT POSITIONS</div>
-          <span style={{ color: B.label, fontSize: '10px', letterSpacing: '1px' }}>CLICK ROW TO TRADE</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+          <div style={{ ...sectionHeaderStyle, marginBottom: 0, borderBottom: 'none', paddingBottom: 0 }}>CURRENT POSITIONS</div>
+          <span style={{ color: B.label, fontSize: '10px', letterSpacing: '1px', whiteSpace: 'nowrap' }}>
+            {isMobile ? 'TAP TO TRADE' : 'CLICK ROW TO TRADE'}
+          </span>
         </div>
         {positions.length === 0 ? (
           <p style={{ color: B.label, fontSize: '12px' }}>NO POSITIONS FOUND</p>
         ) : (
           <div className="r-scroll">
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table className="r-cards" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
                   {['Symbol', 'Shares', 'Avg Cost', 'Last Price', 'Value', 'Day P&L', 'Week P&L', 'Total P&L'].map(h => (
@@ -530,24 +534,24 @@ export default function Dashboard() {
                     onMouseEnter={e => (e.currentTarget.style.background = '#1a1a00')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
-                    <td style={{ ...tdStyle, color: B.amber, fontWeight: 'bold' }} onClick={e => e.stopPropagation()}>
+                    <td data-head="" data-label="Symbol" style={{ ...tdStyle, color: B.amber, fontWeight: 'bold' }} onClick={e => e.stopPropagation()}>
                       <TickerTooltip ticker={p.symbol}>
                         <span onClick={() => router.push(`/stock/${p.symbol}`)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#ff8c0066' }}>
                           {p.symbol}
                         </span>
                       </TickerTooltip>
                     </td>
-                    <td style={tdStyle}>{p.quantity}</td>
-                    <td style={tdStyle}>${p.avgOpenPrice.toFixed(2)}</td>
-                    <td style={{ ...tdStyle, color: B.cyan }}>${p.currentPrice.toFixed(2)}</td>
-                    <td style={tdStyle}>${p.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td style={{ ...tdStyle, color: p.dailyPnL === null ? B.label : p.dailyPnL >= 0 ? B.green : B.red, fontWeight: 'bold' }}>
+                    <td data-label="Shares" style={tdStyle}>{p.quantity}</td>
+                    <td data-label="Avg Cost" style={tdStyle}>${p.avgOpenPrice.toFixed(2)}</td>
+                    <td data-label="Last" style={{ ...tdStyle, color: B.cyan }}>${p.currentPrice.toFixed(2)}</td>
+                    <td data-label="Value" style={tdStyle}>${p.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td data-label="Day P&L" style={{ ...tdStyle, color: p.dailyPnL === null ? B.label : p.dailyPnL >= 0 ? B.green : B.red, fontWeight: 'bold' }}>
                       {p.dailyPnL === null ? '—' : `${p.dailyPnL >= 0 ? '+' : ''}$${p.dailyPnL.toFixed(2)}`}
                     </td>
-                    <td style={{ ...tdStyle, color: p.weeklyPnL === null ? B.label : p.weeklyPnL >= 0 ? B.green : B.red, fontWeight: 'bold' }}>
+                    <td data-label="Week P&L" style={{ ...tdStyle, color: p.weeklyPnL === null ? B.label : p.weeklyPnL >= 0 ? B.green : B.red, fontWeight: 'bold' }}>
                       {p.weeklyPnL === null ? '—' : `${p.weeklyPnL >= 0 ? '+' : ''}$${p.weeklyPnL.toFixed(2)}`}
                     </td>
-                    <td style={{ ...tdStyle, color: p.gainLoss >= 0 ? B.green : B.red, fontWeight: 'bold' }}>
+                    <td data-label="Total P&L" style={{ ...tdStyle, color: p.gainLoss >= 0 ? B.green : B.red, fontWeight: 'bold' }}>
                       {p.gainLoss >= 0 ? '+' : ''}${p.gainLoss.toFixed(2)}
                     </td>
                   </tr>

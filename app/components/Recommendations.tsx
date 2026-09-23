@@ -62,7 +62,7 @@ export default function Recommendations() {
           INSTITUTIONAL ACTIVITY DOES NOT PREDICT FUTURE PRICE PERFORMANCE. NOT INVESTMENT ADVICE. PAST PERFORMANCE DOES NOT GUARANTEE FUTURE RESULTS.
         </span>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
         <div style={{ color: B.amber, fontSize: '14px', fontWeight: 'bold', letterSpacing: '3px' }}>INSTITUTIONAL INSIGHTS</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <span style={{ color: B.label, fontSize: '11px', letterSpacing: '1px' }}>LIMIT</span>
@@ -86,8 +86,8 @@ export default function Recommendations() {
         </div>
       ) : (
         <div style={panelStyle}>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div className="r-scroll">
+            <table className="r-cards" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
                   {['Rank', 'Ticker', 'Score', 'Funds', 'Agg Weight', 'Total Value', 'New', 'Signal'].map(h => (
@@ -103,39 +103,39 @@ export default function Recommendations() {
                     onMouseEnter={e => (e.currentTarget.style.background = '#1a1a00')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
-                    <td style={{ ...tdStyle, color: B.label }}>{index + 1}</td>
-                    <td style={{ ...tdStyle, color: B.amber, fontWeight: 'bold', letterSpacing: '1px' }} onClick={e => e.stopPropagation()}>
+                    <td data-label="" style={{ ...tdStyle, color: B.label }}>{index + 1}</td>
+                    <td data-head="" data-label="Ticker" style={{ ...tdStyle, color: B.amber, fontWeight: 'bold', letterSpacing: '1px' }} onClick={e => e.stopPropagation()}>
                       <TickerTooltip ticker={rec.ticker}>
                         <span onClick={() => router.push(`/stock/${rec.ticker}`)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#ff8c0066' }}>
                           {rec.ticker}
                         </span>
                       </TickerTooltip>
                     </td>
-                    <td style={tdStyle}>
+                    <td data-label="Score" style={tdStyle}>
                       <span style={{ background: '#1a1000', border: `1px solid ${B.amber}`, color: B.amber, padding: '2px 8px', fontSize: '11px', letterSpacing: '1px' }}>
                         {rec.score.toFixed(1)}
                       </span>
                     </td>
-                    <td style={{ ...tdStyle, color: B.cyan }}>{rec.fundCount}</td>
-                    <td style={tdStyle}>{rec.aggregateWeight.toFixed(2)}%</td>
-                    <td style={tdStyle}>
+                    <td data-label="Funds" style={{ ...tdStyle, color: B.cyan }}>{rec.fundCount}</td>
+                    <td data-label="Agg Weight" style={tdStyle}>{rec.aggregateWeight.toFixed(2)}%</td>
+                    <td data-label="Total Value" style={tdStyle}>
                       ${rec.totalValue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                     </td>
-                    <td style={tdStyle}>
+                    <td data-label="New" style={tdStyle}>
                       {rec.recentAdditions > 0 ? (
                         <span style={{ color: B.green, fontWeight: 'bold' }}>+{rec.recentAdditions}</span>
                       ) : (
                         <span style={{ color: B.label }}>—</span>
                       )}
                     </td>
-                    <td style={{ ...tdStyle, maxWidth: '240px' }}>
+                    <td data-label="Signal" style={{ ...tdStyle, maxWidth: '240px' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                         {rec.reasons.map((r, i) => (
                           <span key={i} style={{ color: B.label, fontSize: '10px', letterSpacing: '0.5px' }}>▶ {r}</span>
                         ))}
                       </div>
                     </td>
-                    <td style={tdStyle}>
+                    <td data-label="Trade" style={tdStyle}>
                       <button
                         onClick={() => setTradeTarget(rec.ticker)}
                         style={{ padding: '3px 10px', background: B.green, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '10px', letterSpacing: '1px' }}

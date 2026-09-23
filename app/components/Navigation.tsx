@@ -16,15 +16,45 @@ const links = [
   { href: '/news', label: 'NEWS' },
 ];
 
+// The four destinations that earn a permanent slot on a phone; everything
+// else lives behind MORE. Icons are drawn rather than imported so the bar
+// costs nothing to load.
+const tabs = [
+  { href: '/dashboard', label: 'PORTFOLIO', icon: 'portfolio' },
+  { href: '/funds', label: 'FUNDS', icon: 'funds' },
+  { href: '/baskets', label: 'BASKETS', icon: 'baskets' },
+  { href: '/advisor', label: 'ANALYST', icon: 'analyst' },
+] as const;
+
+function TabIcon({ name }: { name: string }) {
+  const common = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+  switch (name) {
+    case 'portfolio':
+      return <svg viewBox="0 0 20 20" {...common}><path d="M3 15V9M7.6 15V5M12.3 15v-4M17 15V7" /></svg>;
+    case 'funds':
+      return <svg viewBox="0 0 20 20" {...common}><rect x="2.5" y="4" width="15" height="12" rx="1" /><path d="M2.5 8h15M7.5 8v8" /></svg>;
+    case 'baskets':
+      return <svg viewBox="0 0 20 20" {...common}><path d="M3 7h14l-1.4 8.2a1 1 0 0 1-1 .8H5.4a1 1 0 0 1-1-.8Z" /><path d="M7 7l2-3.5M13 7l-2-3.5" /></svg>;
+    case 'analyst':
+      return <svg viewBox="0 0 20 20" {...common}><path d="M17 12.2A1.8 1.8 0 0 1 15.2 14H7l-3.5 3v-3A1.8 1.8 0 0 1 3 12.2V5A1.8 1.8 0 0 1 4.8 3.2h10.4A1.8 1.8 0 0 1 17 5Z" /></svg>;
+    case 'more':
+      return <svg viewBox="0 0 20 20" {...common}><circle cx="4.5" cy="10" r="1.3" fill="currentColor" stroke="none" /><circle cx="10" cy="10" r="1.3" fill="currentColor" stroke="none" /><circle cx="15.5" cy="10" r="1.3" fill="currentColor" stroke="none" /></svg>;
+    default:
+      return null;
+  }
+}
+
 export default function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [activeIndex, setActiveIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
+  const overlayInputRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -53,13 +83,27 @@ export default function Navigation() {
     return () => document.removeEventListener('mousedown', onClickOutside);
   }, []);
 
-  // Close drawer on route change
-  useEffect(() => { setMenuOpen(false); }, [pathname]);
+  // Close drawer and overlay on route change
+  useEffect(() => { setMenuOpen(false); setSearchOpen(false); }, [pathname]);
+
+  // The drawer and the search overlay both cover the page; stop the page
+  // behind them scrolling under the finger.
+  useEffect(() => {
+    const locked = menuOpen || searchOpen;
+    document.body.style.overflow = locked ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [menuOpen, searchOpen]);
+
+  // Focus the overlay field once it has actually mounted, so the keyboard
+  // comes up with it rather than a tap later.
+  useEffect(() => {
+    if (searchOpen) overlayInputRef.current?.focus();
+  }, [searchOpen]);
 
   function navigate(ticker: string) {
     router.push(`/stock/${ticker}`);
-    setSearchValue(''); setSuggestions([]);
-    inputRef.current?.blur();
+    setSearchValue(''); setSuggestions([]); setSearchOpen(false);
+    inputRef.current?.blur(); overlayInputRef.current?.blur();
   }
 
   function handleSearch(e: React.FormEvent) {
@@ -71,10 +115,10 @@ export default function Navigation() {
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Escape') { setSuggestions([]); setActiveIndex(-1); setSearchOpen(false); return; }
     if (!suggestions.length) return;
     if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIndex(i => Math.min(i + 1, suggestions.length - 1)); }
     if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIndex(i => Math.max(i - 1, -1)); }
-    if (e.key === 'Escape') { setSuggestions([]); setActiveIndex(-1); }
   }
 
   const showDropdown = searchFocused && suggestions.length > 0;
@@ -85,9 +129,15 @@ export default function Navigation() {
     router.push('/login');
   }
 
+  const moreActive = !tabs.some(t => t.href === pathname);
+
   return (
     <div>
-      <nav style={{ background: '#000', borderBottom: '1px solid #ff8c00' }}>
+      <nav style={{
+        background: '#000', borderBottom: '1px solid #ff8c00',
+        position: 'sticky', top: 0, zIndex: 95,
+        paddingTop: 'var(--safe-t)',
+      }}>
         <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', height: '40px', gap: '0' }}>
 
@@ -174,93 +224,163 @@ export default function Navigation() {
               </button>
             </div>
 
-            {/* Hamburger — mobile only */}
+            {/* Search — mobile only. Navigation itself lives in the tab bar,
+                so the top bar keeps only the one action it can't hold. */}
             <button
               className="nav-mobile-btn"
-              style={{ marginLeft: 'auto' }}
-              onClick={() => setMenuOpen(o => !o)}
-              aria-label="Menu"
+              style={{ marginLeft: 'auto', width: '40px', justifyContent: 'center' }}
+              onClick={() => setSearchOpen(true)}
+              aria-label="Search ticker"
             >
-              {menuOpen ? (
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                  <line x1="4" y1="4" x2="16" y2="16" stroke="#ff8c00" strokeWidth="2" strokeLinecap="round" />
-                  <line x1="16" y1="4" x2="4" y2="16" stroke="#ff8c00" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-              ) : (
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                  <line x1="3" y1="5" x2="17" y2="5" stroke="#ff8c00" strokeWidth="2" strokeLinecap="round" />
-                  <line x1="3" y1="10" x2="17" y2="10" stroke="#ff8c00" strokeWidth="2" strokeLinecap="round" />
-                  <line x1="3" y1="15" x2="17" y2="15" stroke="#ff8c00" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-              )}
+              <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="#ff8c00" strokeWidth="1.9" strokeLinecap="round">
+                <circle cx="8.8" cy="8.8" r="5.3" />
+                <path d="M12.8 12.8 L17 17" />
+              </svg>
             </button>
 
           </div>
         </div>
       </nav>
 
-      {/* Mobile drawer */}
-      <div className={`nav-mobile-drawer${menuOpen ? ' open' : ''}`}>
-        {/* Mobile search */}
-        <div style={{ padding: '10px 16px', borderBottom: '1px solid #1a1a1a' }}>
-          <form onSubmit={handleSearch} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <input
-              value={searchValue}
-              onChange={e => setSearchValue(e.target.value.toUpperCase())}
-              onFocus={() => setSearchFocused(true)}
-              onKeyDown={handleKeyDown}
-              placeholder="SEARCH TICKER"
-              style={{
-                flex: 1, background: '#000', border: '1px solid #333',
-                borderBottom: '1px solid #ff8c00', color: '#ffaa33',
-                fontFamily: 'Courier New, monospace', fontSize: '13px',
-                letterSpacing: '2px', padding: '6px 10px', outline: 'none',
-              }}
-            />
-            <button type="submit" style={{
-              background: '#ff8c00', color: '#000', border: 'none',
-              fontFamily: 'Courier New, monospace', fontWeight: 'bold',
-              fontSize: '11px', padding: '6px 12px', cursor: 'pointer',
-            }}>GO</button>
-          </form>
-        </div>
-
-        {/* Mobile nav links */}
-        {links.map(link => {
-          const active = pathname === link.href;
-          return (
-            <Link key={link.href} href={link.href} style={{
-              padding: '12px 20px', fontSize: '13px', fontWeight: 'bold',
-              letterSpacing: '1px', color: active ? '#000' : '#ff8c00',
-              background: active ? '#ff8c00' : 'transparent',
-              borderBottom: '1px solid #1a1a1a', textDecoration: 'none',
-              display: 'block',
+      {/* Mobile full-screen search. A phone has no room for an inline field
+          that competes with the logo, and the dropdown under one is a
+          thumb-sized target — so searching takes over the screen. */}
+      {searchOpen && (
+        <div className="search-overlay">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderBottom: '1px solid #ff8c00' }}>
+            <form onSubmit={handleSearch} style={{ flex: 1, display: 'flex' }}>
+              <input
+                ref={overlayInputRef}
+                value={searchValue}
+                onChange={e => setSearchValue(e.target.value.toUpperCase())}
+                onKeyDown={handleKeyDown}
+                placeholder="SEARCH TICKER"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="characters"
+                enterKeyHint="search"
+                style={{
+                  flex: 1, background: '#0a0a0a', border: '1px solid #2a2a2a',
+                  color: '#ffaa33', fontFamily: 'Courier New, monospace',
+                  letterSpacing: '2px', padding: '11px 12px', outline: 'none',
+                }}
+              />
+            </form>
+            <button onClick={() => { setSearchOpen(false); setSearchValue(''); setSuggestions([]); }} style={{
+              background: 'none', border: 'none', color: '#888',
+              fontFamily: 'Courier New, monospace', fontSize: '11px',
+              letterSpacing: '1px', padding: '0 4px', cursor: 'pointer',
             }}>
-              {link.label}
-            </Link>
-          );
-        })}
+              CANCEL
+            </button>
+          </div>
 
-        <button onClick={handleLogout} style={{
-          display: 'block', width: '100%', textAlign: 'left',
-          padding: '12px 20px', background: 'transparent',
-          border: 'none', borderBottom: '1px solid #1a1a1a',
-          color: '#cc2222', fontFamily: 'Courier New, monospace',
-          fontWeight: 'bold', fontSize: '12px', letterSpacing: '1px', cursor: 'pointer',
-        }}>
-          LOGOUT
-        </button>
-      </div>
+          <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            {suggestions.map(s => (
+              <button key={s.symbol} onClick={() => navigate(s.symbol)} style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                gap: '12px', width: '100%', textAlign: 'left',
+                padding: '14px 16px', background: 'none',
+                border: 'none', borderBottom: '1px solid #141414', cursor: 'pointer',
+              }}>
+                <span style={{ color: '#ff8c00', fontWeight: 'bold', fontSize: '15px', letterSpacing: '1px', fontFamily: 'Courier New, monospace' }}>{s.symbol}</span>
+                <span style={{ color: '#777', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
+              </button>
+            ))}
+            {searchValue.trim() && suggestions.length === 0 && (
+              <p style={{ color: '#555', fontSize: '12px', letterSpacing: '1px', padding: '20px 16px' }}>
+                NO MATCHES — PRESS SEARCH TO OPEN {searchValue.trim()} ANYWAY
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Mobile MORE drawer — the destinations that don't get a tab, plus
+          account actions. Slides from the bottom, where the thumb is. */}
+      {menuOpen && (
+        <>
+          <div
+            onClick={() => setMenuOpen(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 110 }}
+          />
+          <div style={{
+            position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 111,
+            background: '#0a0a0a', borderTop: '1px solid #ff8c00',
+            paddingBottom: 'calc(var(--safe-b) + 8px)',
+            animation: 'sheet-up .22s cubic-bezier(.2,.8,.3,1)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0 4px' }}>
+              <div style={{ width: '36px', height: '3px', background: '#333', borderRadius: '2px' }} />
+            </div>
+            {links.filter(l => !tabs.some(t => t.href === l.href)).map(link => {
+              const active = pathname === link.href;
+              return (
+                <Link key={link.href} href={link.href} style={{
+                  padding: '15px 20px', fontSize: '14px', fontWeight: 'bold',
+                  letterSpacing: '1px', color: active ? '#000' : '#ff8c00',
+                  background: active ? '#ff8c00' : 'transparent',
+                  borderTop: '1px solid #161616', textDecoration: 'none',
+                  display: 'block',
+                }}>
+                  {link.label}
+                </Link>
+              );
+            })}
+            <Link href="/disclosures" style={{
+              padding: '15px 20px', fontSize: '13px', letterSpacing: '1px',
+              color: '#777', borderTop: '1px solid #161616',
+              textDecoration: 'none', display: 'block',
+            }}>
+              DISCLOSURES
+            </Link>
+            <button onClick={handleLogout} style={{
+              display: 'block', width: '100%', textAlign: 'left',
+              padding: '15px 20px', background: 'transparent',
+              border: 'none', borderTop: '1px solid #161616',
+              color: '#cc2222', fontFamily: 'Courier New, monospace',
+              fontWeight: 'bold', fontSize: '13px', letterSpacing: '1px', cursor: 'pointer',
+            }}>
+              LOGOUT
+            </button>
+          </div>
+        </>
+      )}
 
       {/* Compliance bar */}
       <div style={{ background: '#0a0a0a', borderBottom: '1px solid #1a1a1a', padding: '4px 16px', textAlign: 'center' }}>
         <span style={{ color: '#444', fontSize: '9px', letterSpacing: '1.5px', fontFamily: 'Courier New, monospace' }}>
-          NOT FINANCIAL ADVICE &nbsp;·&nbsp; ALL TRADING INVOLVES RISK OF LOSS &nbsp;·&nbsp; 13F DATA REFLECTS PRIOR QUARTER (45-DAY DELAY) &nbsp;·&nbsp;{' '}
+          <span className="compliance-full">
+            NOT FINANCIAL ADVICE &nbsp;·&nbsp; ALL TRADING INVOLVES RISK OF LOSS &nbsp;·&nbsp; 13F DATA REFLECTS PRIOR QUARTER (45-DAY DELAY) &nbsp;·&nbsp;{' '}
+          </span>
+          <span className="compliance-short">
+            NOT ADVICE &nbsp;·&nbsp; 13F DATA IS 45 DAYS DELAYED &nbsp;·&nbsp;{' '}
+          </span>
           <a href="/terms" style={{ color: '#555', textDecoration: 'underline' }}>TERMS</a>
           &nbsp;·&nbsp;
           <a href="/privacy" style={{ color: '#555', textDecoration: 'underline' }}>PRIVACY</a>
         </span>
       </div>
+
+      {/* Mobile tab bar — the primary navigation on a phone. */}
+      <nav className="tabbar" aria-label="Primary">
+        <div className="tabbar-inner">
+          {tabs.map(t => (
+            <Link key={t.href} href={t.href} className={pathname === t.href ? 'active' : undefined}>
+              <TabIcon name={t.icon} />
+              <span>{t.label}</span>
+            </Link>
+          ))}
+          <button
+            onClick={() => setMenuOpen(o => !o)}
+            aria-label="More"
+            style={{ color: moreActive ? '#ff8c00' : undefined }}
+          >
+            <TabIcon name="more" />
+            <span>MORE</span>
+          </button>
+        </div>
+      </nav>
     </div>
   );
 }

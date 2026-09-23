@@ -165,7 +165,7 @@ export default function CompanyPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
             <div style={{
-              display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+              display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))',
               gap: '1px', background: B.border, border: `1px solid ${B.border}`,
             }}>
               {stats.map(([k, v]) => (

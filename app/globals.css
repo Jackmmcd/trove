@@ -118,7 +118,7 @@ body {
   .landing-hero-badge { display: none; }
 }
 
-@media (max-width: 400px) {
+@media (max-width: 340px) {
   .r-grid-4 { grid-template-columns: 1fr; }
 }
 
@@ -163,4 +163,299 @@ body {
     background: rgba(0, 0, 0, .6);
     z-index: 87;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MOBILE DESIGN SYSTEM
+   The app is styled almost entirely with inline styles, so the mobile
+   adaptations live here as classes and overrides that components opt
+   into. Everything below is desktop-neutral unless inside a query.
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Height reserved at the bottom of every page for the mobile tab bar.
+     Zero on desktop, so the same rules are safe everywhere. */
+  --tabbar-h: 0px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  -webkit-tap-highlight-color: rgba(255, 140, 0, .18);
+  overscroll-behavior-y: none;
+}
+
+/* Never let a page scroll sideways — wide content opts into .r-scroll.
+   `clip` rather than `hidden`: `hidden` would make body a scroll container
+   and break position:sticky on the nav. */
+html, body { max-width: 100%; overflow-x: clip; }
+
+@media (max-width: 640px) {
+  :root { --tabbar-h: calc(54px + env(safe-area-inset-bottom, 0px)); }
+
+  body {
+    font-size: 14px;
+    padding-bottom: var(--tabbar-h);
+    padding-left: var(--safe-l);
+    padding-right: var(--safe-r);
+  }
+
+  /* iOS zooms the viewport when a focused field is under 16px. */
+  input, select, textarea { font-size: 16px !important; }
+
+  /* Comfortable touch targets. Buttons in this app are set with inline
+     padding, so raise the floor rather than fight each one. */
+  button, a[role="button"], summary { min-height: 40px; }
+  table button { min-height: 34px; }
+}
+
+/* ── Mobile bottom tab bar ─────────────────────────────────────────── */
+
+.tabbar {
+  display: none;
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 90;
+  background: rgba(0, 0, 0, .96);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid #241a08;
+  padding-bottom: var(--safe-b);
+}
+
+.tabbar-inner {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  height: 54px;
+}
+
+.tabbar a, .tabbar button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  color: #6b6b6b;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 9px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  padding: 0;
+  position: relative;
+  transition: color .12s ease;
+}
+
+.tabbar a.active { color: var(--amber); }
+
+/* The lit strip above the active tab, the one persistent "you are here". */
+.tabbar a.active::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 22%; right: 22%;
+  height: 2px;
+  background: var(--amber);
+}
+
+.tabbar svg { width: 19px; height: 19px; display: block; }
+
+@media (max-width: 640px) { .tabbar { display: block; } }
+
+/* ── Mobile full-screen search overlay ─────────────────────────────── */
+
+.search-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--safe-t);
+}
+
+/* ── Bottom sheets (modals on mobile) ──────────────────────────────── */
+
+@media (max-width: 640px) {
+  .sheet-overlay {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+
+  .sheet {
+    max-width: none !important;
+    width: 100% !important;
+    margin: 0 !important;
+    max-height: 92vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    padding-bottom: var(--safe-b);
+    animation: sheet-up .22s cubic-bezier(.2, .8, .3, 1);
+  }
+}
+
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+/* ── Wide tables → stacked cards on phones ─────────────────────────────
+   A <table class="r-cards"> whose <td>s carry data-label collapses into
+   one card per row, each cell a label/value line. Rows stay tappable. */
+
+@media (max-width: 640px) {
+  table.r-cards, table.r-cards tbody, table.r-cards tr, table.r-cards td {
+    display: block;
+    width: 100%;
+  }
+
+  table.r-cards thead, table.r-cards tfoot { display: none; }
+
+  table.r-cards tr {
+    display: flex;
+    flex-direction: column;
+    background: #0a0a0a;
+    border: 1px solid var(--border);
+    margin-bottom: 8px;
+    padding: 4px 0;
+  }
+
+  /* Whichever column carries the headline becomes the card's title bar,
+     even when it isn't the first column in the table. */
+  table.r-cards td[data-head] { order: -1; }
+
+  table.r-cards td {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 7px 12px !important;
+    border-bottom: 1px solid #141414 !important;
+    text-align: right;
+  }
+
+  table.r-cards tr td:last-child { border-bottom: none !important; }
+
+  table.r-cards td::before {
+    content: attr(data-label);
+    color: var(--label);
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    text-align: left;
+    flex-shrink: 0;
+  }
+
+  /* A cell marked as the card's headline spans it as a title bar. */
+  table.r-cards td[data-head] {
+    background: #101010;
+    border-bottom: 1px solid var(--border) !important;
+    font-size: 15px !important;
+    padding: 9px 12px !important;
+  }
+
+  table.r-cards td[data-head]::before { content: none; }
+
+  /* Cells with nothing useful to show as a line (spacer columns). */
+  table.r-cards td[data-label=""] { display: none !important; }
+}
+
+/* ── Misc mobile trims ─────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  /* Charts get shorter — a 220px chart on a 380px-wide screen is a smear. */
+  .r-chart-sm .recharts-wrapper { max-width: 100%; }
+
+  /* Horizontal pill/tab rows scroll instead of wrapping into stacks. */
+  .r-hscroll {
+    display: flex;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap !important;
+    padding-bottom: 2px;
+  }
+  .r-hscroll::-webkit-scrollbar { display: none; }
+  .r-hscroll > * { flex-shrink: 0; }
+
+  /* Stat rows: even two-up grid instead of a ragged flex wrap. */
+  .r-stats {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 16px !important;
+  }
+}
+
+/* ── Stock page ────────────────────────────────────────────────────── */
+
+/* The floating BUY/SELL bar only exists on phones; on desktop the same
+   actions live in the page's top bar where they are always visible. */
+.stock-trade-bar { display: none; }
+
+@media (max-width: 640px) {
+  .stock-trade-desktop { display: none !important; }
+
+  .stock-trade-bar {
+    display: flex;
+    gap: 1px;
+    position: fixed;
+    left: 0; right: 0;
+    bottom: var(--tabbar-h);
+    z-index: 80;
+    background: #000;
+    border-top: 1px solid #241a08;
+  }
+
+  /* Clear the trade bar so the last panel isn't trapped under it. */
+  .stock-body { padding: 14px 14px 72px !important; }
+
+  /* Side-by-side digest and headlines stack; drop the divider that
+     would otherwise run down the middle of nothing. */
+  .stock-activity > div:first-child { border-right: none !important; border-bottom: 1px solid var(--border); }
+}
+
+/* ── Toasts ───────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .toast-stack {
+    top: auto !important;
+    bottom: calc(var(--tabbar-h) + 12px) !important;
+    left: 12px !important;
+    right: 12px !important;
+  }
+  .toast-stack > div { max-width: none !important; }
+}
+
+/* ── Rebalance ────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  /* SELL and BUY sit side by side on a desktop; on a phone each needs the
+     full width, and the divider between them becomes a rule above. */
+  .rebal-split { grid-template-columns: 1fr !important; }
+  .rebal-split > div { border-right: none !important; }
+  .rebal-split > div + div { border-top: 1px solid var(--border); }
+}
+
+/* ── Compliance bar ───────────────────────────────────────────────── */
+
+/* The full disclosure runs to three lines on a phone and pushes the page
+   down on every route, so the bar carries a short form for narrow screens
+   and the full wording for everything else. Both always link out. */
+.compliance-short { display: none; }
+
+@media (max-width: 640px) {
+  .compliance-full { display: none; }
+  .compliance-short { display: inline; }
 }

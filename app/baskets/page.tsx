@@ -154,7 +154,7 @@ export default function BasketsPage() {
             {/* Positions table — expanded */}
             {isOpen && (
               <div style={{ borderTop: `1px solid ${B.border}` }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <table className="r-cards" style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr>
                       {['TICKER', 'SHARES', 'ENTRY', 'CURRENT', 'COST', 'VALUE', 'P&L', 'RETURN'].map(h => (
@@ -177,14 +177,14 @@ export default function BasketsPage() {
                           onMouseEnter={e => (e.currentTarget.style.background = '#111')}
                           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                         >
-                          <td style={{ padding: '7px 14px', borderBottom: '1px solid #111', color: B.amber, fontWeight: 'bold', fontSize: '12px' }}>{o.ticker}</td>
-                          <td style={{ padding: '7px 14px', borderBottom: '1px solid #111', textAlign: 'right', fontSize: '12px', color: B.text }}>{o.shares}</td>
-                          <td style={{ padding: '7px 14px', borderBottom: '1px solid #111', textAlign: 'right', fontSize: '12px', color: B.label }}>{fmt$(o.price)}</td>
-                          <td style={{ padding: '7px 14px', borderBottom: '1px solid #111', textAlign: 'right', fontSize: '12px', color: B.cyan }}>{fmt$(o.currentPrice ?? o.price)}</td>
-                          <td style={{ padding: '7px 14px', borderBottom: '1px solid #111', textAlign: 'right', fontSize: '12px', color: B.text }}>{fmt$(cost)}</td>
-                          <td style={{ padding: '7px 14px', borderBottom: '1px solid #111', textAlign: 'right', fontSize: '12px', color: B.cyan }}>{fmt$(val)}</td>
-                          <td style={{ padding: '7px 14px', borderBottom: '1px solid #111', textAlign: 'right', fontSize: '12px', color: up ? B.green : B.red, fontWeight: 'bold' }}>{up ? '+' : ''}{fmt$(gain)}</td>
-                          <td style={{ padding: '7px 14px', borderBottom: '1px solid #111', textAlign: 'right', fontSize: '12px', color: up ? B.green : B.red }}>{fmtPct(gainPct)}</td>
+                          <td data-head="" data-label="Ticker" style={{ padding: '7px 14px', borderBottom: '1px solid #111', color: B.amber, fontWeight: 'bold', fontSize: '12px' }}>{o.ticker}</td>
+                          <td data-label="Shares" style={{ padding: '7px 14px', borderBottom: '1px solid #111', textAlign: 'right', fontSize: '12px', color: B.text }}>{o.shares}</td>
+                          <td data-label="Entry" style={{ padding: '7px 14px', borderBottom: '1px solid #111', textAlign: 'right', fontSize: '12px', color: B.label }}>{fmt$(o.price)}</td>
+                          <td data-label="Current" style={{ padding: '7px 14px', borderBottom: '1px solid #111', textAlign: 'right', fontSize: '12px', color: B.cyan }}>{fmt$(o.currentPrice ?? o.price)}</td>
+                          <td data-label="Cost" style={{ padding: '7px 14px', borderBottom: '1px solid #111', textAlign: 'right', fontSize: '12px', color: B.text }}>{fmt$(cost)}</td>
+                          <td data-label="Value" style={{ padding: '7px 14px', borderBottom: '1px solid #111', textAlign: 'right', fontSize: '12px', color: B.cyan }}>{fmt$(val)}</td>
+                          <td data-label="P&L" style={{ padding: '7px 14px', borderBottom: '1px solid #111', textAlign: 'right', fontSize: '12px', color: up ? B.green : B.red, fontWeight: 'bold' }}>{up ? '+' : ''}{fmt$(gain)}</td>
+                          <td data-label="Return" style={{ padding: '7px 14px', borderBottom: '1px solid #111', textAlign: 'right', fontSize: '12px', color: up ? B.green : B.red }}>{fmtPct(gainPct)}</td>
                         </tr>
                       );
                     })}

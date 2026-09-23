@@ -40,7 +40,7 @@ function ArticleCard({ item }: { item: NewsItem }) {
         onMouseLeave={e => (e.currentTarget.style.background = B.panel)}
       >
         <div style={{ color: B.text, fontSize: '12px', lineHeight: 1.5, fontFamily: 'Courier New, monospace' }}>{item.title}</div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <span style={{ color: accentColor, fontSize: '9px', letterSpacing: '1px' }}>{item.publisher.toUpperCase()}</span>
           <span style={{ color: B.label, fontSize: '9px' }}>{timeAgo(item.providerPublishTime)}</span>
         </div>
@@ -137,7 +137,7 @@ export default function News() {
 
       {/* ── DAILY BRIEFING HERO ── */}
       <div style={{ background: '#050505', border: `1px solid ${B.border}`, borderTop: `3px solid ${B.amber}` }}>
-        <div style={{ padding: '20px 24px', borderBottom: `1px solid ${B.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <div style={{ padding: '20px 24px', borderBottom: `1px solid ${B.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
           <div>
             <div style={{ color: B.amber, fontSize: '22px', fontWeight: 'bold', letterSpacing: '4px', lineHeight: 1 }}>DAILY BRIEFING</div>
             <div style={{ color: B.label, fontSize: '10px', letterSpacing: '2px', marginTop: '4px' }}>{today}</div>
@@ -173,7 +173,7 @@ export default function News() {
       {!loading && positionArticles.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <div style={{ color: B.amber, fontSize: '11px', fontWeight: 'bold', letterSpacing: '3px' }}>NEWS BY POSITION</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '8px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(400px, 100%), 1fr))', gap: '8px' }}>
             {positionArticles.map(item => <ArticleCard key={item.uuid} item={item} />)}
           </div>
         </div>
@@ -181,7 +181,7 @@ export default function News() {
 
       {/* ── ALL NEWS FEED ── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <div style={{ color: B.amber, fontSize: '11px', fontWeight: 'bold', letterSpacing: '3px' }}>ALL ARTICLES</div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button onClick={generateManualDigest} disabled={manualDigestLoading || items.length === 0}
@@ -210,7 +210,7 @@ export default function News() {
         )}
 
         {/* Filter bar */}
-        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className="r-hscroll" style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
           <button style={tagStyle(filter === 'all')} onClick={() => setFilter('all')}>ALL</button>
           <button style={tagStyle(filter === 'macro')} onClick={() => setFilter('macro')}>MACRO</button>
           <button style={{ ...tagStyle(filter === 'wsj'), color: filter === 'wsj' ? '#000' : '#e0e0e0', background: filter === 'wsj' ? '#e0e0e0' : '#111', border: '1px solid #444' }} onClick={() => setFilter(p => p === 'wsj' ? 'all' : 'wsj')}>WSJ</button>
@@ -232,7 +232,7 @@ export default function News() {
             <p style={{ color: B.label, fontSize: '12px', letterSpacing: '1px' }}>NO ARTICLES — SYNC FUNDS FIRST</p>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '8px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(400px, 100%), 1fr))', gap: '8px' }}>
             {filtered.map(item => <ArticleCard key={item.uuid} item={item} />)}
           </div>
         )}

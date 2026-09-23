@@ -115,7 +115,7 @@ export default function RebalanceView() {
   const sectionHeader: React.CSSProperties = { background: '#111', borderBottom: `1px solid ${B.border}`, padding: '6px 14px', color: B.amber, fontSize: '11px', letterSpacing: '2px', fontWeight: 'bold' };
 
   return (
-    <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '20px', fontFamily: 'Courier New, monospace' }}>
+    <div style={{ padding: '16px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px', fontFamily: 'Courier New, monospace' }}>
 
       {/* ── 13F FILING ALERTS ─────────────────────────────── */}
       <div style={{ border: `1px solid ${B.border}`, background: B.panel }}>
@@ -177,7 +177,8 @@ export default function RebalanceView() {
         ) : baskets.length === 0 ? (
           <div style={{ padding: '16px', color: B.label, fontSize: '11px', letterSpacing: '1px' }}>NO BASKET PURCHASES RECORDED</div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div className="r-scroll">
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '560px' }}>
             <thead>
               <tr>
                 <th style={thStyle}>Date</th>
@@ -243,19 +244,20 @@ export default function RebalanceView() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
       {/* ── REBALANCE CALCULATOR ──────────────────────────── */}
       <div style={{ border: `1px solid ${B.border}`, background: B.panel }}>
-        <div style={{ ...sectionHeader, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ ...sectionHeader, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <span>REBALANCE CALCULATOR</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ color: B.label, fontSize: '10px' }}>THRESHOLD</span>
             <input
               type="range" min={1} max={20} value={threshold}
               onChange={e => setThreshold(parseInt(e.target.value))}
-              style={{ accentColor: B.amber, width: '80px' }}
+              style={{ accentColor: B.amber, width: '110px' }}
             />
             <span style={{ color: B.amber, minWidth: '28px' }}>{threshold}%</span>
             <button onClick={calculateRebalance} style={{ padding: '3px 12px', background: 'transparent', color: B.amber, border: `1px solid ${B.amber}`, cursor: 'pointer', fontFamily: 'Courier New, monospace', fontSize: '10px', letterSpacing: '1px' }}>
@@ -287,7 +289,7 @@ export default function RebalanceView() {
             {result.trades.length === 0 ? (
               <div style={{ padding: '20px', color: B.label, fontSize: '11px', letterSpacing: '1px' }}>✓ PORTFOLIO ALIGNED — NO TRADES NEEDED</div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: sellTrades.length > 0 && buyTrades.length > 0 ? '1fr 1fr' : '1fr', gap: '0' }}>
+              <div className="rebal-split" style={{ display: 'grid', gridTemplateColumns: sellTrades.length > 0 && buyTrades.length > 0 ? '1fr 1fr' : '1fr', gap: '0' }}>
                 {sellTrades.length > 0 && (
                   <div style={{ borderRight: buyTrades.length > 0 ? `1px solid ${B.border}` : 'none' }}>
                     <div style={{ padding: '6px 14px', background: '#0a0000', color: B.red, fontSize: '10px', letterSpacing: '2px', borderBottom: `1px solid ${B.border}` }}>

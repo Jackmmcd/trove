@@ -81,8 +81,10 @@ export default function TickerPanel({ ticker, onClose }: { ticker: string; onClo
         style={{
           position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(400px, 100vw)',
           background: '#0a0a0a', borderLeft: `1px solid ${AMBER}`, zIndex: 91,
-          overflowY: 'auto', fontFamily: 'Courier New, monospace',
+          overflowY: 'auto', WebkitOverflowScrolling: 'touch',
+          fontFamily: 'Courier New, monospace',
           display: 'flex', flexDirection: 'column',
+          paddingTop: 'var(--safe-t)', paddingBottom: 'var(--safe-b)',
         }}
       >
         <div style={{
