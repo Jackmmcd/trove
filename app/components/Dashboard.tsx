@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -11,6 +11,7 @@ import LoginButton from './LoginButton';
 import useIsMobile from './useIsMobile';
 import TradeModal from './TradeModal';
 import TickerTooltip from './TickerTooltip';
+import { groupPositions, type BasketRecord, type PortfolioRow } from '@/lib/baskets/group';
 
 interface AccountBalance {
   netLiquidity: number;
@@ -116,6 +117,23 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [requiresAuth, setRequiresAuth] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
+  const [baskets, setBaskets] = useState<BasketRecord[]>([]);
+  const [openBaskets, setOpenBaskets] = useState<Record<string, boolean>>({});
+
+  // Basket membership decides how positions are grouped below, so it is loaded
+  // once here rather than inside the row rendering.
+  useEffect(() => {
+    fetch('/api/baskets')
+      .then(r => r.json())
+      .then(d => {
+        if (!d.success) return;
+        setBaskets((d.data as any[]).map(b => ({
+          ...b,
+          orders: typeof b.orders === 'string' ? JSON.parse(b.orders) : b.orders,
+        })));
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     import('@/utils/supabase/client').then(({ createClient }) => {
@@ -301,6 +319,13 @@ export default function Dashboard() {
   const totalReturn = totalCost > 0 ? (totalGainLoss / totalCost) * 100 : 0;
   const totalDailyPnL = positions.every(p => p.dailyPnL !== null) ? positions.reduce((s, p) => s + (p.dailyPnL ?? 0), 0) : null;
   const totalWeeklyPnL = positions.every(p => p.weeklyPnL !== null) ? positions.reduce((s, p) => s + (p.weeklyPnL ?? 0), 0) : null;
+
+  // One row per deliberate position: a basket counts once, however many
+  // fractional legs the broker reports underneath it.
+  const rows: PortfolioRow[] = groupPositions(
+    positions,
+    baskets.filter(b => Boolean(b.isPaper) === isPaper),
+  );
 
   const chartData = positions.map(p => ({
     symbol: p.symbol,
@@ -526,7 +551,62 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {positions.map(p => (
+                {rows.map(row => {
+                  if (row.kind === 'basket') {
+                    const isOpen = openBaskets[row.id];
+                    const shares = row.legs.reduce((sum, l) => sum + l.shares, 0);
+                    const avgCost = shares > 0 ? row.cost / shares : 0;
+                    return (
+                      <React.Fragment key={'basket-' + row.id}>
+                        <tr
+                          onClick={() => setOpenBaskets(prev => ({ ...prev, [row.id]: !prev[row.id] }))}
+                          style={{ cursor: 'pointer', background: '#0a0a00' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = '#1a1a00')}
+                          onMouseLeave={e => (e.currentTarget.style.background = '#0a0a00')}
+                        >
+                          <td data-head="" data-label="Symbol" style={{ ...tdStyle, color: B.amber, fontWeight: 'bold' }}>
+                            <span style={{ marginRight: '6px', fontSize: '10px' }}>{isOpen ? '\u25bc' : '\u25b6'}</span>
+                            {row.fundName.toUpperCase()}
+                            <span style={{ color: B.label, fontWeight: 'normal', fontSize: '10px', letterSpacing: '1px', marginLeft: '8px' }}>
+                              BASKET &middot; {row.legs.length}
+                            </span>
+                          </td>
+                          <td data-label="Shares" style={{ ...tdStyle, color: B.label }}>&mdash;</td>
+                          <td data-label="Avg Cost" style={{ ...tdStyle, color: B.label }}>${avgCost.toFixed(2)}</td>
+                          <td data-label="Last" style={{ ...tdStyle, color: B.label }}>&mdash;</td>
+                          <td data-label="Value" style={tdStyle}>${row.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td data-label="Day P&L" style={{ ...tdStyle, color: row.dailyPnL === null ? B.label : row.dailyPnL >= 0 ? B.green : B.red, fontWeight: 'bold' }}>
+                            {row.dailyPnL === null ? '\u2014' : `${row.dailyPnL >= 0 ? '+' : ''}$${row.dailyPnL.toFixed(2)}`}
+                          </td>
+                          <td data-label="Week P&L" style={{ ...tdStyle, color: row.weeklyPnL === null ? B.label : row.weeklyPnL >= 0 ? B.green : B.red, fontWeight: 'bold' }}>
+                            {row.weeklyPnL === null ? '\u2014' : `${row.weeklyPnL >= 0 ? '+' : ''}$${row.weeklyPnL.toFixed(2)}`}
+                          </td>
+                          <td data-label="Total P&L" style={{ ...tdStyle, color: row.gainLoss >= 0 ? B.green : B.red, fontWeight: 'bold' }}>
+                            {row.gainLoss >= 0 ? '+' : ''}${row.gainLoss.toFixed(2)}
+                          </td>
+                        </tr>
+                        {isOpen && row.legs.map(leg => (
+                          <tr key={row.id + '-' + leg.symbol} style={{ background: '#050500' }}>
+                            <td data-head="" data-label="Symbol" style={{ ...tdStyle, color: B.amberDim, paddingLeft: '28px' }}>
+                              <span onClick={() => router.push(`/stock/${leg.symbol}`)} style={{ cursor: 'pointer' }}>{leg.symbol}</span>
+                            </td>
+                            <td data-label="Shares" style={{ ...tdStyle, color: B.label }}>{leg.shares}</td>
+                            <td data-label="Avg Cost" style={{ ...tdStyle, color: B.label }}>${leg.entryPrice.toFixed(2)}</td>
+                            <td data-label="Last" style={{ ...tdStyle, color: B.cyan }}>${leg.currentPrice.toFixed(2)}</td>
+                            <td data-label="Value" style={{ ...tdStyle, color: B.label }}>${leg.value.toFixed(2)}</td>
+                            <td data-label="Day P&L" style={{ ...tdStyle, color: B.label }}>&mdash;</td>
+                            <td data-label="Week P&L" style={{ ...tdStyle, color: B.label }}>&mdash;</td>
+                            <td data-label="Total P&L" style={{ ...tdStyle, color: leg.gainLoss >= 0 ? B.green : B.red }}>
+                              {leg.gainLoss >= 0 ? '+' : ''}${leg.gainLoss.toFixed(2)}
+                            </td>
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    );
+                  }
+
+                  const p = row.position;
+                  return (
                   <tr
                     key={p.symbol}
                     onClick={() => setSelectedPosition(p)}
@@ -555,7 +635,8 @@ export default function Dashboard() {
                       {p.gainLoss >= 0 ? '+' : ''}${p.gainLoss.toFixed(2)}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
               <tfoot>
                 <tr style={{ borderTop: `1px solid ${B.border}` }}>
