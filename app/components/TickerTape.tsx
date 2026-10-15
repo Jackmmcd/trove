@@ -61,8 +61,8 @@ export default function TickerTape() {
 
   return (
     <div style={{
-      background: '#0a0a0a',
-      borderBottom: '1px solid #ff8c00',
+      background: 'var(--bg-0a0a0a)',
+      borderBottom: '1px solid var(--bg-ff8c00)',
       height: '28px',
       overflow: 'hidden',
       position: 'relative',
@@ -84,10 +84,10 @@ export default function TickerTape() {
       `}</style>
       <div className="tape-track">
         {doubled.map((item, i) => (
-          <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '0 18px', fontFamily: 'Courier New, monospace', fontSize: '11px', borderRight: '1px solid #1a1a1a' }}>
-            <span style={{ color: '#ff8c00', fontWeight: 'bold', letterSpacing: '1px' }}>{item.symbol}</span>
-            <span style={{ color: '#e0e0e0' }}>${item.price.toFixed(2)}</span>
-            <span style={{ color: item.gainLoss >= 0 ? '#00ff41' : '#ff3333', fontWeight: 'bold' }}>
+          <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '0 18px', fontFamily: 'Courier New, monospace', fontSize: '11px', borderRight: '1px solid var(--bg-1a1a1a)' }}>
+            <span style={{ color: 'var(--fg-ff8c00)', fontWeight: 'bold', letterSpacing: '1px' }}>{item.symbol}</span>
+            <span style={{ color: 'var(--fg-e0e0e0)' }}>${item.price.toFixed(2)}</span>
+            <span style={{ color: item.gainLoss >= 0 ? 'var(--bg-00ff41)' : 'var(--bg-ff3333)', fontWeight: 'bold' }}>
               {item.gainLoss >= 0 ? '▲' : '▼'}{Math.abs(item.gainLossPct).toFixed(2)}%
             </span>
           </span>

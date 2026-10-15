@@ -24,7 +24,7 @@ export default function LoginButton() {
   };
 
   if (isLoading) return (
-    <button disabled style={{ ...btnStyle, background: '#333', color: '#666' }}>LOADING...</button>
+    <button disabled style={{ ...btnStyle, background: 'var(--bg-333333)', color: 'var(--fg-666666)' }}>LOADING...</button>
   );
 
   if (isAuthenticated) return (
@@ -34,14 +34,14 @@ export default function LoginButton() {
         await supabase.auth.signOut();
         router.push('/login');
       }}
-      style={{ ...btnStyle, background: 'transparent', color: '#ff3333', border: '1px solid #4a0000' }}>
+      style={{ ...btnStyle, background: 'transparent', color: 'var(--fg-ff3333)', border: '1px solid var(--bg-4a0000)' }}>
       LOGOUT
     </button>
   );
 
   return (
     <button onClick={() => router.push('/login')}
-      style={{ ...btnStyle, background: '#ff8c00', color: '#000' }}>
+      style={{ ...btnStyle, background: 'var(--bg-ff8c00)', color: 'var(--fg-000000)' }}>
       LOGIN
     </button>
   );

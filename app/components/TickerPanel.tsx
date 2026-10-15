@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-const AMBER = '#ff8c00';
-const DIM = '#666';
+const AMBER = 'var(--bg-ff8c00)';
+const DIM = 'var(--fg-666666)';
 
 interface Holder {
   fund: string; entity_type: string; quarter: string;
@@ -80,7 +80,7 @@ export default function TickerPanel({ ticker, onClose }: { ticker: string; onClo
       <aside
         style={{
           position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(400px, 100vw)',
-          background: '#0a0a0a', borderLeft: `1px solid ${AMBER}`, zIndex: 91,
+          background: 'var(--bg-0a0a0a)', borderLeft: `1px solid ${AMBER}`, zIndex: 91,
           overflowY: 'auto', WebkitOverflowScrolling: 'touch',
           fontFamily: 'Courier New, monospace',
           display: 'flex', flexDirection: 'column',
@@ -89,17 +89,17 @@ export default function TickerPanel({ ticker, onClose }: { ticker: string; onClo
       >
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '14px 16px', borderBottom: '1px solid #1a1a1a',
-          position: 'sticky', top: 0, background: '#0a0a0a', zIndex: 1,
+          padding: '14px 16px', borderBottom: '1px solid var(--bg-1a1a1a)',
+          position: 'sticky', top: 0, background: 'var(--bg-0a0a0a)', zIndex: 1,
         }}>
           <div>
             <div style={{ color: AMBER, fontSize: '19px', fontWeight: 900, letterSpacing: '2px' }}>{ticker}</div>
             {(f?.name || a?.name) && (
-              <div style={{ color: '#999', fontSize: '11px', marginTop: '3px' }}>{f?.name ?? a?.name}</div>
+              <div style={{ color: 'var(--fg-999999)', fontSize: '11px', marginTop: '3px' }}>{f?.name ?? a?.name}</div>
             )}
           </div>
           <button onClick={onClose} aria-label="Close" style={{
-            background: 'transparent', border: '1px solid #2a2a2a', color: DIM,
+            background: 'transparent', border: '1px solid var(--bg-2a2a2a)', color: DIM,
             fontFamily: 'inherit', fontSize: '13px', lineHeight: 1,
             padding: '6px 10px', cursor: 'pointer',
           }}>✕</button>
@@ -107,7 +107,7 @@ export default function TickerPanel({ ticker, onClose }: { ticker: string; onClo
 
         <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '20px', flex: 1 }}>
           {loading && <div style={{ color: DIM, fontSize: '12px' }}>loading…</div>}
-          {error && <div style={{ color: '#e07a5a', fontSize: '12px', lineHeight: 1.6 }}>{error}</div>}
+          {error && <div style={{ color: 'var(--fg-e07a5a)', fontSize: '12px', lineHeight: 1.6 }}>{error}</div>}
 
           {!loading && !error && (
             <>
@@ -115,18 +115,18 @@ export default function TickerPanel({ ticker, onClose }: { ticker: string; onClo
                 <div>
                   <Label>SNAPSHOT</Label>
                   <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '5px 14px', fontSize: '12px' }}>
-                    {f?.market_cap_display && (<><span style={{ color: DIM }}>Market cap</span><span style={{ color: '#ffb454' }}>{f.market_cap_display}</span></>)}
-                    {(f?.sector ?? a?.sector) && (<><span style={{ color: DIM }}>Sector</span><span style={{ color: '#ddd' }}>{f?.sector ?? a?.sector}</span></>)}
-                    {f?.employees ? (<><span style={{ color: DIM }}>Employees</span><span style={{ color: '#ddd' }}>{f.employees.toLocaleString()}</span></>) : null}
-                    {f?.listed && (<><span style={{ color: DIM }}>Listed</span><span style={{ color: '#ddd' }}>{f.listed}</span></>)}
+                    {f?.market_cap_display && (<><span style={{ color: DIM }}>Market cap</span><span style={{ color: 'var(--fg-ffb454)' }}>{f.market_cap_display}</span></>)}
+                    {(f?.sector ?? a?.sector) && (<><span style={{ color: DIM }}>Sector</span><span style={{ color: 'var(--fg-dddddd)' }}>{f?.sector ?? a?.sector}</span></>)}
+                    {f?.employees ? (<><span style={{ color: DIM }}>Employees</span><span style={{ color: 'var(--fg-dddddd)' }}>{f.employees.toLocaleString()}</span></>) : null}
+                    {f?.listed && (<><span style={{ color: DIM }}>Listed</span><span style={{ color: 'var(--fg-dddddd)' }}>{f.listed}</span></>)}
                   </div>
                 </div>
               )}
 
               {data?.position && (
-                <div style={{ border: '1px solid #2a2a00', background: '#0e0e04', padding: '10px 12px' }}>
+                <div style={{ border: '1px solid var(--bg-2a2a00)', background: 'var(--bg-0e0e04)', padding: '10px 12px' }}>
                   <Label>YOUR POSITION</Label>
-                  <div style={{ color: '#ddd', fontSize: '12px' }}>
+                  <div style={{ color: 'var(--fg-dddddd)', fontSize: '12px' }}>
                     {data.position.quantity} shares @ ${data.position.avg_open_price.toFixed(2)} avg
                   </div>
                 </div>
@@ -135,7 +135,7 @@ export default function TickerPanel({ ticker, onClose }: { ticker: string; onClo
               {a?.summary && (
                 <div>
                   <Label>WHAT IT DOES</Label>
-                  <p style={{ color: '#e8e2d8', fontSize: '13px', lineHeight: 1.65, margin: 0, fontFamily: 'Georgia, serif' }}>
+                  <p style={{ color: 'var(--fg-e8e2d8)', fontSize: '13px', lineHeight: 1.65, margin: 0, fontFamily: 'Georgia, serif' }}>
                     {a.summary}
                   </p>
                 </div>
@@ -144,7 +144,7 @@ export default function TickerPanel({ ticker, onClose }: { ticker: string; onClo
               {bullets(a?.bull_case).length > 0 && (
                 <div>
                   <Label>CASE FOR</Label>
-                  <ul style={{ margin: 0, paddingLeft: '16px', color: '#7fbf9a', fontSize: '12px', lineHeight: 1.6 }}>
+                  <ul style={{ margin: 0, paddingLeft: '16px', color: 'var(--fg-7fbf9a)', fontSize: '12px', lineHeight: 1.6 }}>
                     {bullets(a?.bull_case).map((b, i) => <li key={i} style={{ marginBottom: '5px' }}>{b}</li>)}
                   </ul>
                 </div>
@@ -153,14 +153,14 @@ export default function TickerPanel({ ticker, onClose }: { ticker: string; onClo
               {bullets(a?.bear_case).length > 0 && (
                 <div>
                   <Label>CASE AGAINST</Label>
-                  <ul style={{ margin: 0, paddingLeft: '16px', color: '#d98b6f', fontSize: '12px', lineHeight: 1.6 }}>
+                  <ul style={{ margin: 0, paddingLeft: '16px', color: 'var(--fg-d98b6f)', fontSize: '12px', lineHeight: 1.6 }}>
                     {bullets(a?.bear_case).map((b, i) => <li key={i} style={{ marginBottom: '5px' }}>{b}</li>)}
                   </ul>
                 </div>
               )}
 
               {a?.error && !a?.summary && (
-                <div style={{ color: '#8a8070', fontSize: '12px', lineHeight: 1.6 }}>
+                <div style={{ color: 'var(--fg-8a8070)', fontSize: '12px', lineHeight: 1.6 }}>
                   No company profile available for {ticker}.
                 </div>
               )}
@@ -171,24 +171,24 @@ export default function TickerPanel({ ticker, onClose }: { ticker: string; onClo
                   {data?.holders?.aggregate_equity_weight ? ` · ${data.holders.aggregate_equity_weight.toFixed(1)}% AGGREGATE` : ''}
                 </Label>
                 {holders.length === 0 ? (
-                  <div style={{ color: '#8a8070', fontSize: '12px' }}>No tracked fund reports this ticker.</div>
+                  <div style={{ color: 'var(--fg-8a8070)', fontSize: '12px' }}>No tracked fund reports this ticker.</div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
                     {holders.map((h, i) => (
                       <div key={i} style={{
                         display: 'flex', justifyContent: 'space-between', gap: '10px',
-                        borderBottom: i < holders.length - 1 ? '1px solid #161616' : 'none',
+                        borderBottom: i < holders.length - 1 ? '1px solid var(--bg-161616)' : 'none',
                         paddingBottom: '6px', fontSize: '11.5px',
                       }}>
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ color: '#ddd', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.fund}</div>
-                          <div style={{ color: '#555', fontSize: '10px', marginTop: '2px' }}>
+                          <div style={{ color: 'var(--fg-dddddd)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.fund}</div>
+                          <div style={{ color: 'var(--fg-555555)', fontSize: '10px', marginTop: '2px' }}>
                             {h.entity_type.replace(/_/g, ' ')} · since {h.first_reported}
                           </div>
                         </div>
                         <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                           <div style={{ color: AMBER }}>{h.weight.toFixed(2)}%</div>
-                          <div style={{ color: '#555', fontSize: '10px', marginTop: '2px' }}>{h.quarter}</div>
+                          <div style={{ color: 'var(--fg-555555)', fontSize: '10px', marginTop: '2px' }}>{h.quarter}</div>
                         </div>
                       </div>
                     ))}

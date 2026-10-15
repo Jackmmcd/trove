@@ -16,9 +16,9 @@ type Tab = 'buy' | 'sell';
 type Step = 'input' | 'confirm';
 
 const B = {
-  bg: '#000', panel: '#0d0d0d', border: '#2a2a2a',
-  amber: '#ff8c00', amberDim: '#cc6d00', green: '#00ff41', red: '#ff3333',
-  cyan: '#00e5ff', label: '#888', text: '#e0e0e0',
+  bg: 'var(--bg-000000)', panel: 'var(--bg-0d0d0d)', border: 'var(--bg-2a2a2a)',
+  amber: 'var(--bg-ff8c00)', amberDim: 'var(--bg-cc6d00)', green: 'var(--bg-00ff41)', red: 'var(--bg-ff3333)',
+  cyan: 'var(--bg-00e5ff)', label: 'var(--fg-888888)', text: 'var(--fg-e0e0e0)',
 };
 
 export default function TradeModal({ symbol, currentPrice, maxSellQuantity, initialTab = 'buy', isPaper = false, onClose, onSuccess }: TradeModalProps) {
@@ -83,21 +83,21 @@ export default function TradeModal({ symbol, currentPrice, maxSellQuantity, init
     fontFamily: 'Courier New, monospace',
   };
   const headerStyle: React.CSSProperties = {
-    background: B.amber, color: '#000', padding: '8px 16px',
+    background: B.amber, color: 'var(--fg-000000)', padding: '8px 16px',
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
     fontWeight: 'bold', fontSize: '13px', letterSpacing: '2px',
   };
   const rowStyle: React.CSSProperties = {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    padding: '8px 0', borderBottom: `1px solid #1a1a1a`, fontSize: '12px',
+    padding: '8px 0', borderBottom: `1px solid var(--bg-1a1a1a)`, fontSize: '12px',
   };
   const inputStyle: React.CSSProperties = {
-    background: '#000', border: `1px solid ${B.amber}`, color: B.amber,
+    background: 'var(--bg-000000)', border: `1px solid ${B.amber}`, color: B.amber,
     padding: '8px 12px', fontSize: '18px', fontFamily: 'Courier New, monospace',
     width: '100%', outline: 'none', letterSpacing: '1px',
   };
   const btnStyle = (color: string): React.CSSProperties => ({
-    flex: 1, padding: '10px', background: color, color: '#000',
+    flex: 1, padding: '10px', background: color, color: 'var(--fg-000000)',
     border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace',
     fontWeight: 'bold', fontSize: '12px', letterSpacing: '2px',
   });
@@ -108,7 +108,7 @@ export default function TradeModal({ symbol, currentPrice, maxSellQuantity, init
         <div className="sheet" style={modalStyle}>
           <div style={headerStyle}>
             <span>ORDER CONFIRMED</span>
-            <button onClick={() => { onSuccess(); onClose(); }} style={{ background: 'none', border: 'none', color: '#000', cursor: 'pointer', fontSize: '18px', lineHeight: 1 }}>×</button>
+            <button onClick={() => { onSuccess(); onClose(); }} style={{ background: 'none', border: 'none', color: 'var(--fg-000000)', cursor: 'pointer', fontSize: '18px', lineHeight: 1 }}>×</button>
           </div>
           <div style={{ padding: '32px 24px', textAlign: 'center' }}>
             <div style={{ color: B.green, fontSize: '36px', marginBottom: '16px' }}>✓</div>
@@ -126,7 +126,7 @@ export default function TradeModal({ symbol, currentPrice, maxSellQuantity, init
       <div className="sheet" style={modalStyle}>
         <div style={headerStyle}>
           <span>{isPaper ? '📄 PAPER TRADE ' : 'TRADE '}{symbol}</span>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#000', cursor: 'pointer', fontSize: '18px', lineHeight: 1 }}>×</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--fg-000000)', cursor: 'pointer', fontSize: '18px', lineHeight: 1 }}>×</button>
         </div>
 
         {step === 'input' ? (
@@ -141,8 +141,8 @@ export default function TradeModal({ symbol, currentPrice, maxSellQuantity, init
                     flex: 1, padding: '8px', border: 'none', cursor: 'pointer',
                     fontFamily: 'Courier New, monospace', fontWeight: 'bold',
                     fontSize: '12px', letterSpacing: '2px',
-                    background: tab === t ? (t === 'buy' ? B.green : B.red) : '#111',
-                    color: tab === t ? '#000' : B.label,
+                    background: tab === t ? (t === 'buy' ? B.green : B.red) : 'var(--bg-111111)',
+                    color: tab === t ? 'var(--bg-000000)' : B.label,
                   }}
                 >
                   {t.toUpperCase()}
@@ -168,7 +168,7 @@ export default function TradeModal({ symbol, currentPrice, maxSellQuantity, init
               />
             </div>
 
-            <div style={{ ...rowStyle, background: '#0a0a00', padding: '8px 12px', borderBottom: 'none', marginBottom: '12px' }}>
+            <div style={{ ...rowStyle, background: 'var(--bg-0a0a00)', padding: '8px 12px', borderBottom: 'none', marginBottom: '12px' }}>
               <span style={{ color: B.label, fontSize: '11px', letterSpacing: '1px' }}>EST. VALUE</span>
               <span style={{ color: B.amber, fontWeight: 'bold', fontSize: '14px' }}>
                 ${estimatedValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -183,7 +183,7 @@ export default function TradeModal({ symbol, currentPrice, maxSellQuantity, init
           </div>
         ) : (
           <div style={{ padding: '16px' }}>
-            <div style={{ background: '#0a0a00', border: `1px solid ${B.amberDim}`, padding: '16px', marginBottom: '16px', textAlign: 'center' } as any}>
+            <div style={{ background: 'var(--bg-0a0a00)', border: `1px solid ${B.amberDim}`, padding: '16px', marginBottom: '16px', textAlign: 'center' } as any}>
               <p style={{ color: B.label, fontSize: '10px', letterSpacing: '1px', marginBottom: '6px' }}>MARKET ORDER</p>
               <p style={{ color: tab === 'buy' ? B.green : B.red, fontSize: '16px', fontWeight: 'bold', letterSpacing: '1px', marginBottom: '4px' }}>
                 {tab.toUpperCase()} {qty} {symbol}
@@ -193,10 +193,10 @@ export default function TradeModal({ symbol, currentPrice, maxSellQuantity, init
                 EST. ${estimatedValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
-            <p style={{ color: isPaper ? '#00ff41' : B.label, fontSize: '10px', letterSpacing: '0.5px', marginBottom: '4px', textAlign: 'center' }}>
+            <p style={{ color: isPaper ? 'var(--fg-00ff41)' : B.label, fontSize: '10px', letterSpacing: '0.5px', marginBottom: '4px', textAlign: 'center' }}>
               {isPaper ? 'PAPER TRADE — NO REAL MONEY' : 'MARKET ORDERS EXECUTE AT BEST AVAILABLE PRICE'}
             </p>
-            <p style={{ color: '#444', fontSize: '9px', letterSpacing: '0.5px', marginBottom: '12px', textAlign: 'center', lineHeight: 1.6 }}>
+            <p style={{ color: 'var(--fg-444444)', fontSize: '9px', letterSpacing: '0.5px', marginBottom: '12px', textAlign: 'center', lineHeight: 1.6 }}>
               {isPaper
                 ? 'SIMULATED ORDER. EXECUTES AT CURRENT MARKET PRICE AGAINST YOUR VIRTUAL $10,000 ACCOUNT.'
                 : 'ORDERS ARE ROUTED THROUGH YOUR CONNECTED BROKER. TROVE IS NOT A BROKER-DEALER. TRADING INVOLVES RISK OF LOSS.'}
@@ -204,7 +204,7 @@ export default function TradeModal({ symbol, currentPrice, maxSellQuantity, init
             {error && <p style={{ color: B.red, fontSize: '11px', marginBottom: '8px' }}>{error}</p>}
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={() => setStep('input')} disabled={submitting}
-                style={{ ...btnStyle('#222'), color: B.label, flex: 1 }}>
+                style={{ ...btnStyle('var(--bg-222222)'), color: B.label, flex: 1 }}>
                 BACK
               </button>
               <button onClick={handleConfirm} disabled={submitting}

@@ -4,7 +4,7 @@ import TickerTape from '../components/TickerTape';
 
 export default function RebalancePage() {
   return (
-    <div style={{ minHeight: '100vh', background: '#000' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-000000)' }}>
       <Navigation />
       <TickerTape />
       <RebalanceView />

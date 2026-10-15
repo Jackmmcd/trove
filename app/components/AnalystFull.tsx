@@ -5,10 +5,10 @@ import { suggestFollowUps } from '@/lib/analyst/followups';
 import { findTickerMatches } from '@/lib/analyst/tickers';
 
 const B = {
-  amber: '#ff8c00',
-  border: '#2a2a2a',
-  label: '#888',
-  panel: '#0d0d0d',
+  amber: 'var(--bg-ff8c00)',
+  border: 'var(--bg-2a2a2a)',
+  label: 'var(--fg-888888)',
+  panel: 'var(--bg-0d0d0d)',
 };
 
 const STARTERS = [
@@ -41,8 +41,8 @@ function linkify(text: string, keyPrefix: string, known: Set<string>, names: Rec
         rel="noopener noreferrer"
         title={`${mt.symbol} — open company page`}
         style={{
-          font: 'inherit', color: '#ffb454', textDecoration: 'none',
-          borderBottom: '1px dotted #7a5a20',
+          font: 'inherit', color: 'var(--fg-ffb454)', textDecoration: 'none',
+          borderBottom: '1px dotted var(--bg-7a5a20)',
         }}
       >
         {mt.label}
@@ -63,7 +63,7 @@ function Rich({ text, known, names }: { text: string; known: Set<string>; names:
     let last = 0, m: RegExpExecArray | null, i = 0;
     while ((m = re.exec(s)) !== null) {
       if (m.index > last) out.push(...linkify(s.slice(last, m.index), `${k}-p${i}`, known, names));
-      out.push(<strong key={`${k}-${i++}`} style={{ color: '#ffb454', fontWeight: 700 }}>{m[1]}</strong>);
+      out.push(<strong key={`${k}-${i++}`} style={{ color: 'var(--fg-ffb454)', fontWeight: 700 }}>{m[1]}</strong>);
       last = m.index + m[0].length;
     }
     if (last < s.length) out.push(...linkify(s.slice(last), `${k}-tail`, known, names));
@@ -196,7 +196,7 @@ export default function AnalystFull() {
   // Fills everything below the 40px tab bar.
   const shell: React.CSSProperties = {
     flex: 1, minHeight: 'calc(100vh - 40px)', display: 'flex', flexDirection: 'column',
-    background: '#000', fontFamily: 'Courier New, monospace',
+    background: 'var(--bg-000000)', fontFamily: 'Courier New, monospace',
   };
 
   if (access === null) {
@@ -210,7 +210,7 @@ export default function AnalystFull() {
           <h1 style={{ color: B.amber, fontSize: '26px', fontWeight: 900, letterSpacing: '4px', margin: '0 0 14px' }}>
             THE ANALYST
           </h1>
-          <p style={{ color: '#999', fontSize: '14px', lineHeight: 1.75, margin: '0 0 26px' }}>
+          <p style={{ color: 'var(--fg-999999)', fontSize: '14px', lineHeight: 1.75, margin: '0 0 26px' }}>
             It reads every position these funds disclose to the SEC and tells you who is
             buying what, at what size, and how that has changed. Enter your email to try it.
           </p>
@@ -219,18 +219,18 @@ export default function AnalystFull() {
               type="email" value={email} onChange={e => setEmail(e.target.value)}
               placeholder="you@example.com" required autoFocus
               style={{
-                flex: '1 1 220px', background: '#0a0a0a', border: `1px solid ${B.border}`,
+                flex: '1 1 220px', background: 'var(--bg-0a0a0a)', border: `1px solid ${B.border}`,
                 borderBottom: `1px solid ${B.amber}`, color: B.amber,
                 fontFamily: 'inherit', fontSize: '13px', padding: '11px 13px', outline: 'none',
               }}
             />
             <button type="submit" disabled={checking} style={{
-              background: checking ? '#2a2a2a' : B.amber, color: checking ? '#666' : '#000',
+              background: checking ? 'var(--bg-2a2a2a)' : B.amber, color: checking ? 'var(--fg-666666)' : 'var(--bg-000000)',
               border: 'none', fontFamily: 'inherit', fontWeight: 900, fontSize: '12px',
               letterSpacing: '2px', padding: '11px 26px', cursor: checking ? 'default' : 'pointer',
             }}>{checking ? '···' : 'ENTER'}</button>
           </form>
-          {gateError && <p style={{ color: '#e07a5a', fontSize: '12px', marginTop: '14px' }}>{gateError}</p>}
+          {gateError && <p style={{ color: 'var(--fg-e07a5a)', fontSize: '12px', marginTop: '14px' }}>{gateError}</p>}
         </div>
       </div>
     );
@@ -245,14 +245,14 @@ export default function AnalystFull() {
               <h1 style={{ color: B.amber, fontSize: '22px', fontWeight: 900, letterSpacing: '4px', margin: '0 0 8px' }}>
                 THE ANALYST
               </h1>
-              <p style={{ color: '#888', fontSize: '13px', lineHeight: 1.7, margin: '0 0 28px', maxWidth: '58ch' }}>
+              <p style={{ color: 'var(--fg-888888)', fontSize: '13px', lineHeight: 1.7, margin: '0 0 28px', maxWidth: '58ch' }}>
                 Reading {fundCount ?? 26} institutional filers. Ask about a fund, a company,
                 or what the smart money is crowding into.
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
                 {STARTERS.map(s => (
                   <button key={s} onClick={() => ask(s)} disabled={busy} style={{
-                    background: 'transparent', border: `1px solid ${B.border}`, color: '#bbb',
+                    background: 'transparent', border: `1px solid ${B.border}`, color: 'var(--fg-bbbbbb)',
                     fontFamily: 'inherit', fontSize: '13px', textAlign: 'left',
                     padding: '12px 15px', cursor: busy ? 'default' : 'pointer', lineHeight: 1.5,
                   }}>{s}</button>
@@ -268,7 +268,7 @@ export default function AnalystFull() {
                   {t.role === 'user' ? 'YOU' : 'ANALYST'}
                 </div>
                 <div style={{
-                  color: '#e8e2d8', fontSize: '14.5px', lineHeight: 1.72, maxWidth: '68ch',
+                  color: 'var(--fg-e8e2d8)', fontSize: '14.5px', lineHeight: 1.72, maxWidth: '68ch',
                   fontFamily: t.role === 'user' ? 'inherit' : 'Georgia, serif',
                   whiteSpace: t.role === 'user' ? 'pre-wrap' : 'normal',
                 }}>
@@ -277,7 +277,7 @@ export default function AnalystFull() {
                     : t.text
                       ? <Rich text={t.text} known={knownTickers} names={tickerNames} />
                       : (busy && i === turns.length - 1
-                          ? <span style={{ color: '#6f6552', fontFamily: 'Courier New, monospace', fontSize: '11.5px', fontStyle: 'italic', whiteSpace: 'pre-wrap' }}>
+                          ? <span style={{ color: 'var(--fg-6f6552)', fontFamily: 'Courier New, monospace', fontSize: '11.5px', fontStyle: 'italic', whiteSpace: 'pre-wrap' }}>
                               {thinking || 'thinking…'}
                             </span>
                           : null)}
@@ -287,7 +287,7 @@ export default function AnalystFull() {
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px', marginTop: '14px' }}>
                     {followUps.map(q => (
                       <button key={q} onClick={() => ask(q)} style={{
-                        background: 'transparent', border: `1px solid ${B.border}`, color: '#9a9a9a',
+                        background: 'transparent', border: `1px solid ${B.border}`, color: 'var(--fg-9a9a9a)',
                         fontFamily: 'Courier New, monospace', fontSize: '11.5px',
                         padding: '7px 11px', cursor: 'pointer', lineHeight: 1.4, textAlign: 'left',
                       }}>
@@ -302,14 +302,14 @@ export default function AnalystFull() {
           </div>
 
           {error && (
-            <div style={{ marginTop: '20px', border: '1px solid #3a1010', background: '#140606', color: '#e07a5a', fontSize: '12.5px', padding: '11px 14px', lineHeight: 1.55 }}>
+            <div style={{ marginTop: '20px', border: '1px solid var(--bg-3a1010)', background: 'var(--bg-140606)', color: 'var(--fg-e07a5a)', fontSize: '12.5px', padding: '11px 14px', lineHeight: 1.55 }}>
               {error}
             </div>
           )}
         </div>
       </div>
 
-      <div style={{ borderTop: `1px solid ${B.border}`, background: '#000', flexShrink: 0 }}>
+      <div style={{ borderTop: `1px solid ${B.border}`, background: 'var(--bg-000000)', flexShrink: 0 }}>
         <form
           onSubmit={e => { e.preventDefault(); ask(input); }}
           style={{ maxWidth: '780px', margin: '0 auto', padding: '14px 20px', display: 'flex', gap: '9px' }}
@@ -319,20 +319,20 @@ export default function AnalystFull() {
             placeholder="Ask about a fund, a company, or who's buying what…"
             disabled={busy} autoFocus
             style={{
-              flex: 1, background: '#0a0a0a', border: `1px solid ${B.border}`,
-              color: '#e8e2d8', fontFamily: 'inherit', fontSize: '13.5px',
+              flex: 1, background: 'var(--bg-0a0a0a)', border: `1px solid ${B.border}`,
+              color: 'var(--fg-e8e2d8)', fontFamily: 'inherit', fontSize: '13.5px',
               padding: '11px 13px', outline: 'none',
             }}
           />
           <button type="submit" disabled={busy || !input.trim()} style={{
-            background: busy || !input.trim() ? '#2a2a2a' : B.amber,
-            color: busy || !input.trim() ? '#666' : '#000',
+            background: busy || !input.trim() ? 'var(--bg-2a2a2a)' : B.amber,
+            color: busy || !input.trim() ? 'var(--fg-666666)' : 'var(--bg-000000)',
             border: 'none', fontFamily: 'inherit', fontWeight: 900,
             fontSize: '11px', letterSpacing: '2px', padding: '11px 22px',
             cursor: busy || !input.trim() ? 'default' : 'pointer',
           }}>{busy ? '···' : 'ASK'}</button>
         </form>
-        <div style={{ maxWidth: '780px', margin: '0 auto', padding: '0 20px 12px', color: '#3a3a3a', fontSize: '9px', letterSpacing: '1.5px', textAlign: 'center' }}>
+        <div style={{ maxWidth: '780px', margin: '0 auto', padding: '0 20px 12px', color: 'var(--fg-3a3a3a)', fontSize: '9px', letterSpacing: '1.5px', textAlign: 'center' }}>
           NOT FINANCIAL ADVICE · 13F DATA REFLECTS A PRIOR QUARTER (45-DAY LAG) · THE ANALYST CAN BE WRONG
         </div>
       </div>

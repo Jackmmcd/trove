@@ -32,17 +32,17 @@ interface Position {
 }
 
 const B = {
-  bg: '#000',
-  panel: '#0d0d0d',
-  border: '#2a2a2a',
-  borderAmber: '#ff8c00',
-  amber: '#ff8c00',
-  amberDim: '#cc6d00',
-  green: '#00ff41',
-  red: '#ff3333',
-  cyan: '#00e5ff',
-  label: '#888',
-  text: '#e0e0e0',
+  bg: 'var(--bg-000000)',
+  panel: 'var(--bg-0d0d0d)',
+  border: 'var(--bg-2a2a2a)',
+  borderAmber: 'var(--bg-ff8c00)',
+  amber: 'var(--bg-ff8c00)',
+  amberDim: 'var(--bg-cc6d00)',
+  green: 'var(--bg-00ff41)',
+  red: 'var(--bg-ff3333)',
+  cyan: 'var(--bg-00e5ff)',
+  label: 'var(--fg-888888)',
+  text: 'var(--fg-e0e0e0)',
 };
 
 const panelStyle: React.CSSProperties = {
@@ -90,7 +90,7 @@ const thStyle: React.CSSProperties = {
 
 const tdStyle: React.CSSProperties = {
   padding: '7px 12px',
-  borderBottom: `1px solid #1a1a1a`,
+  borderBottom: `1px solid var(--bg-1a1a1a)`,
   fontSize: '13px',
   color: B.text,
 };
@@ -306,7 +306,7 @@ export default function Dashboard() {
     return (
       <div style={{ margin: '16px', ...panelStyle, border: `1px solid ${B.red}` }}>
         <p style={{ color: B.red }}>ERROR: {error}</p>
-        <button onClick={() => fetchData()} style={{ marginTop: '8px', padding: '6px 16px', background: B.red, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 'bold' }}>
+        <button onClick={() => fetchData()} style={{ marginTop: '8px', padding: '6px 16px', background: B.red, color: 'var(--fg-000000)', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 'bold' }}>
           RETRY
         </button>
       </div>
@@ -337,13 +337,13 @@ export default function Dashboard() {
   const formatCurrency = (v: number) => v >= 1000 ? `$${(v / 1000).toFixed(1)}k` : `$${v.toFixed(0)}`;
 
   const tooltipStyle = {
-    backgroundColor: '#0d0d0d',
+    backgroundColor: 'var(--bg-0d0d0d)',
     border: `1px solid ${B.amber}`,
     fontFamily: 'Courier New, monospace',
     fontSize: '13px',
   };
   const tooltipLabelStyle = { color: B.amber, fontWeight: 'bold', letterSpacing: '1px', marginBottom: '4px' };
-  const tooltipItemStyle = { color: '#ffffff', fontWeight: 'bold', fontSize: '14px' };
+  const tooltipItemStyle = { color: 'var(--fg-ffffff)', fontWeight: 'bold', fontSize: '14px' };
 
   return (
     <div style={{ padding: '12px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -356,7 +356,7 @@ export default function Dashboard() {
           </div>
           {isPaper && (
             <div style={{
-              background: '#002200', border: '1px solid #00ff41', color: '#00ff41',
+              background: 'var(--bg-002200)', border: '1px solid var(--bg-00ff41)', color: 'var(--fg-00ff41)',
               fontSize: '9px', fontWeight: 'bold', letterSpacing: '2px',
               padding: '2px 8px',
             }}>
@@ -454,17 +454,17 @@ export default function Dashboard() {
                         <stop offset="95%" stopColor={lineColor} stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="2 2" vertical={false} stroke="#1a1a1a" />
+                    <CartesianGrid strokeDasharray="2 2" vertical={false} stroke="var(--bg-1a1a1a)" />
                     <XAxis
                       dataKey="date"
-                      tick={{ fontSize: 10, fill: '#888', fontFamily: 'Courier New' }}
+                      tick={{ fontSize: 10, fill: 'var(--fg-888888)', fontFamily: 'Courier New' }}
                       tickFormatter={(v, i) => i % labelStep === 0 ? v.slice(5) : ''}
                       interval={0}
                     />
                     <YAxis
                       domain={[minVal - pad, maxVal + pad]}
                       tickFormatter={formatCurrency}
-                      tick={{ fontSize: 10, fill: '#888', fontFamily: 'Courier New' }}
+                      tick={{ fontSize: 10, fill: 'var(--fg-888888)', fontFamily: 'Courier New' }}
                       width={56}
                     />
                     <Tooltip
@@ -494,15 +494,15 @@ export default function Dashboard() {
               <div style={sectionHeaderStyle}>COST BASIS vs CURRENT VALUE</div>
               <ResponsiveContainer width="100%" height={isMobile ? 180 : 220}>
                 <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="2 2" vertical={false} stroke="#1a1a1a" />
-                  <XAxis dataKey="symbol" tick={{ fontSize: 10, fill: '#888', fontFamily: 'Courier New' }} />
-                  <YAxis tickFormatter={formatCurrency} tick={{ fontSize: 10, fill: '#888', fontFamily: 'Courier New' }} width={52} />
+                  <CartesianGrid strokeDasharray="2 2" vertical={false} stroke="var(--bg-1a1a1a)" />
+                  <XAxis dataKey="symbol" tick={{ fontSize: 10, fill: 'var(--fg-888888)', fontFamily: 'Courier New' }} />
+                  <YAxis tickFormatter={formatCurrency} tick={{ fontSize: 10, fill: 'var(--fg-888888)', fontFamily: 'Courier New' }} width={52} />
                   <Tooltip formatter={(v: number | undefined) => v == null ? ['—', undefined] : [`$${v.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, undefined]} contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
-                  <Legend wrapperStyle={{ fontSize: '10px', color: '#888', fontFamily: 'Courier New' }} />
-                  <Bar dataKey="cost" name="Cost Basis" fill="#444" radius={[2, 2, 0, 0]} />
+                  <Legend wrapperStyle={{ fontSize: '10px', color: 'var(--fg-888888)', fontFamily: 'Courier New' }} />
+                  <Bar dataKey="cost" name="Cost Basis" fill="var(--bg-444444)" radius={[2, 2, 0, 0]} />
                   <Bar dataKey="value" name="Current Value" radius={[2, 2, 0, 0]}>
                     {chartData.map((entry, i) => (
-                      <Cell key={i} fill={entry.value >= entry.cost ? '#00ff41' : '#ff3333'} />
+                      <Cell key={i} fill={entry.value >= entry.cost ? 'var(--bg-00ff41)' : 'var(--bg-ff3333)'} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -513,14 +513,14 @@ export default function Dashboard() {
               <div style={sectionHeaderStyle}>GAIN / LOSS BY POSITION</div>
               <ResponsiveContainer width="100%" height={isMobile ? 180 : 220}>
                 <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="2 2" vertical={false} stroke="#1a1a1a" />
-                  <XAxis dataKey="symbol" tick={{ fontSize: 10, fill: '#888', fontFamily: 'Courier New' }} />
-                  <YAxis tickFormatter={formatCurrency} tick={{ fontSize: 10, fill: '#888', fontFamily: 'Courier New' }} width={52} />
+                  <CartesianGrid strokeDasharray="2 2" vertical={false} stroke="var(--bg-1a1a1a)" />
+                  <XAxis dataKey="symbol" tick={{ fontSize: 10, fill: 'var(--fg-888888)', fontFamily: 'Courier New' }} />
+                  <YAxis tickFormatter={formatCurrency} tick={{ fontSize: 10, fill: 'var(--fg-888888)', fontFamily: 'Courier New' }} width={52} />
                   <Tooltip formatter={(v: number | undefined) => v == null ? ['—', 'P&L'] : [`${v >= 0 ? '+' : ''}$${v.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 'P&L']} contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
-                  <ReferenceLine y={0} stroke="#444" strokeWidth={1} />
+                  <ReferenceLine y={0} stroke="var(--bg-444444)" strokeWidth={1} />
                   <Bar dataKey="gainLoss" name="Gain / Loss" radius={[2, 2, 0, 0]}>
                     {chartData.map((entry, i) => (
-                      <Cell key={i} fill={entry.gainLoss >= 0 ? '#00ff41' : '#ff3333'} />
+                      <Cell key={i} fill={entry.gainLoss >= 0 ? 'var(--bg-00ff41)' : 'var(--bg-ff3333)'} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -560,9 +560,9 @@ export default function Dashboard() {
                       <React.Fragment key={'basket-' + row.id}>
                         <tr
                           onClick={() => setOpenBaskets(prev => ({ ...prev, [row.id]: !prev[row.id] }))}
-                          style={{ cursor: 'pointer', background: '#0a0a00' }}
-                          onMouseEnter={e => (e.currentTarget.style.background = '#1a1a00')}
-                          onMouseLeave={e => (e.currentTarget.style.background = '#0a0a00')}
+                          style={{ cursor: 'pointer', background: 'var(--bg-0a0a00)' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-1a1a00)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'var(--bg-0a0a00)')}
                         >
                           <td data-head="" data-label="Symbol" style={{ ...tdStyle, color: B.amber, fontWeight: 'bold' }}>
                             <span style={{ marginRight: '6px', fontSize: '10px' }}>{isOpen ? '\u25bc' : '\u25b6'}</span>
@@ -586,7 +586,7 @@ export default function Dashboard() {
                           </td>
                         </tr>
                         {isOpen && row.legs.map(leg => (
-                          <tr key={row.id + '-' + leg.symbol} style={{ background: '#050500' }}>
+                          <tr key={row.id + '-' + leg.symbol} style={{ background: 'var(--bg-050500)' }}>
                             <td data-head="" data-label="Symbol" style={{ ...tdStyle, color: B.amberDim, paddingLeft: '28px' }}>
                               <span onClick={() => router.push(`/stock/${leg.symbol}`)} style={{ cursor: 'pointer' }}>{leg.symbol}</span>
                             </td>
@@ -611,7 +611,7 @@ export default function Dashboard() {
                     key={p.symbol}
                     onClick={() => setSelectedPosition(p)}
                     style={{ cursor: 'pointer' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = '#1a1a00')}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-1a1a00)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
                     <td data-head="" data-label="Symbol" style={{ ...tdStyle, color: B.amber, fontWeight: 'bold' }} onClick={e => e.stopPropagation()}>

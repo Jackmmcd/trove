@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react';
 
 const B = {
-  bg: '#000', panel: '#0d0d0d', border: '#2a2a2a',
-  amber: '#ff8c00', amberDim: '#cc6d00',
-  green: '#00ff41', red: '#ff3333', cyan: '#00e5ff',
-  label: '#888', text: '#e0e0e0',
+  bg: 'var(--bg-000000)', panel: 'var(--bg-0d0d0d)', border: 'var(--bg-2a2a2a)',
+  amber: 'var(--bg-ff8c00)', amberDim: 'var(--bg-cc6d00)',
+  green: 'var(--bg-00ff41)', red: 'var(--bg-ff3333)', cyan: 'var(--bg-00e5ff)',
+  label: 'var(--fg-888888)', text: 'var(--fg-e0e0e0)',
 };
 
 interface AchRelationship {
@@ -96,9 +96,9 @@ export default function DepositModal({ onClose }: DepositModalProps) {
 
   const overlayStyle: React.CSSProperties = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '16px' };
   const modalStyle: React.CSSProperties = { background: B.panel, border: `1px solid ${B.amber}`, width: '100%', maxWidth: '560px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', fontFamily: 'Courier New, monospace', overflowY: 'auto' };
-  const headerStyle: React.CSSProperties = { background: B.amber, color: '#000', padding: '8px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', fontSize: '12px', letterSpacing: '2px', flexShrink: 0 };
+  const headerStyle: React.CSSProperties = { background: B.amber, color: 'var(--fg-000000)', padding: '8px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', fontSize: '12px', letterSpacing: '2px', flexShrink: 0 };
   const sectionLabel: React.CSSProperties = { color: B.label, fontSize: '9px', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '6px' };
-  const inputStyle: React.CSSProperties = { background: '#000', border: `1px solid ${B.amber}`, color: B.amber, padding: '7px 12px', fontSize: '16px', fontFamily: 'Courier New, monospace', outline: 'none', width: '100%', boxSizing: 'border-box' };
+  const inputStyle: React.CSSProperties = { background: 'var(--bg-000000)', border: `1px solid ${B.amber}`, color: B.amber, padding: '7px 12px', fontSize: '16px', fontFamily: 'Courier New, monospace', outline: 'none', width: '100%', boxSizing: 'border-box' };
 
   return (
     <div className="sheet-overlay" style={overlayStyle}>
@@ -106,7 +106,7 @@ export default function DepositModal({ onClose }: DepositModalProps) {
         {/* Header */}
         <div style={headerStyle}>
           <span>FUND ACCOUNT</span>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#000', cursor: 'pointer', fontSize: '18px', lineHeight: 1, fontFamily: 'inherit' }}>×</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--fg-000000)', cursor: 'pointer', fontSize: '18px', lineHeight: 1, fontFamily: 'inherit' }}>×</button>
         </div>
 
         {/* Done state */}
@@ -115,7 +115,7 @@ export default function DepositModal({ onClose }: DepositModalProps) {
             <div style={{ color: B.green, fontSize: '40px' }}>✓</div>
             <p style={{ color: B.text, fontSize: '13px', letterSpacing: '1px', textAlign: 'center' }}>{resultMsg}</p>
             <p style={{ color: B.label, fontSize: '11px', textAlign: 'center' }}>ACH transfers typically settle in 1–3 business days.</p>
-            <button onClick={onClose} style={{ padding: '8px 32px', background: B.amber, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '12px', letterSpacing: '2px' }}>DONE</button>
+            <button onClick={onClose} style={{ padding: '8px 32px', background: B.amber, color: 'var(--fg-000000)', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '12px', letterSpacing: '2px' }}>DONE</button>
           </div>
         )}
 
@@ -126,7 +126,7 @@ export default function DepositModal({ onClose }: DepositModalProps) {
             <p style={{ color: B.red, fontSize: '13px', letterSpacing: '1px', textAlign: 'center' }}>{errorMsg}</p>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={() => setStep('form')} style={{ padding: '8px 20px', background: 'transparent', color: B.label, border: `1px solid ${B.border}`, cursor: 'pointer', fontFamily: 'Courier New, monospace', fontSize: '11px', letterSpacing: '1px' }}>BACK</button>
-              <button onClick={onClose} style={{ padding: '8px 20px', background: B.amber, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '1px' }}>CLOSE</button>
+              <button onClick={onClose} style={{ padding: '8px 20px', background: B.amber, color: 'var(--fg-000000)', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '1px' }}>CLOSE</button>
             </div>
           </div>
         )}
@@ -141,7 +141,7 @@ export default function DepositModal({ onClose }: DepositModalProps) {
                 { label: 'Amount', value: `$${amountNum.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, color: B.cyan },
                 { label: 'Bank', value: selectedBank ? `${selectedBank.bankName} ···${selectedBank.last4}` : '—', color: B.text },
               ].map(row => (
-                <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: `1px solid #111` }}>
+                <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: `1px solid var(--bg-111111)` }}>
                   <span style={{ color: B.label, fontSize: '11px', letterSpacing: '1px' }}>{row.label}</span>
                   <span style={{ color: row.color, fontWeight: 'bold', fontSize: '13px' }}>{row.value}</span>
                 </div>
@@ -152,7 +152,7 @@ export default function DepositModal({ onClose }: DepositModalProps) {
             </p>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button onClick={() => setStep('form')} style={{ padding: '7px 16px', background: 'transparent', color: B.label, border: `1px solid ${B.border}`, cursor: 'pointer', fontFamily: 'Courier New, monospace', fontSize: '11px', letterSpacing: '1px' }}>BACK</button>
-              <button onClick={submit} style={{ padding: '7px 24px', background: direction === 'Deposit' ? B.green : B.red, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '1px' }}>
+              <button onClick={submit} style={{ padding: '7px 24px', background: direction === 'Deposit' ? B.green : B.red, color: 'var(--fg-000000)', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '1px' }}>
                 CONFIRM {direction.toUpperCase()}
               </button>
             </div>
@@ -178,7 +178,7 @@ export default function DepositModal({ onClose }: DepositModalProps) {
                   <button
                     key={d}
                     onClick={() => setDirection(d)}
-                    style={{ flex: 1, padding: '8px', background: direction === d ? (d === 'Deposit' ? B.green : B.red) : '#111', color: direction === d ? '#000' : B.label, border: `1px solid ${B.border}`, cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '1px' }}
+                    style={{ flex: 1, padding: '8px', background: direction === d ? (d === 'Deposit' ? B.green : B.red) : 'var(--bg-111111)', color: direction === d ? 'var(--bg-000000)' : B.label, border: `1px solid ${B.border}`, cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '1px' }}
                   >
                     {d.toUpperCase()}
                   </button>
@@ -238,7 +238,7 @@ export default function DepositModal({ onClose }: DepositModalProps) {
                   <button
                     key={a}
                     onClick={() => setAmount(String(a))}
-                    style={{ padding: '4px 10px', background: amount === String(a) ? B.amberDim : '#111', color: amount === String(a) ? '#000' : B.label, border: `1px solid ${B.border}`, cursor: 'pointer', fontFamily: 'Courier New, monospace', fontSize: '10px', letterSpacing: '1px' }}
+                    style={{ padding: '4px 10px', background: amount === String(a) ? B.amberDim : 'var(--bg-111111)', color: amount === String(a) ? 'var(--bg-000000)' : B.label, border: `1px solid ${B.border}`, cursor: 'pointer', fontFamily: 'Courier New, monospace', fontSize: '10px', letterSpacing: '1px' }}
                   >
                     ${a.toLocaleString()}
                   </button>
@@ -252,12 +252,12 @@ export default function DepositModal({ onClose }: DepositModalProps) {
                 <div style={sectionLabel}>Recent Transfers</div>
                 <div style={{ border: `1px solid ${B.border}`, maxHeight: '140px', overflowY: 'auto' }}>
                   {transfers.map(t => (
-                    <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 10px', borderBottom: `1px solid #111`, fontSize: '11px' }}>
+                    <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 10px', borderBottom: `1px solid var(--bg-111111)`, fontSize: '11px' }}>
                       <span style={{ color: t.direction === 'Deposit' ? B.green : B.red, minWidth: '80px' }}>{t.direction?.toUpperCase()}</span>
                       <span style={{ color: B.cyan, fontWeight: 'bold' }}>${t.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                       <span style={{ color: B.label, fontSize: '10px' }}>{t.bankName}</span>
                       <span style={{ color: t.status === 'Complete' ? B.green : t.status === 'Failed' ? B.red : B.amber, fontSize: '10px', letterSpacing: '1px' }}>{t.status?.toUpperCase()}</span>
-                      <span style={{ color: '#555', fontSize: '10px' }}>{t.createdAt ? new Date(t.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</span>
+                      <span style={{ color: 'var(--fg-555555)', fontSize: '10px' }}>{t.createdAt ? new Date(t.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</span>
                     </div>
                   ))}
                 </div>
@@ -272,7 +272,7 @@ export default function DepositModal({ onClose }: DepositModalProps) {
               <button
                 onClick={() => setStep('confirm')}
                 disabled={!canSubmit || relationships.length === 0}
-                style={{ padding: '7px 24px', background: !canSubmit || relationships.length === 0 ? '#333' : B.amber, color: '#000', border: 'none', cursor: !canSubmit || relationships.length === 0 ? 'not-allowed' : 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '1px', opacity: !canSubmit || relationships.length === 0 ? 0.5 : 1 }}
+                style={{ padding: '7px 24px', background: !canSubmit || relationships.length === 0 ? 'var(--bg-333333)' : B.amber, color: 'var(--fg-000000)', border: 'none', cursor: !canSubmit || relationships.length === 0 ? 'not-allowed' : 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '1px', opacity: !canSubmit || relationships.length === 0 ? 0.5 : 1 }}
               >
                 REVIEW {direction.toUpperCase()}
               </button>

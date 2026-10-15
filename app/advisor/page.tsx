@@ -5,7 +5,7 @@ export const metadata = { title: 'Analyst · Trove' };
 
 export default function AdvisorPage() {
   return (
-    <div style={{ minHeight: '100vh', background: '#000' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-000000)' }}>
       <Navigation />
       <AnalystChat />
     </div>

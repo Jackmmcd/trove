@@ -45,7 +45,7 @@ export default function LandingPage() {
           background:
             radial-gradient(75% 55% at 24% 34%, rgba(255, 140, 0, 0.10), transparent 68%),
             radial-gradient(90% 70% at 88% 96%, rgba(255, 140, 0, 0.05), transparent 70%),
-            #000;
+            var(--bg-000000);
         }
 
         /* Optical centring: sitting the block a touch above true centre reads
@@ -70,7 +70,7 @@ export default function LandingPage() {
           font-weight: 700;
           line-height: 1.22;
           letter-spacing: -0.015em;
-          color: #efefef;
+          color: var(--fg-efefef);
           text-wrap: balance;
           animation: trove-rise 1000ms cubic-bezier(.16,.84,.44,1) both;
           animation-delay: 140ms;
@@ -78,7 +78,7 @@ export default function LandingPage() {
 
         .trove-line em {
           font-style: normal;
-          color: #ff8c00;
+          color: var(--fg-ff8c00);
           /* Holds the amber off the pure-black ground at large sizes. */
           text-shadow: 0 0 38px rgba(255, 140, 0, 0.22);
         }
@@ -89,7 +89,7 @@ export default function LandingPage() {
           height: 0.86em;
           margin-left: 0.28ch;
           vertical-align: -0.08em;
-          background: #ff8c00;
+          background: var(--bg-ff8c00);
           animation: trove-caret 1.25s steps(1, end) infinite;
           animation-delay: 1.4s;
         }

@@ -13,9 +13,9 @@ interface NewsItem {
 }
 
 const B = {
-  panel: '#0d0d0d', border: '#2a2a2a',
-  amber: '#ff8c00', green: '#00ff41', red: '#ff3333',
-  cyan: '#00e5ff', label: '#888', text: '#e0e0e0',
+  panel: 'var(--bg-0d0d0d)', border: 'var(--bg-2a2a2a)',
+  amber: 'var(--bg-ff8c00)', green: 'var(--bg-00ff41)', red: 'var(--bg-ff3333)',
+  cyan: 'var(--bg-00e5ff)', label: 'var(--fg-888888)', text: 'var(--fg-e0e0e0)',
 };
 
 function timeAgo(unix: number): string {
@@ -31,12 +31,12 @@ function isMacro(title: string) { return MACRO_KEYWORDS.some(k => title.toLowerC
 
 function ArticleCard({ item }: { item: NewsItem }) {
   const macro = isMacro(item.title);
-  const accentColor = item.source === 'wsj' ? '#e0e0e0' : item.source === 'reuters' ? '#ff8040' : item.source === 'polygon' ? B.green : macro ? B.cyan : B.amber;
+  const accentColor = item.source === 'wsj' ? 'var(--fg-e0e0e0)' : item.source === 'reuters' ? 'var(--bg-ff8040)' : item.source === 'polygon' ? B.green : macro ? B.cyan : B.amber;
   return (
     <a href={item.link} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
       <div
         style={{ background: B.panel, border: `1px solid ${B.border}`, borderLeft: `3px solid ${accentColor}`, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '5px', cursor: 'pointer' }}
-        onMouseEnter={e => (e.currentTarget.style.background = '#1a1a00')}
+        onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-1a1a00)')}
         onMouseLeave={e => (e.currentTarget.style.background = B.panel)}
       >
         <div style={{ color: B.text, fontSize: '12px', lineHeight: 1.5, fontFamily: 'Courier New, monospace' }}>{item.title}</div>
@@ -125,8 +125,8 @@ export default function News() {
   const tagStyle = (active: boolean): React.CSSProperties => ({
     padding: '3px 10px', fontSize: '10px', letterSpacing: '1px',
     fontFamily: 'Courier New, monospace', cursor: 'pointer', border: 'none',
-    background: active ? B.amber : '#111',
-    color: active ? '#000' : B.label,
+    background: active ? B.amber : 'var(--bg-111111)',
+    color: active ? 'var(--fg-000000)' : B.label,
     fontWeight: active ? 'bold' : 'normal',
   });
 
@@ -136,7 +136,7 @@ export default function News() {
     <div style={{ padding: '16px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
       {/* ── DAILY BRIEFING HERO ── */}
-      <div style={{ background: '#050505', border: `1px solid ${B.border}`, borderTop: `3px solid ${B.amber}` }}>
+      <div style={{ background: 'var(--bg-050505)', border: `1px solid ${B.border}`, borderTop: `3px solid ${B.amber}` }}>
         <div style={{ padding: '20px 24px', borderBottom: `1px solid ${B.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
           <div>
             <div style={{ color: B.amber, fontSize: '22px', fontWeight: 'bold', letterSpacing: '4px', lineHeight: 1 }}>DAILY BRIEFING</div>
@@ -154,17 +154,17 @@ export default function News() {
         </div>
         <div style={{ padding: '24px' }}>
           {dailyLoading ? (
-            <div style={{ color: '#333', fontSize: '14px', letterSpacing: '3px' }}>GENERATING BRIEFING...</div>
+            <div style={{ color: 'var(--fg-333333)', fontSize: '14px', letterSpacing: '3px' }}>GENERATING BRIEFING...</div>
           ) : dailyDigest ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {dailyDigest.split('\n\n').filter(Boolean).map((para, i) => (
-                <p key={i} style={{ color: i === 0 ? '#e8e8e8' : '#aaa', fontSize: i === 0 ? '16px' : '14px', lineHeight: 1.9, margin: 0, letterSpacing: '0.2px' }}>
+                <p key={i} style={{ color: i === 0 ? 'var(--fg-e8e8e8)' : 'var(--fg-aaaaaa)', fontSize: i === 0 ? '16px' : '14px', lineHeight: 1.9, margin: 0, letterSpacing: '0.2px' }}>
                   {para}
                 </p>
               ))}
             </div>
           ) : (
-            <div style={{ color: '#444', fontSize: '13px' }}>No briefing available — check back later.</div>
+            <div style={{ color: 'var(--fg-444444)', fontSize: '13px' }}>No briefing available — check back later.</div>
           )}
         </div>
       </div>
@@ -185,10 +185,10 @@ export default function News() {
           <div style={{ color: B.amber, fontSize: '11px', fontWeight: 'bold', letterSpacing: '3px' }}>ALL ARTICLES</div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button onClick={generateManualDigest} disabled={manualDigestLoading || items.length === 0}
-              style={{ padding: '4px 12px', background: 'transparent', color: B.cyan, border: `1px solid #004a5a`, cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '10px', letterSpacing: '1px', opacity: manualDigestLoading || items.length === 0 ? 0.5 : 1 }}>
+              style={{ padding: '4px 12px', background: 'transparent', color: B.cyan, border: `1px solid var(--bg-004a5a)`, cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '10px', letterSpacing: '1px', opacity: manualDigestLoading || items.length === 0 ? 0.5 : 1 }}>
               {manualDigestLoading ? 'ANALYZING...' : 'DIGEST'}
             </button>
-            <button onClick={fetchNews} style={{ padding: '4px 12px', background: B.amber, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '10px', letterSpacing: '1px' }}>
+            <button onClick={fetchNews} style={{ padding: '4px 12px', background: B.amber, color: 'var(--fg-000000)', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '10px', letterSpacing: '1px' }}>
               REFRESH
             </button>
           </div>
@@ -196,14 +196,14 @@ export default function News() {
 
         {/* Manual digest panel */}
         {manualDigest && (
-          <div style={{ background: '#0a0a0a', border: `1px solid #004a5a` }}>
-            <div style={{ padding: '7px 14px', borderBottom: '1px solid #004a5a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ background: 'var(--bg-0a0a0a)', border: `1px solid var(--bg-004a5a)` }}>
+            <div style={{ padding: '7px 14px', borderBottom: '1px solid var(--bg-004a5a)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: B.cyan, fontSize: '10px', letterSpacing: '3px', fontWeight: 'bold' }}>MARKET DIGEST</span>
-              <button onClick={() => setManualDigest(null)} style={{ background: 'none', border: 'none', color: '#444', cursor: 'pointer', fontFamily: 'inherit', fontSize: '11px' }}>✕</button>
+              <button onClick={() => setManualDigest(null)} style={{ background: 'none', border: 'none', color: 'var(--fg-444444)', cursor: 'pointer', fontFamily: 'inherit', fontSize: '11px' }}>✕</button>
             </div>
             <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {manualDigest.split('\n\n').filter(Boolean).map((para, i) => (
-                <p key={i} style={{ color: '#bbb', fontSize: '13px', lineHeight: 1.8, margin: 0 }}>{para}</p>
+                <p key={i} style={{ color: 'var(--fg-bbbbbb)', fontSize: '13px', lineHeight: 1.8, margin: 0 }}>{para}</p>
               ))}
             </div>
           </div>
@@ -213,13 +213,13 @@ export default function News() {
         <div className="r-hscroll" style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
           <button style={tagStyle(filter === 'all')} onClick={() => setFilter('all')}>ALL</button>
           <button style={tagStyle(filter === 'macro')} onClick={() => setFilter('macro')}>MACRO</button>
-          <button style={{ ...tagStyle(filter === 'wsj'), color: filter === 'wsj' ? '#000' : '#e0e0e0', background: filter === 'wsj' ? '#e0e0e0' : '#111', border: '1px solid #444' }} onClick={() => setFilter(p => p === 'wsj' ? 'all' : 'wsj')}>WSJ</button>
-          <button style={{ ...tagStyle(filter === 'reuters'), color: filter === 'reuters' ? '#000' : '#ff8040', background: filter === 'reuters' ? '#ff8040' : '#111', border: '1px solid #4a2000' }} onClick={() => setFilter(p => p === 'reuters' ? 'all' : 'reuters')}>REUTERS</button>
-          {ownedTickers.length > 0 && <span style={{ color: '#333', fontSize: '10px', margin: '0 4px' }}>|</span>}
+          <button style={{ ...tagStyle(filter === 'wsj'), color: filter === 'wsj' ? 'var(--bg-000000)' : 'var(--fg-e0e0e0)', background: filter === 'wsj' ? 'var(--fg-e0e0e0)' : 'var(--bg-111111)', border: '1px solid var(--bg-444444)' }} onClick={() => setFilter(p => p === 'wsj' ? 'all' : 'wsj')}>WSJ</button>
+          <button style={{ ...tagStyle(filter === 'reuters'), color: filter === 'reuters' ? 'var(--bg-000000)' : 'var(--bg-ff8040)', background: filter === 'reuters' ? 'var(--bg-ff8040)' : 'var(--bg-111111)', border: '1px solid var(--bg-4a2000)' }} onClick={() => setFilter(p => p === 'reuters' ? 'all' : 'reuters')}>REUTERS</button>
+          {ownedTickers.length > 0 && <span style={{ color: 'var(--fg-333333)', fontSize: '10px', margin: '0 4px' }}>|</span>}
           {ownedTickers.map(t => (
-            <button key={t} style={{ ...tagStyle(filter === t), background: filter === t ? B.green : '#001a00', color: filter === t ? '#000' : B.green, border: `1px solid #004400` }} onClick={() => setFilter(p => p === t ? 'all' : t)}>{t}</button>
+            <button key={t} style={{ ...tagStyle(filter === t), background: filter === t ? B.green : 'var(--bg-001a00)', color: filter === t ? 'var(--bg-000000)' : B.green, border: `1px solid var(--bg-004400)` }} onClick={() => setFilter(p => p === t ? 'all' : t)}>{t}</button>
           ))}
-          {tickers.length > 0 && <span style={{ color: '#333', fontSize: '10px', margin: '0 4px' }}>|</span>}
+          {tickers.length > 0 && <span style={{ color: 'var(--fg-333333)', fontSize: '10px', margin: '0 4px' }}>|</span>}
           {tickers.map(t => (
             <button key={t} style={tagStyle(filter === t)} onClick={() => setFilter(p => p === t ? 'all' : t)}>{t}</button>
           ))}

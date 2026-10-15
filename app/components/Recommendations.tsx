@@ -17,9 +17,9 @@ interface Recommendation {
 }
 
 const B = {
-  panel: '#0d0d0d', border: '#2a2a2a', amber: '#ff8c00',
-  green: '#00ff41', red: '#ff3333', cyan: '#00e5ff',
-  label: '#888', text: '#e0e0e0',
+  panel: 'var(--bg-0d0d0d)', border: 'var(--bg-2a2a2a)', amber: 'var(--bg-ff8c00)',
+  green: 'var(--bg-00ff41)', red: 'var(--bg-ff3333)', cyan: 'var(--bg-00e5ff)',
+  label: 'var(--fg-888888)', text: 'var(--fg-e0e0e0)',
 };
 
 export default function Recommendations() {
@@ -42,7 +42,7 @@ export default function Recommendations() {
 
   const panelStyle: React.CSSProperties = { background: B.panel, border: `1px solid ${B.border}`, padding: '12px 16px' };
   const thStyle: React.CSSProperties = { color: B.label, fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase', padding: '6px 12px', textAlign: 'left', borderBottom: `1px solid ${B.border}`, fontWeight: 'normal' };
-  const tdStyle: React.CSSProperties = { padding: '7px 12px', borderBottom: '1px solid #1a1a1a', fontSize: '12px', color: B.text };
+  const tdStyle: React.CSSProperties = { padding: '7px 12px', borderBottom: '1px solid var(--bg-1a1a1a)', fontSize: '12px', color: B.text };
 
   if (loading) {
     return (
@@ -55,9 +55,9 @@ export default function Recommendations() {
   return (
     <div style={{ padding: '16px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       {/* 13F data disclaimer */}
-      <div style={{ background: '#0a0800', border: '1px solid #2a2000', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <span style={{ color: '#ff8c00', fontSize: '11px', flexShrink: 0 }}>⚠</span>
-        <span style={{ color: '#666', fontSize: '10px', letterSpacing: '0.5px', lineHeight: 1.6 }}>
+      <div style={{ background: 'var(--bg-0a0800)', border: '1px solid var(--bg-2a2000)', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <span style={{ color: 'var(--fg-ff8c00)', fontSize: '11px', flexShrink: 0 }}>⚠</span>
+        <span style={{ color: 'var(--fg-666666)', fontSize: '10px', letterSpacing: '0.5px', lineHeight: 1.6 }}>
           INSIGHTS ARE DERIVED FROM 13F FILINGS, WHICH ARE FILED UP TO 45 DAYS AFTER QUARTER-END AND MAY NOT REFLECT CURRENT FUND POSITIONS.
           INSTITUTIONAL ACTIVITY DOES NOT PREDICT FUTURE PRICE PERFORMANCE. NOT INVESTMENT ADVICE. PAST PERFORMANCE DOES NOT GUARANTEE FUTURE RESULTS.
         </span>
@@ -69,11 +69,11 @@ export default function Recommendations() {
           <input
             type="number" min={5} max={50} value={limit}
             onChange={e => setLimit(parseInt(e.target.value))}
-            style={{ background: '#000', border: `1px solid ${B.border}`, color: B.amber, padding: '4px 8px', width: '64px', fontFamily: 'Courier New, monospace', fontSize: '12px', outline: 'none' }}
+            style={{ background: 'var(--bg-000000)', border: `1px solid ${B.border}`, color: B.amber, padding: '4px 8px', width: '64px', fontFamily: 'Courier New, monospace', fontSize: '12px', outline: 'none' }}
           />
           <button
             onClick={fetchRecommendations}
-            style={{ padding: '5px 14px', background: B.amber, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '1px' }}
+            style={{ padding: '5px 14px', background: B.amber, color: 'var(--fg-000000)', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '1px' }}
           >
             REFRESH
           </button>
@@ -100,7 +100,7 @@ export default function Recommendations() {
                 {recommendations.map((rec, index) => (
                   <tr
                     key={rec.ticker}
-                    onMouseEnter={e => (e.currentTarget.style.background = '#1a1a00')}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-1a1a00)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
                     <td data-label="" style={{ ...tdStyle, color: B.label }}>{index + 1}</td>
@@ -112,7 +112,7 @@ export default function Recommendations() {
                       </TickerTooltip>
                     </td>
                     <td data-label="Score" style={tdStyle}>
-                      <span style={{ background: '#1a1000', border: `1px solid ${B.amber}`, color: B.amber, padding: '2px 8px', fontSize: '11px', letterSpacing: '1px' }}>
+                      <span style={{ background: 'var(--bg-1a1000)', border: `1px solid ${B.amber}`, color: B.amber, padding: '2px 8px', fontSize: '11px', letterSpacing: '1px' }}>
                         {rec.score.toFixed(1)}
                       </span>
                     </td>
@@ -138,7 +138,7 @@ export default function Recommendations() {
                     <td data-label="Trade" style={tdStyle}>
                       <button
                         onClick={() => setTradeTarget(rec.ticker)}
-                        style={{ padding: '3px 10px', background: B.green, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '10px', letterSpacing: '1px' }}
+                        style={{ padding: '3px 10px', background: B.green, color: 'var(--fg-000000)', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '10px', letterSpacing: '1px' }}
                       >
                         BUY
                       </button>

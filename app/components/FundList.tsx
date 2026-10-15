@@ -31,18 +31,18 @@ interface Toast {
 let toastId = 0;
 
 const B = {
-  bg: '#000', panel: '#0d0d0d', border: '#2a2a2a',
-  amber: '#ff8c00', amberDim: '#cc6d00',
-  green: '#00ff41', red: '#ff3333', cyan: '#00e5ff',
-  label: '#888', text: '#e0e0e0',
+  bg: 'var(--bg-000000)', panel: 'var(--bg-0d0d0d)', border: 'var(--bg-2a2a2a)',
+  amber: 'var(--bg-ff8c00)', amberDim: 'var(--bg-cc6d00)',
+  green: 'var(--bg-00ff41)', red: 'var(--bg-ff3333)', cyan: 'var(--bg-00e5ff)',
+  label: 'var(--fg-888888)', text: 'var(--fg-e0e0e0)',
 };
 
 const panelStyle: React.CSSProperties = { background: B.panel, border: `1px solid ${B.border}` };
-const btnAmber: React.CSSProperties = { padding: '4px 12px', background: B.amber, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '1px' };
+const btnAmber: React.CSSProperties = { padding: '4px 12px', background: B.amber, color: 'var(--fg-000000)', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '1px' };
 const btnGhost: React.CSSProperties = { padding: '4px 12px', background: 'transparent', color: B.label, border: `1px solid ${B.border}`, cursor: 'pointer', fontFamily: 'Courier New, monospace', fontSize: '11px', letterSpacing: '1px' };
-const btnRed: React.CSSProperties = { padding: '4px 12px', background: 'transparent', color: B.red, border: `1px solid #4a0000`, cursor: 'pointer', fontFamily: 'Courier New, monospace', fontSize: '11px', letterSpacing: '1px' };
+const btnRed: React.CSSProperties = { padding: '4px 12px', background: 'transparent', color: B.red, border: `1px solid var(--bg-4a0000)`, cursor: 'pointer', fontFamily: 'Courier New, monospace', fontSize: '11px', letterSpacing: '1px' };
 const thStyle: React.CSSProperties = { color: B.label, fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase', padding: '5px 10px', textAlign: 'left', borderBottom: `1px solid ${B.border}`, fontWeight: 'normal' };
-const tdStyle: React.CSSProperties = { padding: '5px 10px', borderBottom: '1px solid #111', fontSize: '12px', color: B.text };
+const tdStyle: React.CSSProperties = { padding: '5px 10px', borderBottom: '1px solid var(--bg-111111)', fontSize: '12px', color: B.text };
 
 export default function FundList() {
   const router = useRouter();
@@ -173,7 +173,7 @@ export default function FundList() {
     setSelectedMap(prev => ({ ...prev, [fundId]: next }));
   }
 
-  const inputStyle: React.CSSProperties = { background: '#000', border: `1px solid ${B.border}`, color: B.amber, padding: '6px 10px', fontFamily: 'Courier New, monospace', fontSize: '12px', outline: 'none', flex: 1 };
+  const inputStyle: React.CSSProperties = { background: 'var(--bg-000000)', border: `1px solid ${B.border}`, color: B.amber, padding: '6px 10px', fontFamily: 'Courier New, monospace', fontSize: '12px', outline: 'none', flex: 1 };
 
   if (loading) {
     return (
@@ -188,7 +188,7 @@ export default function FundList() {
       {/* Toasts */}
       <div className="toast-stack" style={{ position: 'fixed', top: '52px', right: '12px', zIndex: 100, display: 'flex', flexDirection: 'column', gap: '6px' }}>
         {toasts.map(t => (
-          <div key={t.id} style={{ padding: '8px 14px', background: t.type === 'success' ? '#001a00' : '#1a0000', border: `1px solid ${t.type === 'success' ? B.green : B.red}`, color: t.type === 'success' ? B.green : B.red, fontSize: '11px', letterSpacing: '1px', maxWidth: '280px' }}>
+          <div key={t.id} style={{ padding: '8px 14px', background: t.type === 'success' ? 'var(--bg-001a00)' : 'var(--bg-1a0000)', border: `1px solid ${t.type === 'success' ? B.green : B.red}`, color: t.type === 'success' ? B.green : B.red, fontSize: '11px', letterSpacing: '1px', maxWidth: '280px' }}>
             {t.message}
           </div>
         ))}
@@ -199,7 +199,7 @@ export default function FundList() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ color: B.amber, fontSize: '14px', fontWeight: 'bold', letterSpacing: '3px' }}>FOLLOWED FUNDS</div>
           {isPaper && (
-            <div style={{ background: '#002200', border: '1px solid #00ff41', color: '#00ff41', fontSize: '9px', fontWeight: 'bold', letterSpacing: '2px', padding: '2px 8px' }}>
+            <div style={{ background: 'var(--bg-002200)', border: '1px solid var(--bg-00ff41)', color: 'var(--fg-00ff41)', fontSize: '9px', fontWeight: 'bold', letterSpacing: '2px', padding: '2px 8px' }}>
               PAPER TRADING
             </div>
           )}
@@ -208,7 +208,7 @@ export default function FundList() {
           <button onClick={() => setShowAddForm(v => !v)} style={btnAmber}>+ ADD FUND</button>
           {!isPaper && (
             <button onClick={syncAll} disabled={syncing || funds.filter(f => f.enabled).length === 0}
-              style={{ ...btnGhost, color: syncing ? B.label : B.cyan, borderColor: syncing ? B.border : '#004a5a', opacity: (syncing || funds.filter(f => f.enabled).length === 0) ? 0.5 : 1 }}>
+              style={{ ...btnGhost, color: syncing ? B.label : B.cyan, borderColor: syncing ? B.border : 'var(--bg-004a5a)', opacity: (syncing || funds.filter(f => f.enabled).length === 0) ? 0.5 : 1 }}>
               {syncing ? 'SYNCING...' : 'SYNC ALL'}
             </button>
           )}
@@ -232,7 +232,7 @@ export default function FundList() {
             </button>
           </div>
           {addName && (
-            <div style={{ background: '#001a00', border: `1px solid ${B.green}`, padding: '6px 12px', color: B.green, fontSize: '11px', letterSpacing: '1px' }}>
+            <div style={{ background: 'var(--bg-001a00)', border: `1px solid ${B.green}`, padding: '6px 12px', color: B.green, fontSize: '11px', letterSpacing: '1px' }}>
               ✓ {addName}
             </div>
           )}
@@ -249,7 +249,7 @@ export default function FundList() {
       {funds.length === 0 ? (
         <div style={{ ...panelStyle, padding: '48px', textAlign: 'center' }}>
           <p style={{ color: B.label, fontSize: '12px', letterSpacing: '1px' }}>NO FUNDS ADDED</p>
-          <p style={{ color: '#444', fontSize: '11px', marginTop: '6px' }}>CLICK + ADD FUND TO GET STARTED</p>
+          <p style={{ color: 'var(--fg-444444)', fontSize: '11px', marginTop: '6px' }}>CLICK + ADD FUND TO GET STARTED</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -269,7 +269,7 @@ export default function FundList() {
                   </button>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                    <span style={{ fontSize: '10px', letterSpacing: '1px', padding: '2px 8px', border: `1px solid ${fund.enabled ? '#004400' : B.border}`, color: fund.enabled ? B.green : B.label }}>
+                    <span style={{ fontSize: '10px', letterSpacing: '1px', padding: '2px 8px', border: `1px solid ${fund.enabled ? 'var(--bg-004400)' : B.border}`, color: fund.enabled ? B.green : B.label }}>
                       {fund.enabled ? 'ACTIVE' : 'DISABLED'}
                     </span>
                     {!isPaper && <>
@@ -277,7 +277,7 @@ export default function FundList() {
                         {fund.enabled ? 'DISABLE' : 'ENABLE'}
                       </button>
                       <button onClick={() => syncOne(fund.cik, fund.name)} disabled={isSyncingThis}
-                        style={{ ...btnGhost, color: B.cyan, borderColor: '#004a5a', opacity: isSyncingThis ? 0.5 : 1 }}>
+                        style={{ ...btnGhost, color: B.cyan, borderColor: 'var(--bg-004a5a)', opacity: isSyncingThis ? 0.5 : 1 }}>
                         {isSyncingThis ? 'SYNCING...' : 'SYNC'}
                       </button>
                       <button onClick={() => deleteFund(fund.cik, fund.name)} style={btnRed}>REMOVE</button>
@@ -295,9 +295,9 @@ export default function FundList() {
                     opacity: showThesis ? 1 : 0,
                     transition: 'max-height 0.35s ease, opacity 0.25s ease',
                     borderBottom: showThesis ? `1px solid ${B.border}` : 'none',
-                    background: '#050505',
+                    background: 'var(--bg-050505)',
                   }}>
-                    <p style={{ color: '#aaa', fontSize: '14px', lineHeight: 1.9, margin: 0, padding: '14px 16px', letterSpacing: '0.3px' }}>{fund.thesis}</p>
+                    <p style={{ color: 'var(--fg-aaaaaa)', fontSize: '14px', lineHeight: 1.9, margin: 0, padding: '14px 16px', letterSpacing: '0.3px' }}>{fund.thesis}</p>
                   </div>
                   );
                 })()}
@@ -327,7 +327,7 @@ export default function FundList() {
                         <button
                           onClick={() => setBasketFund({ fund, selected: selectedHoldings })}
                           disabled={selectedHoldings.length === 0}
-                          style={{ ...btnAmber, background: selectedHoldings.length === 0 ? '#333' : B.green, color: '#000', opacity: selectedHoldings.length === 0 ? 0.4 : 1 }}
+                          style={{ ...btnAmber, background: selectedHoldings.length === 0 ? 'var(--bg-333333)' : B.green, color: 'var(--fg-000000)', opacity: selectedHoldings.length === 0 ? 0.4 : 1 }}
                         >
                           BUY BASKET{selected.size < fund.holdings.length ? ` (${selected.size})` : ''}
                         </button>
@@ -352,7 +352,7 @@ export default function FundList() {
                               return (
                                 <tr key={idx} onClick={() => toggleTicker(fund.id, h.ticker, fund.holdings)}
                                   style={{ cursor: 'pointer', opacity: checked ? 1 : 0.35 }}
-                                  onMouseEnter={e => (e.currentTarget.style.background = '#1a1a00')}
+                                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-1a1a00)')}
                                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                                 >
                                   <td data-label="Include" style={{ ...tdStyle, width: '32px' }} onClick={e => e.stopPropagation()}>
@@ -375,7 +375,7 @@ export default function FundList() {
                                   </td>
                                   <td data-label="Weight" style={tdStyle}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      <div style={{ width: '60px', background: '#1a1a1a', height: '3px', position: 'relative' }}>
+                                      <div style={{ width: '60px', background: 'var(--bg-1a1a1a)', height: '3px', position: 'relative' }}>
                                         <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${Math.min(h.weight, 100)}%`, background: B.amber }} />
                                       </div>
                                       <span style={{ color: B.label, fontSize: '11px' }}>{h.weight.toFixed(1)}%</span>
@@ -383,7 +383,7 @@ export default function FundList() {
                                   </td>
                                   <td data-label="Trade" style={tdStyle} onClick={e => e.stopPropagation()}>
                                     <button onClick={() => setTradeTarget({ symbol: h.ticker, price: 0 })}
-                                      style={{ padding: '2px 8px', background: B.green, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '10px', letterSpacing: '1px' }}>
+                                      style={{ padding: '2px 8px', background: B.green, color: 'var(--fg-000000)', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '10px', letterSpacing: '1px' }}>
                                       BUY
                                     </button>
                                   </td>

@@ -5,7 +5,7 @@ export const metadata: Metadata = {
 };
 
 const S = {
-  amber: '#ff8c00', border: '#2a2a2a', label: '#888', text: '#ccc', dim: '#666', red: '#ff4444',
+  amber: 'var(--bg-ff8c00)', border: 'var(--bg-2a2a2a)', label: 'var(--fg-888888)', text: 'var(--fg-cccccc)', dim: 'var(--fg-666666)', red: 'var(--bg-ff4444)',
 };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -25,9 +25,9 @@ function P({ children }: { children: React.ReactNode }) {
 
 export default function DisclosuresPage() {
   return (
-    <div style={{ minHeight: '100vh', background: '#000', fontFamily: 'Courier New, monospace', color: S.text }}>
-      <nav style={{ borderBottom: `1px solid ${S.amber}`, background: '#000', padding: '0 24px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <a href="/" style={{ background: S.amber, color: '#000', fontWeight: 900, fontSize: '15px', letterSpacing: '3px', padding: '0 14px', height: '44px', display: 'flex', alignItems: 'center', textDecoration: 'none' }}>TROVE</a>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-000000)', fontFamily: 'Courier New, monospace', color: S.text }}>
+      <nav style={{ borderBottom: `1px solid ${S.amber}`, background: 'var(--bg-000000)', padding: '0 24px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <a href="/" style={{ background: S.amber, color: 'var(--fg-000000)', fontWeight: 900, fontSize: '15px', letterSpacing: '3px', padding: '0 14px', height: '44px', display: 'flex', alignItems: 'center', textDecoration: 'none' }}>TROVE</a>
         <span style={{ color: S.label, fontSize: '10px', letterSpacing: '2px' }}>RISK DISCLOSURES</span>
       </nav>
 
@@ -36,9 +36,9 @@ export default function DisclosuresPage() {
         <p style={{ color: S.dim, fontSize: '10px', letterSpacing: '2px', marginBottom: '24px' }}>LAST UPDATED: MAY 2026</p>
 
         {/* Prominent warning box */}
-        <div style={{ background: '#150000', border: `1px solid ${S.red}`, padding: '20px 24px', marginBottom: '48px' }}>
+        <div style={{ background: 'var(--bg-150000)', border: `1px solid ${S.red}`, padding: '20px 24px', marginBottom: '48px' }}>
           <p style={{ color: S.red, fontSize: '11px', letterSpacing: '2px', fontWeight: 'bold', marginBottom: '8px' }}>IMPORTANT RISK WARNING</p>
-          <p style={{ color: '#cc4444', fontSize: '12px', lineHeight: 1.8, margin: 0 }}>
+          <p style={{ color: 'var(--fg-cc4444)', fontSize: '12px', lineHeight: 1.8, margin: 0 }}>
             Trading and investing in securities involves substantial risk of loss. You may lose some or all of your invested capital.
             Trove does not provide investment advice. The information and tools provided are for informational and educational purposes only.
             You should carefully consider your financial situation and risk tolerance before trading.
@@ -83,11 +83,11 @@ export default function DisclosuresPage() {
       </div>
 
       <footer style={{ borderTop: `1px solid ${S.border}`, padding: '24px', textAlign: 'center' }}>
-        <div style={{ color: '#333', fontSize: '9px', letterSpacing: '2px' }}>
+        <div style={{ color: 'var(--fg-333333)', fontSize: '9px', letterSpacing: '2px' }}>
           © 2026 TROVE &nbsp;·&nbsp;
-          <a href="/terms" style={{ color: '#444', textDecoration: 'underline' }}>TERMS</a> &nbsp;·&nbsp;
-          <a href="/privacy" style={{ color: '#444', textDecoration: 'underline' }}>PRIVACY</a> &nbsp;·&nbsp;
-          <a href="/disclosures" style={{ color: '#444', textDecoration: 'underline' }}>RISK DISCLOSURES</a>
+          <a href="/terms" style={{ color: 'var(--fg-444444)', textDecoration: 'underline' }}>TERMS</a> &nbsp;·&nbsp;
+          <a href="/privacy" style={{ color: 'var(--fg-444444)', textDecoration: 'underline' }}>PRIVACY</a> &nbsp;·&nbsp;
+          <a href="/disclosures" style={{ color: 'var(--fg-444444)', textDecoration: 'underline' }}>RISK DISCLOSURES</a>
         </div>
       </footer>
     </div>

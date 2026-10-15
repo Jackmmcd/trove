@@ -6,8 +6,8 @@ import Link from 'next/link';
 import Navigation from '@/app/components/Navigation';
 
 const B = {
-  bg: '#000', panel: '#0d0d0d', border: '#2a2a2a',
-  amber: '#ff8c00', label: '#888', dim: '#666', text: '#e0e0e0',
+  bg: 'var(--bg-000000)', panel: 'var(--bg-0d0d0d)', border: 'var(--bg-2a2a2a)',
+  amber: 'var(--bg-ff8c00)', label: 'var(--fg-888888)', dim: 'var(--fg-666666)', text: 'var(--fg-e0e0e0)',
 };
 
 interface Holder {
@@ -122,9 +122,9 @@ export default function CompanyPage() {
 
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '14px', flexWrap: 'wrap', marginBottom: '4px' }}>
           <h1 style={{ color: B.amber, fontSize: '30px', fontWeight: 900, letterSpacing: '4px', margin: 0 }}>{ticker}</h1>
-          {name && <span style={{ color: '#bbb', fontSize: '14px' }}>{name}</span>}
+          {name && <span style={{ color: 'var(--fg-bbbbbb)', fontSize: '14px' }}>{name}</span>}
         </div>
-        <div style={{ color: '#444', fontSize: '10px', letterSpacing: '2px', marginBottom: '22px' }}>
+        <div style={{ color: 'var(--fg-444444)', fontSize: '10px', letterSpacing: '2px', marginBottom: '22px' }}>
           COMPANY OVERVIEW · 13F HOLDERS
           {' · '}
           <Link href={`/stock/${ticker}`} style={{ color: B.amber, textDecoration: 'none' }}>PRICE &amp; FUNDAMENTALS →</Link>
@@ -139,7 +139,7 @@ export default function CompanyPage() {
         {needsAuth && (
           <Panel>
             <Label>SIGN IN TO VIEW</Label>
-            <p style={{ color: '#bbb', fontSize: '13px', lineHeight: 1.7, margin: '0 0 16px', maxWidth: '58ch' }}>
+            <p style={{ color: 'var(--fg-bbbbbb)', fontSize: '13px', lineHeight: 1.7, margin: '0 0 16px', maxWidth: '58ch' }}>
               The company overview draws on the funds you track and your own positions,
               so it needs an account. Sign in and this page will load.
             </p>
@@ -154,7 +154,7 @@ export default function CompanyPage() {
 
         {error && !needsAuth && (
           <div style={{
-            border: '1px solid #3a1010', background: '#140606', color: '#e07a5a',
+            border: '1px solid var(--bg-3a1010)', background: 'var(--bg-140606)', color: 'var(--fg-e07a5a)',
             fontSize: '12.5px', padding: '12px 15px', lineHeight: 1.55,
           }}>
             {error}
@@ -171,15 +171,15 @@ export default function CompanyPage() {
               {stats.map(([k, v]) => (
                 <div key={k} style={{ background: B.panel, padding: '11px 14px' }}>
                   <div style={{ color: B.dim, fontSize: '9px', letterSpacing: '2px', marginBottom: '5px' }}>{k}</div>
-                  <div style={{ color: k === 'MARKET CAP' ? '#ffb454' : B.text, fontSize: '13px' }}>{v}</div>
+                  <div style={{ color: k === 'MARKET CAP' ? 'var(--bg-ffb454)' : B.text, fontSize: '13px' }}>{v}</div>
                 </div>
               ))}
             </div>
 
             {data.position && (
-              <div style={{ border: '1px solid #2a2a00', background: '#0e0e04', padding: '12px 16px' }}>
+              <div style={{ border: '1px solid var(--bg-2a2a00)', background: 'var(--bg-0e0e04)', padding: '12px 16px' }}>
                 <Label>YOUR POSITION</Label>
-                <div style={{ color: '#ddd', fontSize: '13px' }}>
+                <div style={{ color: 'var(--fg-dddddd)', fontSize: '13px' }}>
                   {data.position.quantity} shares @ ${data.position.avg_open_price.toFixed(2)} avg
                 </div>
               </div>
@@ -189,7 +189,7 @@ export default function CompanyPage() {
               <Panel>
                 <Label>WHAT IT DOES</Label>
                 <p style={{
-                  color: '#e8e2d8', fontFamily: 'Georgia, serif', fontSize: '14.5px',
+                  color: 'var(--fg-e8e2d8)', fontFamily: 'Georgia, serif', fontSize: '14.5px',
                   lineHeight: 1.75, margin: 0, maxWidth: '72ch',
                 }}>
                   {a?.summary || a?.description}
@@ -202,7 +202,7 @@ export default function CompanyPage() {
                 {bullets(a?.bull_case).length > 0 && (
                   <Panel>
                     <Label>CASE FOR</Label>
-                    <ul style={{ margin: 0, paddingLeft: '18px', color: '#7fbf9a', fontSize: '12.5px', lineHeight: 1.65 }}>
+                    <ul style={{ margin: 0, paddingLeft: '18px', color: 'var(--fg-7fbf9a)', fontSize: '12.5px', lineHeight: 1.65 }}>
                       {bullets(a?.bull_case).map((b, i) => <li key={i} style={{ marginBottom: '7px' }}>{b}</li>)}
                     </ul>
                   </Panel>
@@ -210,7 +210,7 @@ export default function CompanyPage() {
                 {bullets(a?.bear_case).length > 0 && (
                   <Panel>
                     <Label>CASE AGAINST</Label>
-                    <ul style={{ margin: 0, paddingLeft: '18px', color: '#d98b6f', fontSize: '12.5px', lineHeight: 1.65 }}>
+                    <ul style={{ margin: 0, paddingLeft: '18px', color: 'var(--fg-d98b6f)', fontSize: '12.5px', lineHeight: 1.65 }}>
                       {bullets(a?.bear_case).map((b, i) => <li key={i} style={{ marginBottom: '7px' }}>{b}</li>)}
                     </ul>
                   </Panel>
@@ -220,7 +220,7 @@ export default function CompanyPage() {
 
             {a?.error && !a?.summary && (
               <Panel>
-                <div style={{ color: '#8a8070', fontSize: '12.5px', lineHeight: 1.6 }}>
+                <div style={{ color: 'var(--fg-8a8070)', fontSize: '12.5px', lineHeight: 1.6 }}>
                   No company profile available for {ticker} — the provider lookup did not return.
                   The holdings below are unaffected.
                 </div>
@@ -237,7 +237,7 @@ export default function CompanyPage() {
               </div>
 
               {holders.length === 0 ? (
-                <div style={{ padding: '18px', color: '#8a8070', fontSize: '12.5px' }}>
+                <div style={{ padding: '18px', color: 'var(--fg-8a8070)', fontSize: '12.5px' }}>
                   No tracked fund reports this ticker.
                 </div>
               ) : (
@@ -255,15 +255,15 @@ export default function CompanyPage() {
                     </thead>
                     <tbody>
                       {holders.map((h, i) => (
-                        <tr key={`${h.fund}-${i}`} style={{ borderTop: '1px solid #161616' }}>
-                          <td style={{ padding: '10px 18px', color: '#ddd' }}>{h.fund}</td>
-                          <td style={{ padding: '10px 12px', color: '#666', fontSize: '10.5px' }}>
+                        <tr key={`${h.fund}-${i}`} style={{ borderTop: '1px solid var(--bg-161616)' }}>
+                          <td style={{ padding: '10px 18px', color: 'var(--fg-dddddd)' }}>{h.fund}</td>
+                          <td style={{ padding: '10px 12px', color: 'var(--fg-666666)', fontSize: '10.5px' }}>
                             {h.entity_type?.replace(/_/g, ' ') ?? '—'}
                           </td>
                           <td style={{ padding: '10px 12px', color: B.amber, textAlign: 'right' }}>{h.weight.toFixed(2)}%</td>
-                          <td style={{ padding: '10px 12px', color: '#bbb', textAlign: 'right' }}>{money(h.value)}</td>
-                          <td style={{ padding: '10px 12px', color: '#777', textAlign: 'right' }}>{h.quarter}</td>
-                          <td style={{ padding: '10px 18px', color: '#777', textAlign: 'right' }}>{h.first_reported}</td>
+                          <td style={{ padding: '10px 12px', color: 'var(--fg-bbbbbb)', textAlign: 'right' }}>{money(h.value)}</td>
+                          <td style={{ padding: '10px 12px', color: 'var(--fg-777777)', textAlign: 'right' }}>{h.quarter}</td>
+                          <td style={{ padding: '10px 18px', color: 'var(--fg-777777)', textAlign: 'right' }}>{h.first_reported}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -272,7 +272,7 @@ export default function CompanyPage() {
               )}
             </div>
 
-            <div style={{ color: '#333', fontSize: '9px', letterSpacing: '1.5px', marginTop: '6px' }}>
+            <div style={{ color: 'var(--fg-333333)', fontSize: '9px', letterSpacing: '1.5px', marginTop: '6px' }}>
               13F DATA REFLECTS A PRIOR QUARTER (45-DAY LAG) · NOT FINANCIAL ADVICE
             </div>
           </div>

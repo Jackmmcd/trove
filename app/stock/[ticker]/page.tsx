@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import TradeModal from '@/app/components/TradeModal';
+import { useTheme, resolveColor as c } from '@/app/components/ThemeToggle';
 import Navigation from '@/app/components/Navigation';
 
 const B = {
-  bg: '#000', panel: '#0d0d0d', border: '#2a2a2a',
-  amber: '#ff8c00', green: '#00ff41', red: '#ff3333', cyan: '#00e5ff',
-  label: '#888', text: '#e0e0e0',
+  bg: 'var(--bg-000000)', panel: 'var(--bg-0d0d0d)', border: 'var(--bg-2a2a2a)',
+  amber: 'var(--bg-ff8c00)', green: 'var(--bg-00ff41)', red: 'var(--bg-ff3333)', cyan: 'var(--bg-00e5ff)',
+  label: 'var(--fg-888888)', text: 'var(--fg-e0e0e0)',
 };
 
 interface SparkPoint { t: number; v: number }
@@ -100,25 +101,31 @@ function Sparkline({ data }: { data: SparkPoint[] }) {
 
 function CandleChart({ candles, isUp }: { candles: Candle[]; isUp: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  // The chart draws to a canvas, which cannot read CSS variables, so colours
+  // are resolved to hex at build time and the chart is rebuilt on a theme flip.
+  const theme = useTheme();
   useEffect(() => {
     if (!containerRef.current || candles.length === 0) return;
+    let cleanup: (() => void) | undefined;
+    let cancelled = false;
     import('lightweight-charts').then(({ createChart, CandlestickSeries }) => {
-      const el = containerRef.current!;
+      if (cancelled || !containerRef.current) return;
+      const el = containerRef.current;
       el.innerHTML = '';
       const chartHeight = () => (window.innerWidth <= 640 ? 300 : 420);
       const chart = createChart(el, {
         width: el.clientWidth,
         height: chartHeight(),
-        layout: { background: { color: '#0d0d0d' }, textColor: '#888' },
-        grid: { vertLines: { color: '#1a1a1a' }, horzLines: { color: '#1a1a1a' } },
+        layout: { background: { color: c('var(--bg-0d0d0d)') }, textColor: c('var(--fg-888888)') },
+        grid: { vertLines: { color: c('var(--bg-1a1a1a)') }, horzLines: { color: c('var(--bg-1a1a1a)') } },
         crosshair: { mode: 1 },
-        rightPriceScale: { borderColor: '#2a2a2a' },
-        timeScale: { borderColor: '#2a2a2a', timeVisible: true },
+        rightPriceScale: { borderColor: c('var(--bg-2a2a2a)') },
+        timeScale: { borderColor: c('var(--bg-2a2a2a)'), timeVisible: true },
       });
       const series = chart.addSeries(CandlestickSeries, {
-        upColor: '#00ff41', downColor: '#ff3333',
-        borderUpColor: '#00ff41', borderDownColor: '#ff3333',
-        wickUpColor: '#00ff41', wickDownColor: '#ff3333',
+        upColor: c('var(--bg-00ff41)'), downColor: c('var(--bg-ff3333)'),
+        borderUpColor: c('var(--bg-00ff41)'), borderDownColor: c('var(--bg-ff3333)'),
+        wickUpColor: c('var(--bg-00ff41)'), wickDownColor: c('var(--bg-ff3333)'),
       });
       const data = candles
         .filter(c => c.open && c.high && c.low && c.close)
@@ -127,9 +134,10 @@ function CandleChart({ candles, isUp }: { candles: Candle[]; isUp: boolean }) {
       chart.timeScale().fitContent();
       const ro = new ResizeObserver(() => chart.applyOptions({ width: el.clientWidth, height: chartHeight() }));
       ro.observe(el);
-      return () => { ro.disconnect(); chart.remove(); };
+      cleanup = () => { ro.disconnect(); chart.remove(); };
     });
-  }, [candles]);
+    return () => { cancelled = true; cleanup?.(); };
+  }, [candles, theme]);
   return <div ref={containerRef} style={{ width: '100%' }} />;
 }
 
@@ -263,7 +271,7 @@ export default function StockPage() {
   }
 
   const Stat = ({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) => (
-    <div style={{ padding: '9px 14px', borderBottom: '1px solid #111' }}>
+    <div style={{ padding: '9px 14px', borderBottom: '1px solid var(--bg-111111)' }}>
       <div style={{ color: B.label, fontSize: '9px', letterSpacing: '2px', marginBottom: '3px' }}>{label}</div>
       <div style={{ color: valueColor ?? B.text, fontSize: '13px' }}>{value}</div>
     </div>
@@ -288,21 +296,21 @@ export default function StockPage() {
         </button>
         <span style={{ color: B.amber, fontWeight: 'bold', fontSize: '14px', letterSpacing: '3px' }}>{ticker}</span>
         {data && <span style={{ color: B.label, fontSize: '11px' }}>{data.name}</span>}
-        {data?.sector && <span style={{ color: '#444', fontSize: '10px', letterSpacing: '1px' }}>{data.sector}</span>}
+        {data?.sector && <span style={{ color: 'var(--fg-444444)', fontSize: '10px', letterSpacing: '1px' }}>{data.sector}</span>}
 
         {/* Trade buttons */}
         {data && (
           <div className="stock-trade-desktop" style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
             <button
               onClick={() => setTradeModal('buy')}
-              style={{ padding: '5px 18px', background: B.green, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '2px' }}
+              style={{ padding: '5px 18px', background: B.green, color: 'var(--fg-000000)', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '2px' }}
             >
               BUY
             </button>
             {heldShares > 0 && (
               <button
                 onClick={() => setTradeModal('sell')}
-                style={{ padding: '5px 18px', background: B.red, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '2px' }}
+                style={{ padding: '5px 18px', background: B.red, color: 'var(--fg-000000)', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '2px' }}
               >
                 SELL
               </button>
@@ -326,14 +334,14 @@ export default function StockPage() {
         <div className="stock-trade-bar">
           <button
             onClick={() => setTradeModal('buy')}
-            style={{ flex: 1, padding: '13px', background: B.green, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '13px', letterSpacing: '2px' }}
+            style={{ flex: 1, padding: '13px', background: B.green, color: 'var(--fg-000000)', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '13px', letterSpacing: '2px' }}
           >
             BUY {ticker}
           </button>
           {heldShares > 0 && (
             <button
               onClick={() => setTradeModal('sell')}
-              style={{ flex: 1, padding: '13px', background: B.red, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '13px', letterSpacing: '2px' }}
+              style={{ flex: 1, padding: '13px', background: B.red, color: 'var(--fg-000000)', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '13px', letterSpacing: '2px' }}
             >
               SELL
             </button>
@@ -377,7 +385,7 @@ export default function StockPage() {
                     {isUp ? '+' : ''}{data.change.toFixed(2)} ({isUp ? '+' : ''}{((data.changePct ?? 0) * 100).toFixed(2)}%)
                   </span>
                 )}
-                <span style={{ color: '#444', fontSize: '10px', letterSpacing: '1px' }}>
+                <span style={{ color: 'var(--fg-444444)', fontSize: '10px', letterSpacing: '1px' }}>
                   {data.exchange} · {data.currency}
                 </span>
               </div>
@@ -394,7 +402,7 @@ export default function StockPage() {
                 const up = (p.val ?? 0) >= 0;
                 const color = p.val === null ? B.label : up ? B.green : B.red;
                 return (
-                  <div key={p.label} style={{ border: `1px solid #222`, padding: '4px 10px', textAlign: 'center' }}>
+                  <div key={p.label} style={{ border: `1px solid var(--bg-222222)`, padding: '4px 10px', textAlign: 'center' }}>
                     <div style={{ color: B.label, fontSize: '8px', letterSpacing: '2px' }}>{p.label}</div>
                     <div style={{ color, fontSize: '11px', marginTop: '2px' }}>{fmtChg(p.val)}</div>
                   </div>
@@ -407,7 +415,7 @@ export default function StockPage() {
           <div className="r-hscroll" style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
             {RANGES.map(r => (
               <button key={r.label} onClick={() => setRange(r)}
-                style={{ padding: '4px 12px', background: range.label === r.label ? B.amber : 'transparent', color: range.label === r.label ? '#000' : B.label, border: `1px solid ${range.label === r.label ? B.amber : B.border}`, cursor: 'pointer', fontFamily: 'inherit', fontSize: '10px', letterSpacing: '1px', fontWeight: range.label === r.label ? 'bold' : 'normal' }}>
+                style={{ padding: '4px 12px', background: range.label === r.label ? B.amber : 'transparent', color: range.label === r.label ? 'var(--bg-000000)' : B.label, border: `1px solid ${range.label === r.label ? B.amber : B.border}`, cursor: 'pointer', fontFamily: 'inherit', fontSize: '10px', letterSpacing: '1px', fontWeight: range.label === r.label ? 'bold' : 'normal' }}>
                 {r.label}
               </button>
             ))}
@@ -427,7 +435,7 @@ export default function StockPage() {
               CHART · {range.label}
             </div>
             {candlesLoading
-              ? <div style={{ height: 'min(420px, 60vh)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ff8c00', fontSize: '11px', letterSpacing: '2px' }}>LOADING CHART...</div>
+              ? <div style={{ height: 'min(420px, 60vh)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--fg-ff8c00)', fontSize: '11px', letterSpacing: '2px' }}>LOADING CHART...</div>
               : <CandleChart key={range.label + candles.length} candles={candles} isUp={isUp} />
             }
           </div>
@@ -439,7 +447,7 @@ export default function StockPage() {
                 <span style={{ color: B.amber, fontSize: '10px', letterSpacing: '3px', fontWeight: 'bold' }}>ANALYSIS</span>
               </div>
               {analysisLoading ? (
-                <div style={{ padding: '16px 20px', color: '#444', fontSize: '11px', letterSpacing: '2px' }}>ANALYZING...</div>
+                <div style={{ padding: '16px 20px', color: 'var(--fg-444444)', fontSize: '11px', letterSpacing: '2px' }}>ANALYZING...</div>
               ) : analysis && (
                 <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div>
@@ -453,7 +461,7 @@ export default function StockPage() {
                         {analysis.bullCase.map((pt, i) => (
                           <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
                             <span style={{ color: B.green, fontSize: '10px', marginTop: '2px', flexShrink: 0 }}>▲</span>
-                            <span style={{ color: '#ccc', fontSize: '12px', lineHeight: 1.6 }}>{pt}</span>
+                            <span style={{ color: 'var(--fg-cccccc)', fontSize: '12px', lineHeight: 1.6 }}>{pt}</span>
                           </div>
                         ))}
                       </div>
@@ -464,7 +472,7 @@ export default function StockPage() {
                         {analysis.bearCase.map((pt, i) => (
                           <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
                             <span style={{ color: B.red, fontSize: '10px', marginTop: '2px', flexShrink: 0 }}>▼</span>
-                            <span style={{ color: '#ccc', fontSize: '12px', lineHeight: 1.6 }}>{pt}</span>
+                            <span style={{ color: 'var(--fg-cccccc)', fontSize: '12px', lineHeight: 1.6 }}>{pt}</span>
                           </div>
                         ))}
                       </div>
@@ -485,11 +493,11 @@ export default function StockPage() {
                 <div style={{ padding: '16px 18px', borderRight: `1px solid ${B.border}` }}>
                   <div style={{ color: B.label, fontSize: '9px', letterSpacing: '2px', marginBottom: '10px' }}>DIGEST</div>
                   {digestLoading ? (
-                    <div style={{ color: '#444', fontSize: '11px', letterSpacing: '2px' }}>ANALYZING...</div>
+                    <div style={{ color: 'var(--fg-444444)', fontSize: '11px', letterSpacing: '2px' }}>ANALYZING...</div>
                   ) : digest ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       {digest.split('\n\n').filter(Boolean).map((para, i) => (
-                        <p key={i} style={{ color: '#bbb', fontSize: '12px', lineHeight: 1.7, margin: 0 }}>{para}</p>
+                        <p key={i} style={{ color: 'var(--fg-bbbbbb)', fontSize: '12px', lineHeight: 1.7, margin: 0 }}>{para}</p>
                       ))}
                     </div>
                   ) : null}
@@ -499,13 +507,13 @@ export default function StockPage() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {newsItems.slice(0, 8).map(n => (
                       <a key={n.uuid} href={n.link} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', padding: '6px 0', borderBottom: '1px solid #111' }}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', padding: '6px 0', borderBottom: '1px solid var(--bg-111111)' }}
                           onMouseEnter={e => (e.currentTarget.style.opacity = '0.7')}
                           onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>
                           <span style={{ color: B.text, fontSize: '11px', lineHeight: 1.5 }}>{n.title}</span>
                           <div style={{ display: 'flex', gap: '8px' }}>
                             <span style={{ color: B.amber, fontSize: '9px', letterSpacing: '1px' }}>{n.publisher.toUpperCase()}</span>
-                            <span style={{ color: '#444', fontSize: '9px' }}>{timeAgo(n.publishedAt)}</span>
+                            <span style={{ color: 'var(--fg-444444)', fontSize: '9px' }}>{timeAgo(n.publishedAt)}</span>
                           </div>
                         </div>
                       </a>
@@ -570,7 +578,7 @@ export default function StockPage() {
               <Stat label="LOCATION" value={[data.city, data.state, data.country].filter(Boolean).join(', ') || '—'} />
               <Stat label="EXCHANGE" value={data.exchange ?? '—'} />
               {data.website && (
-                <div style={{ padding: '9px 14px', borderBottom: '1px solid #111' }}>
+                <div style={{ padding: '9px 14px', borderBottom: '1px solid var(--bg-111111)' }}>
                   <div style={{ color: B.label, fontSize: '9px', letterSpacing: '2px', marginBottom: '3px' }}>WEBSITE</div>
                   <a href={data.website} target="_blank" rel="noopener noreferrer" style={{ color: B.cyan, fontSize: '12px', textDecoration: 'none' }}>
                     {data.website.replace(/^https?:\/\//, '')}
@@ -587,7 +595,7 @@ export default function StockPage() {
               <div style={{ padding: '7px 14px', borderBottom: `1px solid ${B.border}`, color: B.amber, fontSize: '10px', letterSpacing: '3px', fontWeight: 'bold' }}>
                 ABOUT {data.ticker}
               </div>
-              <div style={{ padding: '20px', color: '#aaa', fontSize: '13px', lineHeight: 2, letterSpacing: '0.3px' }}>
+              <div style={{ padding: '20px', color: 'var(--fg-aaaaaa)', fontSize: '13px', lineHeight: 2, letterSpacing: '0.3px' }}>
                 {data.description}
               </div>
             </div>

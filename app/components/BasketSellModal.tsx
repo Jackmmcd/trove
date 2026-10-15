@@ -34,9 +34,9 @@ interface BasketSellModalProps {
 }
 
 const B = {
-  bg: '#000', panel: '#0d0d0d', border: '#2a2a2a',
-  amber: '#ff8c00', green: '#00ff41', red: '#ff3333', cyan: '#00e5ff',
-  label: '#888', text: '#e0e0e0',
+  bg: 'var(--bg-000000)', panel: 'var(--bg-0d0d0d)', border: 'var(--bg-2a2a2a)',
+  amber: 'var(--bg-ff8c00)', green: 'var(--bg-00ff41)', red: 'var(--bg-ff3333)', cyan: 'var(--bg-00e5ff)',
+  label: 'var(--fg-888888)', text: 'var(--fg-e0e0e0)',
 };
 
 function fmt$(n: number) {
@@ -109,16 +109,16 @@ export default function BasketSellModal({
 
   const overlayStyle: React.CSSProperties = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '16px' };
   const modalStyle: React.CSSProperties = { background: B.panel, border: `1px solid ${B.red}`, width: '100%', maxWidth: '640px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', fontFamily: 'Courier New, monospace' };
-  const headerStyle: React.CSSProperties = { background: B.red, color: '#000', padding: '8px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', fontSize: '12px', letterSpacing: '2px', flexShrink: 0 };
+  const headerStyle: React.CSSProperties = { background: B.red, color: 'var(--fg-000000)', padding: '8px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', fontSize: '12px', letterSpacing: '2px', flexShrink: 0 };
   const thStyle: React.CSSProperties = { color: B.label, fontSize: '10px', letterSpacing: '1px', padding: '5px 10px', textAlign: 'left', borderBottom: `1px solid ${B.border}`, fontWeight: 'normal', textTransform: 'uppercase' };
-  const tdStyle: React.CSSProperties = { padding: '5px 10px', borderBottom: '1px solid #111', fontSize: '12px', color: B.text };
+  const tdStyle: React.CSSProperties = { padding: '5px 10px', borderBottom: '1px solid var(--bg-111111)', fontSize: '12px', color: B.text };
 
   return (
     <div className="sheet-overlay" style={overlayStyle}>
       <div className="sheet" style={modalStyle}>
         <div style={headerStyle}>
           <span>{isPaper ? '📄 PAPER ' : ''}SELL BASKET — {fundName.toUpperCase()}</span>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#000', cursor: 'pointer', fontSize: '18px', lineHeight: 1, fontFamily: 'inherit' }}>×</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--fg-000000)', cursor: 'pointer', fontSize: '18px', lineHeight: 1, fontFamily: 'inherit' }}>×</button>
         </div>
 
         {step === 'done' ? (
@@ -141,7 +141,7 @@ export default function BasketSellModal({
             )}
             <div style={{ width: '100%', overflowY: 'auto', maxHeight: '180px' }}>
               {lines.map(l => (
-                <div key={l.ticker} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #111', fontSize: '12px' }}>
+                <div key={l.ticker} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--bg-111111)', fontSize: '12px' }}>
                   <span style={{ color: B.amber }}>{l.ticker}</span>
                   <span style={{ color: l.status === 'done' ? B.green : l.status === 'error' ? B.red : B.label }}>
                     {l.status === 'done' ? `✓ ${l.shares} SHS` : l.status === 'error' ? `✗ ${l.error}` : '—'}
@@ -149,7 +149,7 @@ export default function BasketSellModal({
                 </div>
               ))}
             </div>
-            <button onClick={onSold} style={{ padding: '8px 32px', background: B.amber, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '12px', letterSpacing: '2px' }}>
+            <button onClick={onSold} style={{ padding: '8px 32px', background: B.amber, color: 'var(--fg-000000)', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '12px', letterSpacing: '2px' }}>
               DONE
             </button>
           </div>
@@ -217,7 +217,7 @@ export default function BasketSellModal({
               </button>
               {step === 'confirm' ? (
                 <button onClick={sellAll} disabled={lines.length === 0}
-                  style={{ padding: '7px 20px', background: lines.length === 0 ? '#333' : B.red, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '1px' }}>
+                  style={{ padding: '7px 20px', background: lines.length === 0 ? 'var(--bg-333333)' : B.red, color: 'var(--fg-000000)', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '1px' }}>
                   SELL ALL {lines.length} POSITIONS
                 </button>
               ) : (

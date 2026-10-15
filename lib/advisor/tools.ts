@@ -650,7 +650,7 @@ async function getMarketSnapshot(tickers?: string[]) {
  * it". A company matching the theme that nobody holds answers no question this
  * Analyst is for.
  */
-async function searchSecurities(query: string, limit?: number) {
+export async function searchSecurities(query: string, limit?: number) {
   const q = (query ?? '').trim();
   if (!q) return { error: 'No search query given.' };
 

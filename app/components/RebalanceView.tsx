@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react';
 
 const B = {
-  bg: '#000', panel: '#0d0d0d', border: '#2a2a2a',
-  amber: '#ff8c00', amberDim: '#cc6d00',
-  green: '#00ff41', red: '#ff3333', cyan: '#00e5ff',
-  label: '#888', text: '#e0e0e0',
+  bg: 'var(--bg-000000)', panel: 'var(--bg-0d0d0d)', border: 'var(--bg-2a2a2a)',
+  amber: 'var(--bg-ff8c00)', amberDim: 'var(--bg-cc6d00)',
+  green: 'var(--bg-00ff41)', red: 'var(--bg-ff3333)', cyan: 'var(--bg-00e5ff)',
+  label: 'var(--fg-888888)', text: 'var(--fg-e0e0e0)',
 };
 
 interface RebalanceTrade {
@@ -111,8 +111,8 @@ export default function RebalanceView() {
   const sellTrades = result?.trades.filter(t => t.action === 'sell') ?? [];
 
   const thStyle: React.CSSProperties = { color: B.label, fontSize: '10px', letterSpacing: '1px', padding: '5px 10px', textAlign: 'left', borderBottom: `1px solid ${B.border}`, fontWeight: 'normal', textTransform: 'uppercase' };
-  const tdStyle: React.CSSProperties = { padding: '5px 10px', borderBottom: '1px solid #111', fontSize: '12px', color: B.text };
-  const sectionHeader: React.CSSProperties = { background: '#111', borderBottom: `1px solid ${B.border}`, padding: '6px 14px', color: B.amber, fontSize: '11px', letterSpacing: '2px', fontWeight: 'bold' };
+  const tdStyle: React.CSSProperties = { padding: '5px 10px', borderBottom: '1px solid var(--bg-111111)', fontSize: '12px', color: B.text };
+  const sectionHeader: React.CSSProperties = { background: 'var(--bg-111111)', borderBottom: `1px solid ${B.border}`, padding: '6px 14px', color: B.amber, fontSize: '11px', letterSpacing: '2px', fontWeight: 'bold' };
 
   return (
     <div style={{ padding: '16px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px', fontFamily: 'Courier New, monospace' }}>
@@ -151,7 +151,7 @@ export default function RebalanceView() {
                   <button
                     onClick={() => syncFund(alert)}
                     disabled={syncingCik === alert.cik}
-                    style={{ padding: '5px 14px', background: syncingCik === alert.cik ? '#333' : B.amber, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '10px', letterSpacing: '1px', opacity: syncingCik === alert.cik ? 0.6 : 1 }}
+                    style={{ padding: '5px 14px', background: syncingCik === alert.cik ? 'var(--bg-333333)' : B.amber, color: 'var(--fg-000000)', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '10px', letterSpacing: '1px', opacity: syncingCik === alert.cik ? 0.6 : 1 }}
                   >
                     {syncingCik === alert.cik ? 'SYNCING...' : 'SYNC NOW'}
                   </button>
@@ -201,7 +201,7 @@ export default function RebalanceView() {
                       <td style={{ ...tdStyle, color: B.label, fontSize: '11px' }}>
                         {new Date(b.placedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         {' '}
-                        <span style={{ color: '#444' }}>{new Date(b.placedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span style={{ color: 'var(--fg-444444)' }}>{new Date(b.placedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
                       </td>
                       <td style={{ ...tdStyle, color: B.amber, fontWeight: 'bold' }}>{b.fundName}</td>
                       <td style={{ ...tdStyle, textAlign: 'right', color: B.text }}>${b.budget.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
@@ -211,7 +211,7 @@ export default function RebalanceView() {
                     </tr>
                     {isExpanded && (
                       <tr key={`${b.id}-detail`}>
-                        <td colSpan={6} style={{ padding: '0 0 0 32px', background: '#080808', borderBottom: '1px solid #111' }}>
+                        <td colSpan={6} style={{ padding: '0 0 0 32px', background: 'var(--bg-080808)', borderBottom: '1px solid var(--bg-111111)' }}>
                           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                             <thead>
                               <tr>
@@ -292,7 +292,7 @@ export default function RebalanceView() {
               <div className="rebal-split" style={{ display: 'grid', gridTemplateColumns: sellTrades.length > 0 && buyTrades.length > 0 ? '1fr 1fr' : '1fr', gap: '0' }}>
                 {sellTrades.length > 0 && (
                   <div style={{ borderRight: buyTrades.length > 0 ? `1px solid ${B.border}` : 'none' }}>
-                    <div style={{ padding: '6px 14px', background: '#0a0000', color: B.red, fontSize: '10px', letterSpacing: '2px', borderBottom: `1px solid ${B.border}` }}>
+                    <div style={{ padding: '6px 14px', background: 'var(--bg-0a0000)', color: B.red, fontSize: '10px', letterSpacing: '2px', borderBottom: `1px solid ${B.border}` }}>
                       SELL · {sellTrades.length} POSITIONS
                     </div>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -321,7 +321,7 @@ export default function RebalanceView() {
                 )}
                 {buyTrades.length > 0 && (
                   <div>
-                    <div style={{ padding: '6px 14px', background: '#000a00', color: B.green, fontSize: '10px', letterSpacing: '2px', borderBottom: `1px solid ${B.border}` }}>
+                    <div style={{ padding: '6px 14px', background: 'var(--bg-000a00)', color: B.green, fontSize: '10px', letterSpacing: '2px', borderBottom: `1px solid ${B.border}` }}>
                       BUY · {buyTrades.length} POSITIONS
                     </div>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>

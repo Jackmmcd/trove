@@ -4,7 +4,7 @@ import Dashboard from '../components/Dashboard';
 
 export default function DashboardPage() {
   return (
-    <div style={{ minHeight: '100vh', background: '#000' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-000000)' }}>
       <Navigation />
       <TickerTape />
       <Dashboard />

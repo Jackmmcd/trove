@@ -16,8 +16,8 @@ interface Msg {
 
 interface ConvSummary { id: string; title: string; createdAt: string; updatedAt: string }
 
-const AMBER = '#ff8c00';
-const DIM = '#666';
+const AMBER = 'var(--bg-ff8c00)';
+const DIM = 'var(--fg-666666)';
 
 function timeAgo(iso: string): string {
   const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
@@ -51,11 +51,11 @@ function renderInline(
   while ((m = re.exec(text)) !== null) {
     if (m.index > last) parts.push(...plain(text.slice(last, m.index), `${keyPrefix}-p${i}`));
     if (m[1] !== undefined) {
-      parts.push(<strong key={`${keyPrefix}-b${i++}`} style={{ color: '#ffb454', fontWeight: 700 }}>{m[1]}</strong>);
+      parts.push(<strong key={`${keyPrefix}-b${i++}`} style={{ color: 'var(--fg-ffb454)', fontWeight: 700 }}>{m[1]}</strong>);
     } else {
       parts.push(
         <code key={`${keyPrefix}-c${i++}`} style={{
-          fontFamily: 'Courier New, monospace', fontSize: '0.9em', color: '#ffaa44',
+          fontFamily: 'Courier New, monospace', fontSize: '0.9em', color: 'var(--fg-ffaa44)',
         }}>{m[2]}</code>
       );
     }
@@ -100,8 +100,8 @@ function linkifyTickers(
         onClick={e => { if (e.altKey) { e.preventDefault(); onTicker(mt.symbol); } }}
         title={`${mt.symbol} — open company page (alt-click to peek here)`}
         style={{
-          font: 'inherit', color: '#ffb454', textDecoration: 'none',
-          borderBottom: '1px dotted #7a5a20', cursor: 'pointer',
+          font: 'inherit', color: 'var(--fg-ffb454)', textDecoration: 'none',
+          borderBottom: '1px dotted var(--bg-7a5a20)', cursor: 'pointer',
         }}
       >
         {mt.label}
@@ -316,17 +316,17 @@ export default function AnalystChat() {
           <aside className="analyst-sidebar">
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '14px 14px 10px', borderBottom: '1px solid #1a1a1a',
+              padding: '14px 14px 10px', borderBottom: '1px solid var(--bg-1a1a1a)',
             }}>
               <span style={{ color: DIM, fontSize: '10px', letterSpacing: '2px' }}>HISTORY</span>
               <button onClick={() => setSidebarOpen(false)} aria-label="Close history" style={{
-                background: 'none', border: '1px solid #222', color: DIM,
+                background: 'none', border: '1px solid var(--bg-222222)', color: DIM,
                 fontFamily: 'inherit', fontSize: '11px', lineHeight: 1,
                 padding: '4px 8px', cursor: 'pointer',
               }}>✕</button>
             </div>
 
-            <div style={{ padding: '12px 14px', borderBottom: '1px solid #1a1a1a' }}>
+            <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--bg-1a1a1a)' }}>
               <button onClick={newChat} disabled={busy} style={{
                 width: '100%', background: 'transparent', border: `1px solid ${AMBER}`,
                 color: AMBER, fontFamily: 'inherit', fontSize: '10.5px', letterSpacing: '2px',
@@ -336,7 +336,7 @@ export default function AnalystChat() {
 
             <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
               {conversations.length === 0 && (
-                <div style={{ color: '#444', fontSize: '11px', padding: '12px 14px', lineHeight: 1.6 }}>
+                <div style={{ color: 'var(--fg-444444)', fontSize: '11px', padding: '12px 14px', lineHeight: 1.6 }}>
                   No past conversations yet.
                 </div>
               )}
@@ -347,7 +347,7 @@ export default function AnalystChat() {
                     display: 'flex', alignItems: 'flex-start', gap: '6px',
                     padding: '9px 10px 9px 14px',
                     borderLeft: `2px solid ${active ? AMBER : 'transparent'}`,
-                    background: active ? '#101010' : 'transparent',
+                    background: active ? 'var(--bg-101010)' : 'transparent',
                   }}>
                     <button
                       onClick={() => openConversation(c.id)}
@@ -360,10 +360,10 @@ export default function AnalystChat() {
                       }}
                     >
                       <div style={{
-                        color: active ? '#e8e2d8' : '#999', fontSize: '11.5px', lineHeight: 1.4,
+                        color: active ? 'var(--fg-e8e2d8)' : 'var(--fg-999999)', fontSize: '11.5px', lineHeight: 1.4,
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                       }}>{c.title}</div>
-                      <div style={{ color: '#444', fontSize: '9.5px', marginTop: '3px', letterSpacing: '.5px' }}>
+                      <div style={{ color: 'var(--fg-444444)', fontSize: '9.5px', marginTop: '3px', letterSpacing: '.5px' }}>
                         {timeAgo(c.updatedAt)}
                       </div>
                     </button>
@@ -372,7 +372,7 @@ export default function AnalystChat() {
                       aria-label={`Delete ${c.title}`}
                       title="Delete"
                       style={{
-                        background: 'none', border: 'none', color: '#3a3a3a',
+                        background: 'none', border: 'none', color: 'var(--fg-3a3a3a)',
                         fontFamily: 'inherit', fontSize: '11px', cursor: 'pointer', padding: '0 2px',
                       }}
                     >✕</button>
@@ -392,10 +392,10 @@ export default function AnalystChat() {
       transition: 'margin-right .15s ease',
     }}>
 
-      <div style={{ padding: '28px 0 18px', borderBottom: `1px solid #1a1a1a` }}>
+      <div style={{ padding: '28px 0 18px', borderBottom: `1px solid var(--bg-1a1a1a)` }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>
           <button onClick={() => setSidebarOpen(o => !o)} style={{
-            background: 'none', border: '1px solid #222', color: DIM,
+            background: 'none', border: '1px solid var(--bg-222222)', color: DIM,
             fontFamily: 'inherit', fontSize: '10px', letterSpacing: '1.5px',
             padding: '5px 9px', cursor: 'pointer',
           }}>{sidebarOpen ? '✕' : '☰'} HISTORY</button>
@@ -404,7 +404,7 @@ export default function AnalystChat() {
             13F RESEARCH ASSISTANT{fundCount ? ` · ${fundCount} FUNDS IN CONTEXT` : ''}
           </span>
         </div>
-        <p style={{ color: '#888', fontSize: '12.5px', lineHeight: 1.6, margin: '10px 0 0', maxWidth: '62ch' }}>
+        <p style={{ color: 'var(--fg-888888)', fontSize: '12.5px', lineHeight: 1.6, margin: '10px 0 0', maxWidth: '62ch' }}>
           Analyst reads every tracked filer&apos;s disclosed positions. It surfaces what to look
           into and why — it does not give advice, and 13F data runs up to 45 days behind.
         </p>
@@ -416,7 +416,7 @@ export default function AnalystChat() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {STARTERS.map(s => (
               <button key={s} onClick={() => send(s)} disabled={busy} style={{
-                background: 'transparent', border: '1px solid #2a2a2a', color: '#bbb',
+                background: 'transparent', border: '1px solid var(--bg-2a2a2a)', color: 'var(--fg-bbbbbb)',
                 fontFamily: 'inherit', fontSize: '13px', textAlign: 'left',
                 padding: '11px 14px', cursor: busy ? 'default' : 'pointer', lineHeight: 1.45,
               }}>
@@ -438,7 +438,7 @@ export default function AnalystChat() {
             </div>
 
             <div style={{
-              color: m.role === 'user' ? '#ddd' : '#e8e2d8',
+              color: m.role === 'user' ? 'var(--fg-dddddd)' : 'var(--bg-e8e2d8)',
               fontSize: '14.5px', lineHeight: 1.7,
               whiteSpace: m.role === 'user' ? 'pre-wrap' : 'normal',
               fontFamily: m.role === 'user' ? 'inherit' : 'Georgia, serif',
@@ -453,7 +453,7 @@ export default function AnalystChat() {
                       // the user stares at a static word for the whole think phase,
                       // which is most of the wait on an analytical question.
                       ? <span style={{
-                          color: '#6f6552', fontFamily: 'Courier New, monospace',
+                          color: 'var(--fg-6f6552)', fontFamily: 'Courier New, monospace',
                           fontSize: '11.5px', lineHeight: 1.6, fontStyle: 'italic',
                           display: 'block', whiteSpace: 'pre-wrap',
                         }}>
@@ -466,7 +466,7 @@ export default function AnalystChat() {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '7px', marginTop: '12px' }}>
                 {followUps.map(q => (
                   <button key={q} onClick={() => send(q)} style={{
-                    background: 'transparent', border: '1px solid #2a2a2a', color: '#9a9a9a',
+                    background: 'transparent', border: '1px solid var(--bg-2a2a2a)', color: 'var(--fg-9a9a9a)',
                     fontFamily: 'Courier New, monospace', fontSize: '11.5px',
                     padding: '7px 11px', cursor: 'pointer', lineHeight: 1.4, textAlign: 'left',
                   }}>
@@ -477,7 +477,7 @@ export default function AnalystChat() {
             )}
 
             {m.usage && (
-              <div style={{ color: '#3f3f3f', fontSize: '10px', letterSpacing: '.5px', marginTop: '9px' }}>
+              <div style={{ color: 'var(--fg-3f3f3f)', fontSize: '10px', letterSpacing: '.5px', marginTop: '9px' }}>
                 cache read {m.usage.cacheRead.toLocaleString()} · write {m.usage.cacheWrite.toLocaleString()} ·
                 {' '}in {m.usage.input.toLocaleString()} · out {m.usage.output.toLocaleString()}
               </div>
@@ -489,8 +489,8 @@ export default function AnalystChat() {
 
       {error && (
         <div style={{
-          marginTop: '18px', border: '1px solid #3a1010', background: '#140606',
-          color: '#e07a5a', fontSize: '12.5px', padding: '11px 14px', lineHeight: 1.55,
+          marginTop: '18px', border: '1px solid var(--bg-3a1010)', background: 'var(--bg-140606)',
+          color: 'var(--fg-e07a5a)', fontSize: '12.5px', padding: '11px 14px', lineHeight: 1.55,
         }}>
           {error}
         </div>
@@ -502,7 +502,7 @@ export default function AnalystChat() {
 
       <div className={`analyst-composer${sidebarOpen ? ' analyst-shifted' : ''}`} style={{
         position: 'fixed', bottom: 'var(--tabbar-h)', left: 0, right: 0, zIndex: 85,
-        background: '#000', borderTop: '1px solid #1a1a1a', padding: '12px 16px',
+        background: 'var(--bg-000000)', borderTop: '1px solid var(--bg-1a1a1a)', padding: '12px 16px',
       }}>
         <form
           onSubmit={e => { e.preventDefault(); send(input); }}
@@ -519,15 +519,15 @@ export default function AnalystChat() {
             placeholder="Ask Analyst about the funds…"
             disabled={busy}
             style={{
-              flex: 1, background: '#0a0a0a', border: '1px solid #2a2a2a',
-              color: '#e8e2d8', fontFamily: 'inherit', fontSize: '13.5px',
+              flex: 1, background: 'var(--bg-0a0a0a)', border: '1px solid var(--bg-2a2a2a)',
+              color: 'var(--fg-e8e2d8)', fontFamily: 'inherit', fontSize: '13.5px',
               padding: '10px 12px', outline: 'none', resize: 'none', lineHeight: 1.5,
               maxHeight: '120px', minWidth: 0,
             }}
           />
           <button type="submit" disabled={busy || !input.trim()} style={{
-            background: busy || !input.trim() ? '#2a2a2a' : AMBER,
-            color: busy || !input.trim() ? '#666' : '#000',
+            background: busy || !input.trim() ? 'var(--bg-2a2a2a)' : AMBER,
+            color: busy || !input.trim() ? 'var(--fg-666666)' : 'var(--bg-000000)',
             border: 'none', fontFamily: 'inherit', fontWeight: 'bold',
             fontSize: '11px', letterSpacing: '1px', padding: '11px 18px',
             cursor: busy || !input.trim() ? 'default' : 'pointer',
@@ -536,11 +536,11 @@ export default function AnalystChat() {
           </button>
         </form>
         <div style={{
-          maxWidth: '860px', margin: '7px auto 0', color: '#333',
+          maxWidth: '860px', margin: '7px auto 0', color: 'var(--fg-333333)',
           fontSize: '9px', letterSpacing: '1px', textAlign: 'center',
         }}>
           NOT FINANCIAL ADVICE · ED CAN BE WRONG · VERIFY BEFORE ACTING ·{' '}
-          <Link href="/terms" style={{ color: '#444' }}>TERMS</Link>
+          <Link href="/terms" style={{ color: 'var(--fg-444444)' }}>TERMS</Link>
         </div>
       </div>
     </div>

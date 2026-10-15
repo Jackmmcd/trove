@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createClient } from '@/utils/supabase/client';
+import AISearch from './AISearch';
+import ThemeToggle from './ThemeToggle';
 
 interface Suggestion { symbol: string; name: string; type: string; }
 
@@ -47,6 +49,7 @@ export default function Navigation() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -82,7 +85,14 @@ export default function Navigation() {
   }, []);
 
   // Close drawer and overlay on route change
-  useEffect(() => { setMenuOpen(false); setSearchOpen(false); }, [pathname]);
+  useEffect(() => { setMenuOpen(false); setSearchOpen(false); setAiOpen(false); }, [pathname]);
+
+  const closeAi = useCallback(() => setAiOpen(false), []);
+
+  function openAi() {
+    setMenuOpen(false); setSearchOpen(false); setSuggestions([]);
+    setAiOpen(true);
+  }
 
   // The drawer and the search overlay both cover the page; stop the page
   // behind them scrolling under the finger.
@@ -132,7 +142,7 @@ export default function Navigation() {
   return (
     <div>
       <nav style={{
-        background: '#000', borderBottom: '1px solid #ff8c00',
+        background: 'var(--bg-000000)', borderBottom: '1px solid var(--bg-ff8c00)',
         position: 'sticky', top: 0, zIndex: 95,
         paddingTop: 'var(--safe-t)',
       }}>
@@ -141,7 +151,7 @@ export default function Navigation() {
 
             {/* Logo */}
             <Link href="/dashboard" style={{
-              background: '#ff8c00', color: '#000',
+              background: 'var(--bg-ff8c00)', color: 'var(--fg-000000)',
               fontWeight: '900', fontSize: '16px',
               padding: '0 14px', height: '40px', display: 'flex', alignItems: 'center',
               marginRight: '16px', letterSpacing: '2px', whiteSpace: 'nowrap',
@@ -158,9 +168,9 @@ export default function Navigation() {
                   <Link key={link.href} href={link.href} style={{
                     padding: '0 14px', height: '40px', display: 'flex', alignItems: 'center',
                     fontSize: '12px', fontWeight: 'bold', letterSpacing: '0.5px',
-                    color: active ? '#000' : '#ff8c00',
-                    background: active ? '#ff8c00' : 'transparent',
-                    borderRight: '1px solid #2a2a2a', textDecoration: 'none',
+                    color: active ? 'var(--fg-000000)' : 'var(--bg-ff8c00)',
+                    background: active ? 'var(--bg-ff8c00)' : 'transparent',
+                    borderRight: '1px solid var(--bg-2a2a2a)', textDecoration: 'none',
                   }}>
                     {link.label}
                   </Link>
@@ -180,8 +190,8 @@ export default function Navigation() {
                   placeholder="SEARCH TICKER"
                   style={{
                     background: 'transparent', border: 'none',
-                    borderBottom: `1px solid ${searchFocused ? '#ff8c00' : '#666'}`,
-                    color: '#ffaa33', fontFamily: 'Courier New, monospace',
+                    borderBottom: `1px solid ${searchFocused ? 'var(--bg-ff8c00)' : 'var(--bg-666666)'}`,
+                    color: 'var(--fg-ffaa33)', fontFamily: 'Courier New, monospace',
                     fontSize: '13px', letterSpacing: '2px', padding: '4px 8px',
                     width: searchFocused || searchValue ? '220px' : '160px',
                     outline: 'none', transition: 'width 0.2s ease, border-color 0.15s ease',
@@ -191,30 +201,39 @@ export default function Navigation() {
               {showDropdown && (
                 <div style={{
                   position: 'absolute', top: '100%', left: 0,
-                  background: '#0d0d0d', border: '1px solid #ff8c00',
+                  background: 'var(--bg-0d0d0d)', border: '1px solid var(--bg-ff8c00)',
                   borderTop: 'none', zIndex: 100, width: '240px',
                 }}>
                   {suggestions.map((s, i) => (
                     <div key={s.symbol} onMouseDown={() => navigate(s.symbol)} style={{
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                       padding: '7px 12px', cursor: 'pointer',
-                      background: i === activeIndex ? '#1a1a00' : 'transparent',
-                      borderBottom: i < suggestions.length - 1 ? '1px solid #1a1a1a' : 'none',
+                      background: i === activeIndex ? 'var(--bg-1a1a00)' : 'transparent',
+                      borderBottom: i < suggestions.length - 1 ? '1px solid var(--bg-1a1a1a)' : 'none',
                     }}>
-                      <span style={{ color: '#ff8c00', fontWeight: 'bold', fontSize: '13px', letterSpacing: '1px', fontFamily: 'Courier New, monospace' }}>{s.symbol}</span>
-                      <span style={{ color: '#666', fontSize: '11px', marginLeft: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }}>{s.name}</span>
+                      <span style={{ color: 'var(--fg-ff8c00)', fontWeight: 'bold', fontSize: '13px', letterSpacing: '1px', fontFamily: 'Courier New, monospace' }}>{s.symbol}</span>
+                      <span style={{ color: 'var(--fg-666666)', fontSize: '11px', marginLeft: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }}>{s.name}</span>
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
+            <button className="nav-search" onClick={openAi} style={{
+              marginLeft: '10px', background: 'transparent', border: '1px solid var(--bg-ff8c00)',
+              color: 'var(--fg-ff8c00)', fontFamily: 'Courier New, monospace', fontWeight: 'bold',
+              fontSize: '10px', letterSpacing: '1px', padding: '3px 10px', height: '24px', cursor: 'pointer',
+            }}>
+              ✦ AI SEARCH
+            </button>
+
             {/* Right side — desktop */}
             <div className="nav-links" style={{ marginLeft: 'auto', alignItems: 'center', gap: '12px' }}>
-              <span style={{ color: '#555', fontSize: '11px', letterSpacing: '1px' }}>13F TRACKER</span>
+              <span style={{ color: 'var(--fg-555555)', fontSize: '11px', letterSpacing: '1px' }}>13F TRACKER</span>
+              <ThemeToggle />
               <button onClick={handleLogout} style={{
-                background: 'transparent', border: '1px solid #2a0000',
-                color: '#cc2222', fontFamily: 'Courier New, monospace',
+                background: 'transparent', border: '1px solid var(--bg-2a0000)',
+                color: 'var(--fg-cc2222)', fontFamily: 'Courier New, monospace',
                 fontWeight: 'bold', fontSize: '10px', letterSpacing: '1px',
                 padding: '3px 10px', cursor: 'pointer', height: '24px',
               }}>
@@ -230,7 +249,7 @@ export default function Navigation() {
               onClick={() => setSearchOpen(true)}
               aria-label="Search ticker"
             >
-              <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="#ff8c00" strokeWidth="1.9" strokeLinecap="round">
+              <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="var(--bg-ff8c00)" strokeWidth="1.9" strokeLinecap="round">
                 <circle cx="8.8" cy="8.8" r="5.3" />
                 <path d="M12.8 12.8 L17 17" />
               </svg>
@@ -245,7 +264,7 @@ export default function Navigation() {
           thumb-sized target — so searching takes over the screen. */}
       {searchOpen && (
         <div className="search-overlay">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderBottom: '1px solid #ff8c00' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderBottom: '1px solid var(--bg-ff8c00)' }}>
             <form onSubmit={handleSearch} style={{ flex: 1, display: 'flex' }}>
               <input
                 ref={overlayInputRef}
@@ -258,14 +277,14 @@ export default function Navigation() {
                 autoCapitalize="characters"
                 enterKeyHint="search"
                 style={{
-                  flex: 1, background: '#0a0a0a', border: '1px solid #2a2a2a',
-                  color: '#ffaa33', fontFamily: 'Courier New, monospace',
+                  flex: 1, background: 'var(--bg-0a0a0a)', border: '1px solid var(--bg-2a2a2a)',
+                  color: 'var(--fg-ffaa33)', fontFamily: 'Courier New, monospace',
                   letterSpacing: '2px', padding: '11px 12px', outline: 'none',
                 }}
               />
             </form>
             <button onClick={() => { setSearchOpen(false); setSearchValue(''); setSuggestions([]); }} style={{
-              background: 'none', border: 'none', color: '#888',
+              background: 'none', border: 'none', color: 'var(--fg-888888)',
               fontFamily: 'Courier New, monospace', fontSize: '11px',
               letterSpacing: '1px', padding: '0 4px', cursor: 'pointer',
             }}>
@@ -274,19 +293,28 @@ export default function Navigation() {
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <button onClick={openAi} style={{
+              display: 'block', width: '100%', textAlign: 'left',
+              padding: '14px 16px', background: 'var(--bg-0a0a0a)',
+              border: 'none', borderBottom: '1px solid var(--bg-1a1a1a)', cursor: 'pointer',
+              color: 'var(--fg-ff8c00)', fontFamily: 'Courier New, monospace',
+              fontWeight: 'bold', fontSize: '13px', letterSpacing: '1px',
+            }}>
+              ✦ AI SEARCH <span style={{ color: 'var(--fg-666666)', fontWeight: 'normal', fontSize: '11px' }}>— search by theme or headline</span>
+            </button>
             {suggestions.map(s => (
               <button key={s.symbol} onClick={() => navigate(s.symbol)} style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 gap: '12px', width: '100%', textAlign: 'left',
                 padding: '14px 16px', background: 'none',
-                border: 'none', borderBottom: '1px solid #141414', cursor: 'pointer',
+                border: 'none', borderBottom: '1px solid var(--bg-141414)', cursor: 'pointer',
               }}>
-                <span style={{ color: '#ff8c00', fontWeight: 'bold', fontSize: '15px', letterSpacing: '1px', fontFamily: 'Courier New, monospace' }}>{s.symbol}</span>
-                <span style={{ color: '#777', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
+                <span style={{ color: 'var(--fg-ff8c00)', fontWeight: 'bold', fontSize: '15px', letterSpacing: '1px', fontFamily: 'Courier New, monospace' }}>{s.symbol}</span>
+                <span style={{ color: 'var(--fg-777777)', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
               </button>
             ))}
             {searchValue.trim() && suggestions.length === 0 && (
-              <p style={{ color: '#555', fontSize: '12px', letterSpacing: '1px', padding: '20px 16px' }}>
+              <p style={{ color: 'var(--fg-555555)', fontSize: '12px', letterSpacing: '1px', padding: '20px 16px' }}>
                 NO MATCHES — PRESS SEARCH TO OPEN {searchValue.trim()} ANYWAY
               </p>
             )}
@@ -304,39 +332,51 @@ export default function Navigation() {
           />
           <div style={{
             position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 111,
-            background: '#0a0a0a', borderTop: '1px solid #ff8c00',
+            background: 'var(--bg-0a0a0a)', borderTop: '1px solid var(--bg-ff8c00)',
             paddingBottom: 'calc(var(--safe-b) + 8px)',
             animation: 'sheet-up .22s cubic-bezier(.2,.8,.3,1)',
           }}>
             <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0 4px' }}>
-              <div style={{ width: '36px', height: '3px', background: '#333', borderRadius: '2px' }} />
+              <div style={{ width: '36px', height: '3px', background: 'var(--bg-333333)', borderRadius: '2px' }} />
             </div>
             {links.filter(l => !tabs.some(t => t.href === l.href)).map(link => {
               const active = pathname === link.href;
               return (
                 <Link key={link.href} href={link.href} style={{
                   padding: '15px 20px', fontSize: '14px', fontWeight: 'bold',
-                  letterSpacing: '1px', color: active ? '#000' : '#ff8c00',
-                  background: active ? '#ff8c00' : 'transparent',
-                  borderTop: '1px solid #161616', textDecoration: 'none',
+                  letterSpacing: '1px', color: active ? 'var(--fg-000000)' : 'var(--bg-ff8c00)',
+                  background: active ? 'var(--bg-ff8c00)' : 'transparent',
+                  borderTop: '1px solid var(--bg-161616)', textDecoration: 'none',
                   display: 'block',
                 }}>
                   {link.label}
                 </Link>
               );
             })}
+            <button onClick={openAi} style={{
+              display: 'block', width: '100%', textAlign: 'left',
+              padding: '15px 20px', background: 'transparent',
+              border: 'none', borderTop: '1px solid var(--bg-161616)',
+              color: 'var(--fg-ff8c00)', fontFamily: 'Courier New, monospace',
+              fontWeight: 'bold', fontSize: '14px', letterSpacing: '1px', cursor: 'pointer',
+            }}>
+              ✦ AI SEARCH
+            </button>
             <Link href="/disclosures" style={{
               padding: '15px 20px', fontSize: '13px', letterSpacing: '1px',
-              color: '#777', borderTop: '1px solid #161616',
+              color: 'var(--fg-777777)', borderTop: '1px solid var(--bg-161616)',
               textDecoration: 'none', display: 'block',
             }}>
               DISCLOSURES
             </Link>
+            <div style={{ padding: '12px 20px', borderTop: '1px solid var(--bg-161616)' }}>
+              <ThemeToggle label style={{ height: '34px', fontSize: '12px', padding: '0 12px' }} />
+            </div>
             <button onClick={handleLogout} style={{
               display: 'block', width: '100%', textAlign: 'left',
               padding: '15px 20px', background: 'transparent',
-              border: 'none', borderTop: '1px solid #161616',
-              color: '#cc2222', fontFamily: 'Courier New, monospace',
+              border: 'none', borderTop: '1px solid var(--bg-161616)',
+              color: 'var(--fg-cc2222)', fontFamily: 'Courier New, monospace',
               fontWeight: 'bold', fontSize: '13px', letterSpacing: '1px', cursor: 'pointer',
             }}>
               LOGOUT
@@ -345,18 +385,20 @@ export default function Navigation() {
         </>
       )}
 
+      {aiOpen && <AISearch onClose={closeAi} />}
+
       {/* Compliance bar */}
-      <div style={{ background: '#0a0a0a', borderBottom: '1px solid #1a1a1a', padding: '4px 16px', textAlign: 'center' }}>
-        <span style={{ color: '#444', fontSize: '9px', letterSpacing: '1.5px', fontFamily: 'Courier New, monospace' }}>
+      <div style={{ background: 'var(--bg-0a0a0a)', borderBottom: '1px solid var(--bg-1a1a1a)', padding: '4px 16px', textAlign: 'center' }}>
+        <span style={{ color: 'var(--fg-444444)', fontSize: '9px', letterSpacing: '1.5px', fontFamily: 'Courier New, monospace' }}>
           <span className="compliance-full">
             NOT FINANCIAL ADVICE &nbsp;·&nbsp; ALL TRADING INVOLVES RISK OF LOSS &nbsp;·&nbsp; 13F DATA REFLECTS PRIOR QUARTER (45-DAY DELAY) &nbsp;·&nbsp;{' '}
           </span>
           <span className="compliance-short">
             NOT ADVICE &nbsp;·&nbsp; 13F DATA IS 45 DAYS DELAYED &nbsp;·&nbsp;{' '}
           </span>
-          <a href="/terms" style={{ color: '#555', textDecoration: 'underline' }}>TERMS</a>
+          <a href="/terms" style={{ color: 'var(--fg-555555)', textDecoration: 'underline' }}>TERMS</a>
           &nbsp;·&nbsp;
-          <a href="/privacy" style={{ color: '#555', textDecoration: 'underline' }}>PRIVACY</a>
+          <a href="/privacy" style={{ color: 'var(--fg-555555)', textDecoration: 'underline' }}>PRIVACY</a>
         </span>
       </div>
 
@@ -372,7 +414,7 @@ export default function Navigation() {
           <button
             onClick={() => setMenuOpen(o => !o)}
             aria-label="More"
-            style={{ color: moreActive ? '#ff8c00' : undefined }}
+            style={{ color: moreActive ? 'var(--fg-ff8c00)' : undefined }}
           >
             <TabIcon name="more" />
             <span>MORE</span>

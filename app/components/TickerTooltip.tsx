@@ -45,20 +45,20 @@ export default function TickerTooltip({ ticker, children }: TickerTooltipProps) 
         <div style={{
           position: 'absolute', left: 0, top: '100%', marginTop: '4px',
           zIndex: 100, width: '220px',
-          background: '#000', border: '1px solid #ff8c00',
+          background: 'var(--bg-000000)', border: '1px solid var(--bg-ff8c00)',
           padding: '10px 12px', pointerEvents: 'none',
           fontFamily: 'Courier New, monospace',
         }}>
-          <p style={{ color: '#ff8c00', fontWeight: 'bold', fontSize: '12px', marginBottom: '4px', letterSpacing: '0.5px' }}>
+          <p style={{ color: 'var(--fg-ff8c00)', fontWeight: 'bold', fontSize: '12px', marginBottom: '4px', letterSpacing: '0.5px' }}>
             {info.name}
           </p>
           {info.sector && (
-            <p style={{ color: '#888', fontSize: '11px', letterSpacing: '0.5px' }}>
+            <p style={{ color: 'var(--fg-888888)', fontSize: '11px', letterSpacing: '0.5px' }}>
               {info.sector}{info.industry ? ` · ${info.industry}` : ''}
             </p>
           )}
           {info.exchange && (
-            <p style={{ color: '#555', fontSize: '10px', marginTop: '2px', letterSpacing: '1px' }}>
+            <p style={{ color: 'var(--fg-555555)', fontSize: '10px', marginTop: '2px', letterSpacing: '1px' }}>
               {info.exchange}
             </p>
           )}

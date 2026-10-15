@@ -28,10 +28,10 @@ interface BasketModalProps {
 }
 
 const B = {
-  bg: '#000', panel: '#0d0d0d', border: '#2a2a2a',
-  amber: '#ff8c00', amberDim: '#cc6d00',
-  green: '#00ff41', red: '#ff3333', cyan: '#00e5ff',
-  label: '#888', text: '#e0e0e0',
+  bg: 'var(--bg-000000)', panel: 'var(--bg-0d0d0d)', border: 'var(--bg-2a2a2a)',
+  amber: 'var(--bg-ff8c00)', amberDim: 'var(--bg-cc6d00)',
+  green: 'var(--bg-00ff41)', red: 'var(--bg-ff3333)', cyan: 'var(--bg-00e5ff)',
+  label: 'var(--fg-888888)', text: 'var(--fg-e0e0e0)',
 };
 
 export default function BasketModal({ fundId, fundName, holdings, isPaper = false, onClose }: BasketModalProps) {
@@ -126,16 +126,16 @@ export default function BasketModal({ fundId, fundName, holdings, isPaper = fals
 
   const overlayStyle: React.CSSProperties = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '16px' };
   const modalStyle: React.CSSProperties = { background: B.panel, border: `1px solid ${B.amber}`, width: '100%', maxWidth: '680px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', fontFamily: 'Courier New, monospace' };
-  const headerStyle: React.CSSProperties = { background: B.amber, color: '#000', padding: '8px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', fontSize: '12px', letterSpacing: '2px', flexShrink: 0 };
+  const headerStyle: React.CSSProperties = { background: B.amber, color: 'var(--fg-000000)', padding: '8px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', fontSize: '12px', letterSpacing: '2px', flexShrink: 0 };
   const thStyle: React.CSSProperties = { color: B.label, fontSize: '10px', letterSpacing: '1px', padding: '5px 10px', textAlign: 'left', borderBottom: `1px solid ${B.border}`, fontWeight: 'normal', textTransform: 'uppercase' };
-  const tdStyle: React.CSSProperties = { padding: '5px 10px', borderBottom: '1px solid #111', fontSize: '12px', color: B.text };
+  const tdStyle: React.CSSProperties = { padding: '5px 10px', borderBottom: '1px solid var(--bg-111111)', fontSize: '12px', color: B.text };
 
   return (
     <div className="sheet-overlay" style={overlayStyle}>
       <div className="sheet" style={modalStyle}>
         <div style={headerStyle}>
           <span>{isPaper ? '📄 PAPER ' : ''}BUY BASKET — {fundName.toUpperCase()}</span>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#000', cursor: 'pointer', fontSize: '18px', lineHeight: 1, fontFamily: 'inherit' }}>×</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--fg-000000)', cursor: 'pointer', fontSize: '18px', lineHeight: 1, fontFamily: 'inherit' }}>×</button>
         </div>
 
         {step === 'done' ? (
@@ -146,7 +146,7 @@ export default function BasketModal({ fundId, fundName, holdings, isPaper = fals
             </p>
             <div style={{ width: '100%', overflowY: 'auto', maxHeight: '180px' }}>
               {lines.filter(l => l.sharesToBuy > 0).map(l => (
-                <div key={l.ticker} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #111', fontSize: '12px' }}>
+                <div key={l.ticker} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--bg-111111)', fontSize: '12px' }}>
                   <span style={{ color: B.amber }}>{l.ticker}</span>
                   <span style={{ color: l.status === 'done' ? B.green : l.status === 'error' ? B.red : B.label }}>
                     {l.status === 'done' ? `✓ ${l.sharesToBuy} SHS` : l.status === 'error' ? `✗ ${l.error}` : 'SKIPPED'}
@@ -154,7 +154,7 @@ export default function BasketModal({ fundId, fundName, holdings, isPaper = fals
                 </div>
               ))}
             </div>
-            <button onClick={onClose} style={{ padding: '8px 32px', background: B.amber, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '12px', letterSpacing: '2px' }}>
+            <button onClick={onClose} style={{ padding: '8px 32px', background: B.amber, color: 'var(--fg-000000)', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '12px', letterSpacing: '2px' }}>
               DONE
             </button>
           </div>
@@ -169,13 +169,13 @@ export default function BasketModal({ fundId, fundName, holdings, isPaper = fals
                     type="number" min={0} step={100} value={budget}
                     onChange={e => setBudget(e.target.value)}
                     disabled={step !== 'configure'}
-                    style={{ background: '#000', border: `1px solid ${B.amber}`, color: B.amber, padding: '5px 10px', fontSize: '16px', fontFamily: 'Courier New, monospace', width: '120px', outline: 'none' }}
+                    style={{ background: 'var(--bg-000000)', border: `1px solid ${B.amber}`, color: B.amber, padding: '5px 10px', fontSize: '16px', fontFamily: 'Courier New, monospace', width: '120px', outline: 'none' }}
                   />
                 </div>
                 <button
                   onClick={() => setFractional(f => !f)}
                   disabled={step !== 'configure'}
-                  style={{ padding: '4px 10px', background: fractional ? B.cyan : 'transparent', color: fractional ? '#000' : B.label, border: `1px solid ${fractional ? B.cyan : B.border}`, cursor: 'pointer', fontFamily: 'Courier New, monospace', fontSize: '9px', letterSpacing: '1px', fontWeight: 'bold', whiteSpace: 'nowrap' }}
+                  style={{ padding: '4px 10px', background: fractional ? B.cyan : 'transparent', color: fractional ? 'var(--fg-000000)' : B.label, border: `1px solid ${fractional ? B.cyan : B.border}`, cursor: 'pointer', fontFamily: 'Courier New, monospace', fontSize: '9px', letterSpacing: '1px', fontWeight: 'bold', whiteSpace: 'nowrap' }}
                 >
                   {fractional ? 'FRACTIONAL' : 'WHOLE SHS'}
                 </button>
@@ -234,7 +234,7 @@ export default function BasketModal({ fundId, fundName, holdings, isPaper = fals
                             : l.status === 'done' ? <span style={{ color: B.green }}>✓ DONE</span>
                             : l.status === 'error' ? <span style={{ color: B.red }}>✗ ERR</span>
                             : l.sharesToBuy > 0 ? <span style={{ color: B.label }}>QUEUED</span>
-                            : <span style={{ color: '#333' }}>—</span>}
+                            : <span style={{ color: 'var(--fg-333333)' }}>—</span>}
                         </td>
                       )}
                     </tr>
@@ -250,7 +250,7 @@ export default function BasketModal({ fundId, fundName, holdings, isPaper = fals
               </button>
               {step === 'configure' && (
                 <button onClick={() => setStep('confirm')} disabled={budgetNum <= 0 || loadingPrices}
-                  style={{ padding: '7px 20px', background: budgetNum <= 0 || loadingPrices ? '#333' : B.amber, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '1px', opacity: budgetNum <= 0 || loadingPrices ? 0.5 : 1 }}>
+                  style={{ padding: '7px 20px', background: budgetNum <= 0 || loadingPrices ? 'var(--bg-333333)' : B.amber, color: 'var(--fg-000000)', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '1px', opacity: budgetNum <= 0 || loadingPrices ? 0.5 : 1 }}>
                   {loadingPrices ? 'FETCHING PRICES...' : 'PREVIEW ORDERS'}
                 </button>
               )}
@@ -260,7 +260,7 @@ export default function BasketModal({ fundId, fundName, holdings, isPaper = fals
                     BACK
                   </button>
                   <button onClick={placeAll} disabled={buyableLines.length === 0}
-                    style={{ padding: '7px 20px', background: buyableLines.length === 0 ? '#333' : B.green, color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '1px', opacity: buyableLines.length === 0 ? 0.5 : 1 }}>
+                    style={{ padding: '7px 20px', background: buyableLines.length === 0 ? 'var(--bg-333333)' : B.green, color: 'var(--fg-000000)', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '1px', opacity: buyableLines.length === 0 ? 0.5 : 1 }}>
                     PLACE {buyableLines.length} ORDERS
                   </button>
                 </div>

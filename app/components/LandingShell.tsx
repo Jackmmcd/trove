@@ -3,11 +3,12 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import AnalystFull from './AnalystFull';
+import ThemeToggle from './ThemeToggle';
 
 const B = {
-  amber: '#ff8c00',
-  border: '#2a2a2a',
-  label: '#888',
+  amber: 'var(--bg-ff8c00)',
+  border: 'var(--bg-2a2a2a)',
+  label: 'var(--fg-888888)',
 };
 
 /**
@@ -25,7 +26,7 @@ export default function LandingShell({ children }: { children: React.ReactNode }
 
   const tabStyle = (active: boolean): React.CSSProperties => ({
     background: active ? B.amber : 'transparent',
-    color: active ? '#000' : B.amber,
+    color: active ? 'var(--fg-000000)' : B.amber,
     border: 'none',
     borderRight: `1px solid ${B.border}`,
     fontFamily: 'Courier New, monospace',
@@ -42,12 +43,12 @@ export default function LandingShell({ children }: { children: React.ReactNode }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <nav style={{
-        background: '#000', borderBottom: `1px solid ${B.amber}`,
+        background: 'var(--bg-000000)', borderBottom: `1px solid ${B.amber}`,
         position: 'sticky', top: 0, zIndex: 40, flexShrink: 0,
       }}>
         <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 16px', display: 'flex', alignItems: 'center', height: '40px' }}>
           <Link href="/" onClick={() => setTab('overview')} style={{
-            background: B.amber, color: '#000', fontWeight: 900, fontSize: '16px',
+            background: B.amber, color: 'var(--fg-000000)', fontWeight: 900, fontSize: '16px',
             padding: '0 14px', height: '40px', display: 'flex', alignItems: 'center',
             marginRight: '16px', letterSpacing: '2px', textDecoration: 'none', flexShrink: 0,
             fontFamily: 'Courier New, monospace',
@@ -58,8 +59,8 @@ export default function LandingShell({ children }: { children: React.ReactNode }
           {/* Analyst is the only destination in the bar; TROVE is the way back. */}
           <button onClick={() => setTab('analyst')} style={tabStyle(tab === 'analyst')}>ANALYST</button>
 
-          <Link href="/login" style={{
-            marginLeft: 'auto', color: B.label, fontFamily: 'Courier New, monospace',
+          <ThemeToggle style={{ marginLeft: 'auto', marginRight: '10px', height: '27px', borderColor: B.border }} />
+          <Link href="/login" style={{ color: B.label, fontFamily: 'Courier New, monospace',
             fontSize: '11px', letterSpacing: '1.5px', textDecoration: 'none',
             border: `1px solid ${B.border}`, padding: '5px 14px',
           }}>

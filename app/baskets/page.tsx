@@ -6,9 +6,9 @@ import Navigation from '../components/Navigation';
 import BasketSellModal from '../components/BasketSellModal';
 
 const B = {
-  bg: '#000', panel: '#0d0d0d', border: '#2a2a2a',
-  amber: '#ff8c00', green: '#00ff41', red: '#ff3333', cyan: '#00e5ff',
-  label: '#888', text: '#e0e0e0',
+  bg: 'var(--bg-000000)', panel: 'var(--bg-0d0d0d)', border: 'var(--bg-2a2a2a)',
+  amber: 'var(--bg-ff8c00)', green: 'var(--bg-00ff41)', red: 'var(--bg-ff3333)', cyan: 'var(--bg-00e5ff)',
+  label: 'var(--fg-888888)', text: 'var(--fg-e0e0e0)',
 };
 
 interface Order {
@@ -102,7 +102,7 @@ export default function BasketsPage() {
       ) : baskets.length === 0 ? (
         <div style={{ padding: '40px', textAlign: 'center' }}>
           <p style={{ color: B.label, letterSpacing: '2px', fontSize: '12px' }}>NO BASKETS PURCHASED YET</p>
-          <p style={{ color: '#444', fontSize: '11px', marginTop: '8px' }}>Buy a basket from the FUNDS page to start tracking performance.</p>
+          <p style={{ color: 'var(--fg-444444)', fontSize: '11px', marginTop: '8px' }}>Buy a basket from the FUNDS page to start tracking performance.</p>
         </div>
       ) : (
       <div style={{ padding: '16px', maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -132,7 +132,7 @@ export default function BasketsPage() {
             <div
               onClick={() => setExpanded(prev => ({ ...prev, [basket.id]: !prev[basket.id] }))}
               style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer', flexWrap: 'wrap' }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#111')}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-111111)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
               {/* Expand toggle */}
@@ -146,7 +146,7 @@ export default function BasketsPage() {
                     <span style={{ color: B.label, fontSize: '9px', letterSpacing: '2px', border: `1px solid ${B.border}`, padding: '1px 6px' }}>CLOSED</span>
                   )}
                 </div>
-                <div style={{ color: '#444', fontSize: '10px', marginTop: '2px' }}>
+                <div style={{ color: 'var(--fg-444444)', fontSize: '10px', marginTop: '2px' }}>
                   {timeAgo(basket.placedAt)} · {doneOrders.length} positions
                   {isSold && basket.soldAt ? ` · sold ${timeAgo(basket.soldAt)}` : ''}
                 </div>
@@ -180,7 +180,7 @@ export default function BasketsPage() {
                   <button
                     onClick={e => { e.stopPropagation(); setSelling(basket); }}
                     style={{ padding: '6px 12px', background: 'transparent', color: B.red, border: `1px solid ${B.red}`, cursor: 'pointer', fontFamily: 'Courier New, monospace', fontSize: '10px', letterSpacing: '1.5px', fontWeight: 'bold' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = B.red; e.currentTarget.style.color = '#000'; }}
+                    onMouseEnter={e => { e.currentTarget.style.background = B.red; e.currentTarget.style.color = 'var(--fg-000000)'; }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = B.red; }}
                   >
                     SELL
@@ -214,17 +214,17 @@ export default function BasketsPage() {
                           key={o.ticker}
                           onClick={() => router.push(`/stock/${o.ticker}`)}
                           style={{ cursor: 'pointer' }}
-                          onMouseEnter={e => (e.currentTarget.style.background = '#111')}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-111111)')}
                           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                         >
-                          <td data-head="" data-label="Ticker" style={{ padding: '7px 14px', borderBottom: '1px solid #111', color: B.amber, fontWeight: 'bold', fontSize: '12px' }}>{o.ticker}</td>
-                          <td data-label="Shares" style={{ padding: '7px 14px', borderBottom: '1px solid #111', textAlign: 'right', fontSize: '12px', color: B.text }}>{o.shares}</td>
-                          <td data-label="Entry" style={{ padding: '7px 14px', borderBottom: '1px solid #111', textAlign: 'right', fontSize: '12px', color: B.label }}>{fmt$(o.price)}</td>
-                          <td data-label={isSold ? 'Exit' : 'Current'} style={{ padding: '7px 14px', borderBottom: '1px solid #111', textAlign: 'right', fontSize: '12px', color: B.cyan }}>{fmt$(exitPrice)}</td>
-                          <td data-label="Cost" style={{ padding: '7px 14px', borderBottom: '1px solid #111', textAlign: 'right', fontSize: '12px', color: B.text }}>{fmt$(cost)}</td>
-                          <td data-label="Value" style={{ padding: '7px 14px', borderBottom: '1px solid #111', textAlign: 'right', fontSize: '12px', color: B.cyan }}>{fmt$(val)}</td>
-                          <td data-label="P&L" style={{ padding: '7px 14px', borderBottom: '1px solid #111', textAlign: 'right', fontSize: '12px', color: up ? B.green : B.red, fontWeight: 'bold' }}>{up ? '+' : ''}{fmt$(gain)}</td>
-                          <td data-label="Return" style={{ padding: '7px 14px', borderBottom: '1px solid #111', textAlign: 'right', fontSize: '12px', color: up ? B.green : B.red }}>{fmtPct(gainPct)}</td>
+                          <td data-head="" data-label="Ticker" style={{ padding: '7px 14px', borderBottom: '1px solid var(--bg-111111)', color: B.amber, fontWeight: 'bold', fontSize: '12px' }}>{o.ticker}</td>
+                          <td data-label="Shares" style={{ padding: '7px 14px', borderBottom: '1px solid var(--bg-111111)', textAlign: 'right', fontSize: '12px', color: B.text }}>{o.shares}</td>
+                          <td data-label="Entry" style={{ padding: '7px 14px', borderBottom: '1px solid var(--bg-111111)', textAlign: 'right', fontSize: '12px', color: B.label }}>{fmt$(o.price)}</td>
+                          <td data-label={isSold ? 'Exit' : 'Current'} style={{ padding: '7px 14px', borderBottom: '1px solid var(--bg-111111)', textAlign: 'right', fontSize: '12px', color: B.cyan }}>{fmt$(exitPrice)}</td>
+                          <td data-label="Cost" style={{ padding: '7px 14px', borderBottom: '1px solid var(--bg-111111)', textAlign: 'right', fontSize: '12px', color: B.text }}>{fmt$(cost)}</td>
+                          <td data-label="Value" style={{ padding: '7px 14px', borderBottom: '1px solid var(--bg-111111)', textAlign: 'right', fontSize: '12px', color: B.cyan }}>{fmt$(val)}</td>
+                          <td data-label="P&L" style={{ padding: '7px 14px', borderBottom: '1px solid var(--bg-111111)', textAlign: 'right', fontSize: '12px', color: up ? B.green : B.red, fontWeight: 'bold' }}>{up ? '+' : ''}{fmt$(gain)}</td>
+                          <td data-label="Return" style={{ padding: '7px 14px', borderBottom: '1px solid var(--bg-111111)', textAlign: 'right', fontSize: '12px', color: up ? B.green : B.red }}>{fmtPct(gainPct)}</td>
                         </tr>
                       );
                     })}
