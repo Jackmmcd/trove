@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import TickerPanel from './TickerPanel';
+import useKeyboardInset from './useKeyboardInset';
 import { findTickerMatches } from '@/lib/analyst/tickers';
 import { suggestFollowUps } from '@/lib/analyst/followups';
 
@@ -152,6 +153,15 @@ const STARTERS = [
 ];
 
 export default function AnalystChat() {
+  const keyboard = useKeyboardInset();
+
+  // The tab bar lives behind the keyboard while it is open. Hiding it stops
+  // it flickering through during the open/close animation, and gives the
+  // conversation the full remaining height.
+  useEffect(() => {
+    document.body.classList.toggle('kb-open', keyboard > 0);
+    return () => document.body.classList.remove('kb-open');
+  }, [keyboard]);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -501,7 +511,11 @@ export default function AnalystChat() {
       )}
 
       <div className={`analyst-composer${sidebarOpen ? ' analyst-shifted' : ''}`} style={{
-        position: 'fixed', bottom: 'var(--tabbar-h)', left: 0, right: 0, zIndex: 85,
+        position: 'fixed',
+        // With the keyboard up, sit directly on it; the tab bar is behind it
+        // anyway and is hidden for the duration.
+        bottom: keyboard > 0 ? `${keyboard}px` : 'var(--tabbar-h)',
+        left: 0, right: 0, zIndex: 85,
         background: 'var(--bg-000000)', borderTop: '1px solid var(--bg-1a1a1a)', padding: '12px 16px',
       }}>
         <form

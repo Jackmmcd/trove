@@ -42,6 +42,10 @@ export const viewport = {
   // Lets the page paint into the notch / home-indicator area; the safe-area
   // insets in globals.css keep content out of it.
   viewportFit: 'cover',
+  // Ask the browser to shrink the layout viewport for the keyboard rather
+  // than leave it overlapping. Where it is honoured the composer needs no
+  // help; useKeyboardInset covers the browsers that ignore it, iOS included.
+  interactiveWidget: 'resizes-content',
   // Tracks the theme so the iOS status bar and the Android chrome match the
   // page instead of banding against it.
   themeColor: [

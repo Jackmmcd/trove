@@ -467,3 +467,10 @@ html, body { max-width: 100%; overflow-x: clip; }
   .compliance-full { display: none; }
   .compliance-short { display: inline; }
 }
+
+/* ── On-screen keyboard ───────────────────────────────────────────── */
+
+/* While the keyboard is up it covers the tab bar anyway; hiding it stops it
+   showing through the open/close animation. See useKeyboardInset.ts for why
+   a bottom-fixed element needs help here at all. */
+body.kb-open .tabbar { display: none; }
