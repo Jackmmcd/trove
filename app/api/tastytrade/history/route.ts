@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
+import { requireSignedIn } from '@/lib/broker/guard';
 import { getSnapshots, getAggs } from '@/lib/polygon/client';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
+  const denied = await requireSignedIn();
+  if (denied) return denied;
+
   const { searchParams } = new URL(request.url);
   const symbolsParam = searchParams.get('symbols') ?? '';
   const symbols = symbolsParam.split(',').map(s => s.trim()).filter(Boolean);

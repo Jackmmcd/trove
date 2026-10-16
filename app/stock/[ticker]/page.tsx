@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import TradeModal from '@/app/components/TradeModal';
+import useAccountSource from '@/app/components/useAccountSource';
 import { useTheme, resolveColor as c } from '@/app/components/ThemeToggle';
 import Navigation from '@/app/components/Navigation';
 
@@ -169,7 +170,7 @@ export default function StockPage() {
   const [digest, setDigest] = useState<string | null>(null);
   const [digestLoading, setDigestLoading] = useState(false);
   const [heldShares, setHeldShares] = useState<number>(0);
-  const [isPaper, setIsPaper] = useState(false);
+  const { isPaper } = useAccountSource();
   const [tradeModal, setTradeModal] = useState<'buy' | 'sell' | null>(null);
   const [candles, setCandles] = useState<Candle[]>([]);
   const [candlesLoading, setCandlesLoading] = useState(false);
@@ -216,25 +217,26 @@ export default function StockPage() {
       .catch(() => setError('Network error'))
       .finally(() => setLoading(false));
 
-    // Detect paper account, then check the right positions source
-    fetch('/api/paper/balance')
-      .then(r => {
-        if (r.ok) {
-          setIsPaper(true);
-          return fetch('/api/paper/positions').then(r2 => r2.json()).then(d => {
-            if (d.success) {
-              const pos = d.data.find((p: any) => p.symbol === ticker);
-              setHeldShares(pos ? Number(pos.quantity || 0) : 0);
-            }
-          });
-        } else {
-          return fetch('/api/tastytrade/positions').then(r2 => r2.json()).then(d => {
-            if (d.success) {
-              const pos = d.data.find((p: any) => p.symbol === ticker);
+    // Which positions to count depends on which account is actually theirs,
+    // and only the server can say. This used to infer it from whether
+    // /api/paper/balance returned ok, which it always does.
+    fetch('/api/account/source')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (d?.source === 'broker') {
+          return fetch('/api/tastytrade/positions').then(r2 => r2.json()).then(pd => {
+            if (pd.success) {
+              const pos = pd.data.find((p: any) => p.symbol === ticker);
               setHeldShares(pos ? parseFloat(pos.quantity || '0') : 0);
             }
           });
         }
+        return fetch('/api/paper/positions').then(r2 => r2.json()).then(pd => {
+          if (pd.success) {
+            const pos = pd.data.find((p: any) => p.symbol === ticker);
+            setHeldShares(pos ? Number(pos.quantity || 0) : 0);
+          }
+        });
       })
       .catch(() => {});
 

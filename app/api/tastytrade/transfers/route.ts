@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getValidAccessToken, getSessionToken } from '@/lib/auth/session';
+import { requireBrokerOwner } from '@/lib/broker/guard';
 import { getTastytradeClient } from '@/lib/tastytrade/client';
 
 async function getTokenWithFundingAccess(): Promise<string | null> {
@@ -13,6 +14,9 @@ async function getTokenWithFundingAccess(): Promise<string | null> {
 
 /** POST /api/tastytrade/transfers — initiate ACH deposit or withdrawal */
 export async function POST(request: Request) {
+  const denied = await requireBrokerOwner();
+  if (denied) return denied;
+
   try {
     const token = await getTokenWithFundingAccess();
     if (!token) {
@@ -64,6 +68,9 @@ export async function POST(request: Request) {
 
 /** GET /api/tastytrade/transfers — list recent ACH transfers */
 export async function GET() {
+  const denied = await requireBrokerOwner();
+  if (denied) return denied;
+
   try {
     const oauthToken = await getValidAccessToken();
     if (!oauthToken) {

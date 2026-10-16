@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import TradeModal from './TradeModal';
 import BasketModal from './BasketModal';
 import TickerTooltip from './TickerTooltip';
+import useAccountSource from './useAccountSource';
 
 interface Holding {
   ticker: string;
@@ -48,7 +49,9 @@ export default function FundList() {
   const router = useRouter();
   const [funds, setFunds] = useState<Fund[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isPaper, setIsPaper] = useState(false);
+  // Asked of the server, not inferred from whether a paper account exists —
+  // see useAccountSource for why that inference was always true.
+  const { isPaper } = useAccountSource();
   const [syncing, setSyncing] = useState(false);
   const [syncingCik, setSyncingCik] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -70,8 +73,6 @@ export default function FundList() {
 
   useEffect(() => {
     fetchFunds();
-    // Detect paper account
-    fetch('/api/paper/balance').then(r => { if (r.ok) setIsPaper(true); }).catch(() => {});
   }, []);
 
   function toast(message: string, type: 'success' | 'error' = 'success') {

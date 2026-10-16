@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getValidAccessToken, getSessionToken } from '@/lib/auth/session';
+import { requireBrokerOwner } from '@/lib/broker/guard';
 import { getTastytradeClient } from '@/lib/tastytrade/client';
 
 async function fetchRelationships(token: string) {
@@ -15,6 +16,9 @@ async function fetchRelationships(token: string) {
 }
 
 export async function GET() {
+  const denied = await requireBrokerOwner();
+  if (denied) return denied;
+
   try {
     // Try OAuth token first
     const oauthToken = await getValidAccessToken();

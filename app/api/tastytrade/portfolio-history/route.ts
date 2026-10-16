@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
 import { getValidAccessToken } from '@/lib/auth/session';
+import { requireBrokerOwner } from '@/lib/broker/guard';
 import { getTastytradeClient } from '@/lib/tastytrade/client';
 
 interface DayValue {
@@ -36,6 +37,9 @@ async function fetchDailyCloses(symbol: string, quantity: number): Promise<DayVa
 }
 
 export async function GET() {
+  const denied = await requireBrokerOwner();
+  if (denied) return denied;
+
   try {
     const accessToken = await getValidAccessToken();
     if (!accessToken) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });

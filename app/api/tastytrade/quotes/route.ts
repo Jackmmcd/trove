@@ -2,10 +2,14 @@ import { NextResponse } from 'next/server';
 import { getTastytradeClient } from '@/lib/tastytrade/client';
 import { getValidAccessToken } from '@/lib/auth/session';
 import { AlpacaClient } from '@/lib/alpaca/client';
+import { requireSignedIn } from '@/lib/broker/guard';
 import axios from 'axios';
 
 /** GET /api/tastytrade/quotes?symbols=AAPL,MSFT,AMZN */
 export async function GET(request: Request) {
+  const denied = await requireSignedIn();
+  if (denied) return denied;
+
   const { searchParams } = new URL(request.url);
   const symbolsParam = searchParams.get('symbols') ?? '';
   const symbols = symbolsParam.split(',').map(s => s.trim()).filter(Boolean);

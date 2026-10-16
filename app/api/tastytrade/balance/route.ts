@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getTastytradeClient } from '@/lib/tastytrade/client';
 import { getValidAccessToken } from '@/lib/auth/session';
+import { requireBrokerOwner } from '@/lib/broker/guard';
 import { AlpacaClient } from '@/lib/alpaca/client';
 
 export async function GET() {
+  const denied = await requireBrokerOwner();
+  if (denied) return denied;
+
   try {
     if (process.env.BROKER === 'alpaca') {
       const client = new AlpacaClient();
