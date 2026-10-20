@@ -236,7 +236,6 @@ export default function Navigation() {
 
             {/* Right side — desktop */}
             <div className="nav-links" style={{ marginLeft: 'auto', alignItems: 'center', gap: '12px' }}>
-              <span style={{ color: 'var(--fg-555555)', fontSize: '11px', letterSpacing: '1px' }}>13F TRACKER</span>
               <ThemeToggle />
               <button onClick={handleLogout} style={{
                 background: 'transparent', border: '1px solid var(--bg-2a0000)',
