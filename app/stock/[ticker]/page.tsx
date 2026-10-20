@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import TradeModal from '@/app/components/TradeModal';
 import useAccountSource from '@/app/components/useAccountSource';
-import { useTheme, resolveColor as c } from '@/app/components/ThemeToggle';
 import Navigation from '@/app/components/Navigation';
+import AreaScrubChart from '@/app/components/AreaScrubChart';
+import useIsMobile from '@/app/components/useIsMobile';
 
 const B = {
   bg: 'var(--bg-000000)', panel: 'var(--bg-0d0d0d)', border: 'var(--bg-2a2a2a)',
@@ -78,68 +79,28 @@ const RANGES = [
   { label: '5Y', tv: 'M', interval: '5y' },
 ];
 
-function Sparkline({ data }: { data: SparkPoint[] }) {
-  if (data.length < 2) return null;
-  const vals = data.map(d => d.v);
-  const min = Math.min(...vals);
-  const max = Math.max(...vals);
-  const range = max - min || 1;
-  const w = 600; const h = 80;
-  const pts = data.map((d, i) => {
-    const x = (i / (data.length - 1)) * w;
-    const y = h - ((d.v - min) / range) * h;
-    return `${x},${y}`;
-  }).join(' ');
-  const isUp = vals[vals.length - 1] >= vals[0];
-  const color = isUp ? B.green : B.red;
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: '100%', height: '80px' }} preserveAspectRatio="none">
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" />
-      <line x1={0} y1={h} x2={w} y2={h} stroke={B.border} strokeWidth="0.5" />
-    </svg>
-  );
-}
+const RANGE_LABEL: Record<string, string> = {
+  '1D': 'Today', '5D': 'Past 5 days', '1M': 'Past month', '3M': 'Past 3 months',
+  'YTD': 'Year to date', '1Y': 'Past year', '2Y': 'Past 2 years', '5Y': 'Past 5 years',
+};
+const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
-function CandleChart({ candles, isUp }: { candles: Candle[]; isUp: boolean }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  // The chart draws to a canvas, which cannot read CSS variables, so colours
-  // are resolved to hex at build time and the chart is rebuilt on a theme flip.
-  const theme = useTheme();
-  useEffect(() => {
-    if (!containerRef.current || candles.length === 0) return;
-    let cleanup: (() => void) | undefined;
-    let cancelled = false;
-    import('lightweight-charts').then(({ createChart, CandlestickSeries }) => {
-      if (cancelled || !containerRef.current) return;
-      const el = containerRef.current;
-      el.innerHTML = '';
-      const chartHeight = () => (window.innerWidth <= 640 ? 300 : 420);
-      const chart = createChart(el, {
-        width: el.clientWidth,
-        height: chartHeight(),
-        layout: { background: { color: c('var(--bg-0d0d0d)') }, textColor: c('var(--fg-888888)') },
-        grid: { vertLines: { color: c('var(--bg-1a1a1a)') }, horzLines: { color: c('var(--bg-1a1a1a)') } },
-        crosshair: { mode: 1 },
-        rightPriceScale: { borderColor: c('var(--bg-2a2a2a)') },
-        timeScale: { borderColor: c('var(--bg-2a2a2a)'), timeVisible: true },
-      });
-      const series = chart.addSeries(CandlestickSeries, {
-        upColor: c('var(--bg-00ff41)'), downColor: c('var(--bg-ff3333)'),
-        borderUpColor: c('var(--bg-00ff41)'), borderDownColor: c('var(--bg-ff3333)'),
-        wickUpColor: c('var(--bg-00ff41)'), wickDownColor: c('var(--bg-ff3333)'),
-      });
-      const data = candles
-        .filter(c => c.open && c.high && c.low && c.close)
-        .map(c => ({ time: c.time as any, open: c.open, high: c.high, low: c.low, close: c.close }));
-      series.setData(data);
-      chart.timeScale().fitContent();
-      const ro = new ResizeObserver(() => chart.applyOptions({ width: el.clientWidth, height: chartHeight() }));
-      ro.observe(el);
-      cleanup = () => { ro.disconnect(); chart.remove(); };
-    });
-    return () => { cancelled = true; cleanup?.(); };
-  }, [candles, theme]);
-  return <div ref={containerRef} style={{ width: '100%' }} />;
+/**
+ * Hover label for one candle. Intraday candles arrive as unix seconds and are
+ * shown in market time; daily ones arrive as dates, with the year added once a
+ * window spans more than one.
+ */
+function candleLabel(time: number | string, rangeLabel: string): string {
+  if (typeof time === 'number') {
+    const d = new Date(time * 1000);
+    const clock = d.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' });
+    if (rangeLabel === '1D') return clock;
+    const day = d.toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric' }).toUpperCase();
+    return `${day} ${clock}`;
+  }
+  const [y, m, dd] = time.split('-');
+  const base = `${MONTHS[Number(m) - 1]} ${Number(dd)}`;
+  return ['2Y', '5Y'].includes(rangeLabel) ? `${base} ${y}` : base;
 }
 
 interface Analysis {
@@ -160,6 +121,7 @@ export default function StockPage() {
   const params = useParams();
   const router = useRouter();
   const ticker = (params?.ticker as string ?? '').toUpperCase();
+  const isMobile = useIsMobile();
   const [data, setData] = useState<StockData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -264,6 +226,17 @@ export default function StockPage() {
 
   const isUp = (data?.change ?? 0) >= 0;
   const priceColor = isUp ? B.green : B.red;
+
+  // The chart plots closes for the selected range; its colour and the change
+  // line above it describe that range, as on the portfolio page.
+  const chartSeries = candles
+    .filter(k => Number.isFinite(k.close) && k.close > 0)
+    .map(k => ({ value: k.close, label: candleLabel(k.time, range.label) }));
+  const windowChange = chartSeries.length > 1 ? chartSeries[chartSeries.length - 1].value - chartSeries[0].value : null;
+  const windowPct = windowChange !== null ? (windowChange / chartSeries[0].value) * 100 : null;
+  const windowUp = (windowChange ?? 0) >= 0;
+  const windowTrend = windowUp ? B.green : B.red;
+  const chartHeight = isMobile ? 220 : 300;
 
   function timeAgo(unix: number) {
     const diff = Math.floor(Date.now() / 1000) - unix;
@@ -413,33 +386,52 @@ export default function StockPage() {
             </div>
           </div>
 
-          {/* Range selector */}
-          <div className="r-hscroll" style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-            {RANGES.map(r => (
-              <button key={r.label} onClick={() => setRange(r)}
-                style={{ padding: '4px 12px', background: range.label === r.label ? B.amber : 'transparent', color: range.label === r.label ? 'var(--bg-000000)' : B.label, border: `1px solid ${range.label === r.label ? B.amber : B.border}`, cursor: 'pointer', fontFamily: 'inherit', fontSize: '11px', letterSpacing: '1px', fontWeight: range.label === r.label ? 'bold' : 'normal' }}>
-                {r.label}
-              </button>
-            ))}
-          </div>
+          {/* Price chart — the portfolio page's chart: trend-coloured line,
+              no axes, glide-to-read, press-and-drag to measure. */}
+          <div>
+            {windowChange !== null && (
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{ color: windowTrend, fontSize: '13px', fontWeight: 'bold' }}>
+                  {windowUp ? '▲' : '▼'} ${Math.abs(windowChange).toFixed(2)} ({windowUp ? '+' : '−'}{Math.abs(windowPct ?? 0).toFixed(2)}%)
+                </span>
+                <span style={{ color: B.label, fontSize: '11px', letterSpacing: '0.5px' }}>{RANGE_LABEL[range.label]}</span>
+              </div>
+            )}
 
-          {/* Sparkline (1Y) */}
-          {data.sparkline.length > 1 && (
-            <div style={{ background: B.panel, border: `1px solid ${B.border}`, padding: '8px 0 0' }}>
-              <div style={{ padding: '0 14px 6px', color: B.label, fontSize: '10px', letterSpacing: '2px' }}>1Y PRICE HISTORY</div>
-              <Sparkline data={data.sparkline} />
-            </div>
-          )}
+            {candlesLoading || chartSeries.length < 2 ? (
+              <div style={{
+                height: chartHeight, marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: candlesLoading ? 'var(--fg-ff8c00)' : B.label, fontSize: '12px', letterSpacing: '2px',
+              }}>
+                {candlesLoading ? 'LOADING CHART...' : 'NO PRICE DATA FOR THIS RANGE'}
+              </div>
+            ) : (
+              <div style={{ marginTop: '10px' }}>
+                <AreaScrubChart
+                  key={range.label}
+                  series={chartSeries}
+                  height={chartHeight}
+                  format={v => `$${v.toFixed(2)}`}
+                />
+              </div>
+            )}
 
-          {/* TradingView chart */}
-          <div style={{ background: B.panel, border: `1px solid ${B.border}`, overflow: 'hidden' }}>
-            <div style={{ padding: '7px 14px', borderBottom: `1px solid ${B.border}`, color: B.amber, fontSize: '11px', letterSpacing: '3px' }}>
-              CHART · {range.label}
+            <div className="r-hscroll" style={{ display: 'flex', gap: '6px', paddingTop: '10px' }}>
+              {RANGES.map(r => {
+                const on = range.label === r.label;
+                return (
+                  <button key={r.label} onClick={() => setRange(r)} style={{
+                    background: on ? windowTrend : 'transparent',
+                    color: on ? 'var(--bg-000000)' : B.label,
+                    border: `1px solid ${on ? windowTrend : B.border}`,
+                    padding: '5px 12px', cursor: 'pointer', fontFamily: 'inherit',
+                    fontSize: '11px', letterSpacing: '1px', fontWeight: 'bold', flexShrink: 0,
+                  }}>
+                    {r.label}
+                  </button>
+                );
+              })}
             </div>
-            {candlesLoading
-              ? <div style={{ height: 'min(420px, 60vh)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--fg-ff8c00)', fontSize: '12px', letterSpacing: '2px' }}>LOADING CHART...</div>
-              : <CandleChart key={range.label + candles.length} candles={candles} isUp={isUp} />
-            }
           </div>
 
           {/* AI Analysis panel */}
