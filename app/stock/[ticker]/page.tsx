@@ -274,14 +274,14 @@ export default function StockPage() {
 
   const Stat = ({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) => (
     <div style={{ padding: '9px 14px', borderBottom: '1px solid var(--bg-111111)' }}>
-      <div style={{ color: B.label, fontSize: '9px', letterSpacing: '2px', marginBottom: '3px' }}>{label}</div>
+      <div style={{ color: B.label, fontSize: '10px', letterSpacing: '2px', marginBottom: '3px' }}>{label}</div>
       <div style={{ color: valueColor ?? B.text, fontSize: '13px' }}>{value}</div>
     </div>
   );
 
   const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
     <div style={{ background: B.panel, border: `1px solid ${B.border}` }}>
-      <div style={{ padding: '7px 14px', borderBottom: `1px solid ${B.border}`, color: B.amber, fontSize: '10px', letterSpacing: '3px', fontWeight: 'bold' }}>{title}</div>
+      <div style={{ padding: '7px 14px', borderBottom: `1px solid ${B.border}`, color: B.amber, fontSize: '11px', letterSpacing: '3px', fontWeight: 'bold' }}>{title}</div>
       {children}
     </div>
   );
@@ -293,26 +293,26 @@ export default function StockPage() {
 
       {/* Top bar */}
       <div style={{ borderBottom: `1px solid ${B.border}`, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-        <button onClick={() => router.back()} style={{ background: 'none', border: `1px solid ${B.border}`, color: B.label, cursor: 'pointer', padding: '4px 10px', fontFamily: 'inherit', fontSize: '11px', letterSpacing: '1px' }}>
+        <button onClick={() => router.back()} style={{ background: 'none', border: `1px solid ${B.border}`, color: B.label, cursor: 'pointer', padding: '4px 10px', fontFamily: 'inherit', fontSize: '12px', letterSpacing: '1px' }}>
           ← BACK
         </button>
         <span style={{ color: B.amber, fontWeight: 'bold', fontSize: '14px', letterSpacing: '3px' }}>{ticker}</span>
-        {data && <span style={{ color: B.label, fontSize: '11px' }}>{data.name}</span>}
-        {data?.sector && <span style={{ color: 'var(--fg-444444)', fontSize: '10px', letterSpacing: '1px' }}>{data.sector}</span>}
+        {data && <span style={{ color: B.label, fontSize: '12px' }}>{data.name}</span>}
+        {data?.sector && <span style={{ color: 'var(--fg-444444)', fontSize: '11px', letterSpacing: '1px' }}>{data.sector}</span>}
 
         {/* Trade buttons */}
         {data && (
           <div className="stock-trade-desktop" style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
             <button
               onClick={() => setTradeModal('buy')}
-              style={{ padding: '5px 18px', background: B.green, color: 'var(--fg-000000)', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '2px' }}
+              style={{ padding: '5px 18px', background: B.green, color: 'var(--fg-000000)', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '12px', letterSpacing: '2px' }}
             >
               BUY
             </button>
             {heldShares > 0 && (
               <button
                 onClick={() => setTradeModal('sell')}
-                style={{ padding: '5px 18px', background: B.red, color: 'var(--fg-000000)', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '11px', letterSpacing: '2px' }}
+                style={{ padding: '5px 18px', background: B.red, color: 'var(--fg-000000)', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '12px', letterSpacing: '2px' }}
               >
                 SELL
               </button>
@@ -387,7 +387,7 @@ export default function StockPage() {
                     {isUp ? '+' : ''}{data.change.toFixed(2)} ({isUp ? '+' : ''}{((data.changePct ?? 0) * 100).toFixed(2)}%)
                   </span>
                 )}
-                <span style={{ color: 'var(--fg-444444)', fontSize: '10px', letterSpacing: '1px' }}>
+                <span style={{ color: 'var(--fg-444444)', fontSize: '11px', letterSpacing: '1px' }}>
                   {data.exchange} · {data.currency}
                 </span>
               </div>
@@ -405,8 +405,8 @@ export default function StockPage() {
                 const color = p.val === null ? B.label : up ? B.green : B.red;
                 return (
                   <div key={p.label} style={{ border: `1px solid var(--bg-222222)`, padding: '4px 10px', textAlign: 'center' }}>
-                    <div style={{ color: B.label, fontSize: '8px', letterSpacing: '2px' }}>{p.label}</div>
-                    <div style={{ color, fontSize: '11px', marginTop: '2px' }}>{fmtChg(p.val)}</div>
+                    <div style={{ color: B.label, fontSize: '9px', letterSpacing: '2px' }}>{p.label}</div>
+                    <div style={{ color, fontSize: '12px', marginTop: '2px' }}>{fmtChg(p.val)}</div>
                   </div>
                 );
               })}
@@ -417,7 +417,7 @@ export default function StockPage() {
           <div className="r-hscroll" style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
             {RANGES.map(r => (
               <button key={r.label} onClick={() => setRange(r)}
-                style={{ padding: '4px 12px', background: range.label === r.label ? B.amber : 'transparent', color: range.label === r.label ? 'var(--bg-000000)' : B.label, border: `1px solid ${range.label === r.label ? B.amber : B.border}`, cursor: 'pointer', fontFamily: 'inherit', fontSize: '10px', letterSpacing: '1px', fontWeight: range.label === r.label ? 'bold' : 'normal' }}>
+                style={{ padding: '4px 12px', background: range.label === r.label ? B.amber : 'transparent', color: range.label === r.label ? 'var(--bg-000000)' : B.label, border: `1px solid ${range.label === r.label ? B.amber : B.border}`, cursor: 'pointer', fontFamily: 'inherit', fontSize: '11px', letterSpacing: '1px', fontWeight: range.label === r.label ? 'bold' : 'normal' }}>
                 {r.label}
               </button>
             ))}
@@ -426,18 +426,18 @@ export default function StockPage() {
           {/* Sparkline (1Y) */}
           {data.sparkline.length > 1 && (
             <div style={{ background: B.panel, border: `1px solid ${B.border}`, padding: '8px 0 0' }}>
-              <div style={{ padding: '0 14px 6px', color: B.label, fontSize: '9px', letterSpacing: '2px' }}>1Y PRICE HISTORY</div>
+              <div style={{ padding: '0 14px 6px', color: B.label, fontSize: '10px', letterSpacing: '2px' }}>1Y PRICE HISTORY</div>
               <Sparkline data={data.sparkline} />
             </div>
           )}
 
           {/* TradingView chart */}
           <div style={{ background: B.panel, border: `1px solid ${B.border}`, overflow: 'hidden' }}>
-            <div style={{ padding: '7px 14px', borderBottom: `1px solid ${B.border}`, color: B.amber, fontSize: '10px', letterSpacing: '3px' }}>
+            <div style={{ padding: '7px 14px', borderBottom: `1px solid ${B.border}`, color: B.amber, fontSize: '11px', letterSpacing: '3px' }}>
               CHART · {range.label}
             </div>
             {candlesLoading
-              ? <div style={{ height: 'min(420px, 60vh)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--fg-ff8c00)', fontSize: '11px', letterSpacing: '2px' }}>LOADING CHART...</div>
+              ? <div style={{ height: 'min(420px, 60vh)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--fg-ff8c00)', fontSize: '12px', letterSpacing: '2px' }}>LOADING CHART...</div>
               : <CandleChart key={range.label + candles.length} candles={candles} isUp={isUp} />
             }
           </div>
@@ -446,34 +446,34 @@ export default function StockPage() {
           {(analysisLoading || analysis) && (
             <div style={{ background: B.panel, border: `1px solid ${B.border}` }}>
               <div style={{ padding: '7px 14px', borderBottom: `1px solid ${B.border}` }}>
-                <span style={{ color: B.amber, fontSize: '10px', letterSpacing: '3px', fontWeight: 'bold' }}>ANALYSIS</span>
+                <span style={{ color: B.amber, fontSize: '11px', letterSpacing: '3px', fontWeight: 'bold' }}>ANALYSIS</span>
               </div>
               {analysisLoading ? (
-                <div style={{ padding: '16px 20px', color: 'var(--fg-444444)', fontSize: '11px', letterSpacing: '2px' }}>ANALYZING...</div>
+                <div style={{ padding: '16px 20px', color: 'var(--fg-444444)', fontSize: '12px', letterSpacing: '2px' }}>ANALYZING...</div>
               ) : analysis && (
                 <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div>
-                    <div style={{ color: B.label, fontSize: '9px', letterSpacing: '2px', marginBottom: '6px' }}>SUMMARY</div>
+                    <div style={{ color: B.label, fontSize: '10px', letterSpacing: '2px', marginBottom: '6px' }}>SUMMARY</div>
                     <p style={{ color: B.text, fontSize: '13px', lineHeight: 1.7, margin: 0 }}>{analysis.summary}</p>
                   </div>
                   <div className="r-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div>
-                      <div style={{ color: B.green, fontSize: '9px', letterSpacing: '2px', marginBottom: '8px' }}>BULL CASE</div>
+                      <div style={{ color: B.green, fontSize: '10px', letterSpacing: '2px', marginBottom: '8px' }}>BULL CASE</div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {analysis.bullCase.map((pt, i) => (
                           <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                            <span style={{ color: B.green, fontSize: '10px', marginTop: '2px', flexShrink: 0 }}>▲</span>
+                            <span style={{ color: B.green, fontSize: '11px', marginTop: '2px', flexShrink: 0 }}>▲</span>
                             <span style={{ color: 'var(--fg-cccccc)', fontSize: '12px', lineHeight: 1.6 }}>{pt}</span>
                           </div>
                         ))}
                       </div>
                     </div>
                     <div>
-                      <div style={{ color: B.red, fontSize: '9px', letterSpacing: '2px', marginBottom: '8px' }}>BEAR CASE</div>
+                      <div style={{ color: B.red, fontSize: '10px', letterSpacing: '2px', marginBottom: '8px' }}>BEAR CASE</div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {analysis.bearCase.map((pt, i) => (
                           <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                            <span style={{ color: B.red, fontSize: '10px', marginTop: '2px', flexShrink: 0 }}>▼</span>
+                            <span style={{ color: B.red, fontSize: '11px', marginTop: '2px', flexShrink: 0 }}>▼</span>
                             <span style={{ color: 'var(--fg-cccccc)', fontSize: '12px', lineHeight: 1.6 }}>{pt}</span>
                           </div>
                         ))}
@@ -488,14 +488,14 @@ export default function StockPage() {
           {/* Recent Activity panel */}
           {(digestLoading || digest || newsItems.length > 0) && (
             <div style={{ background: B.panel, border: `1px solid ${B.border}` }}>
-              <div style={{ padding: '7px 14px', borderBottom: `1px solid ${B.border}`, color: B.amber, fontSize: '10px', letterSpacing: '3px', fontWeight: 'bold' }}>
+              <div style={{ padding: '7px 14px', borderBottom: `1px solid ${B.border}`, color: B.amber, fontSize: '11px', letterSpacing: '3px', fontWeight: 'bold' }}>
                 RECENT ACTIVITY
               </div>
               <div className="r-grid-2 stock-activity" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0' }}>
                 <div style={{ padding: '16px 18px', borderRight: `1px solid ${B.border}` }}>
-                  <div style={{ color: B.label, fontSize: '9px', letterSpacing: '2px', marginBottom: '10px' }}>DIGEST</div>
+                  <div style={{ color: B.label, fontSize: '10px', letterSpacing: '2px', marginBottom: '10px' }}>DIGEST</div>
                   {digestLoading ? (
-                    <div style={{ color: 'var(--fg-444444)', fontSize: '11px', letterSpacing: '2px' }}>ANALYZING...</div>
+                    <div style={{ color: 'var(--fg-444444)', fontSize: '12px', letterSpacing: '2px' }}>ANALYZING...</div>
                   ) : digest ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       {digest.split('\n\n').filter(Boolean).map((para, i) => (
@@ -505,17 +505,17 @@ export default function StockPage() {
                   ) : null}
                 </div>
                 <div style={{ padding: '16px 18px' }}>
-                  <div style={{ color: B.label, fontSize: '9px', letterSpacing: '2px', marginBottom: '10px' }}>HEADLINES</div>
+                  <div style={{ color: B.label, fontSize: '10px', letterSpacing: '2px', marginBottom: '10px' }}>HEADLINES</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {newsItems.slice(0, 8).map(n => (
                       <a key={n.uuid} href={n.link} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', padding: '6px 0', borderBottom: '1px solid var(--bg-111111)' }}
                           onMouseEnter={e => (e.currentTarget.style.opacity = '0.7')}
                           onMouseLeave={e => (e.currentTarget.style.opacity = '1')}>
-                          <span style={{ color: B.text, fontSize: '11px', lineHeight: 1.5 }}>{n.title}</span>
+                          <span style={{ color: B.text, fontSize: '12px', lineHeight: 1.5 }}>{n.title}</span>
                           <div style={{ display: 'flex', gap: '8px' }}>
-                            <span style={{ color: B.amber, fontSize: '9px', letterSpacing: '1px' }}>{n.publisher.toUpperCase()}</span>
-                            <span style={{ color: 'var(--fg-444444)', fontSize: '9px' }}>{timeAgo(n.publishedAt)}</span>
+                            <span style={{ color: B.amber, fontSize: '10px', letterSpacing: '1px' }}>{n.publisher.toUpperCase()}</span>
+                            <span style={{ color: 'var(--fg-444444)', fontSize: '10px' }}>{timeAgo(n.publishedAt)}</span>
                           </div>
                         </div>
                       </a>
@@ -581,7 +581,7 @@ export default function StockPage() {
               <Stat label="EXCHANGE" value={data.exchange ?? '—'} />
               {data.website && (
                 <div style={{ padding: '9px 14px', borderBottom: '1px solid var(--bg-111111)' }}>
-                  <div style={{ color: B.label, fontSize: '9px', letterSpacing: '2px', marginBottom: '3px' }}>WEBSITE</div>
+                  <div style={{ color: B.label, fontSize: '10px', letterSpacing: '2px', marginBottom: '3px' }}>WEBSITE</div>
                   <a href={data.website} target="_blank" rel="noopener noreferrer" style={{ color: B.cyan, fontSize: '12px', textDecoration: 'none' }}>
                     {data.website.replace(/^https?:\/\//, '')}
                   </a>
@@ -594,7 +594,7 @@ export default function StockPage() {
           {/* Raw description (collapsed under About, shown only if no analysis) */}
           {data.description && !analysis && !analysisLoading && (
             <div style={{ background: B.panel, border: `1px solid ${B.border}` }}>
-              <div style={{ padding: '7px 14px', borderBottom: `1px solid ${B.border}`, color: B.amber, fontSize: '10px', letterSpacing: '3px', fontWeight: 'bold' }}>
+              <div style={{ padding: '7px 14px', borderBottom: `1px solid ${B.border}`, color: B.amber, fontSize: '11px', letterSpacing: '3px', fontWeight: 'bold' }}>
                 ABOUT {data.ticker}
               </div>
               <div style={{ padding: '20px', color: 'var(--fg-aaaaaa)', fontSize: '13px', lineHeight: 2, letterSpacing: '0.3px' }}>

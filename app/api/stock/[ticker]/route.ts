@@ -71,7 +71,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ ticker:
   const completedCandles = candles1Y.filter(c => new Date(c.t).toISOString().slice(0, 10) < todayStr && c.c > 0);
   const lastClose = completedCandles.length > 0 ? completedCandles[completedCandles.length - 1].c : null;
   const prevDayC = snapshot?.prevDay?.c;
-  const prevClose = (prevDayC != null && prevDayC > 0 ? prevDayC : null) ?? lastClose;
 
   // Price: Tastytrade → Polygon snapshot → last candle close (for non-market-hours / delisted)
   const ltP = snapshot?.lastTrade?.p;
@@ -79,6 +78,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ ticker:
   const snapshotPrice = (ltP != null && ltP > 0 ? ltP : null)
                       ?? (dayC != null && dayC > 0 ? dayC : null);
   const price = ttPrice ?? snapshotPrice ?? lastClose;
+
+  // When the price is itself the last candle's close, comparing it to that same
+  // close always reads +0.00 — the day change is against the session before it.
+  const prevClose = ttPrice === null && snapshotPrice === null
+    ? (completedCandles[completedCandles.length - 2]?.c ?? null)
+    : (prevDayC != null && prevDayC > 0 ? prevDayC : null) ?? lastClose;
 
   const change = price !== null && prevClose ? price - prevClose : null;
   const changePct = change !== null && prevClose ? change / prevClose : null;

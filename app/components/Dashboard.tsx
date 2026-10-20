@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { YAxis, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
+import { YAxis, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import LoginButton from './LoginButton';
 import useIsMobile from './useIsMobile';
 import TradeModal from './TradeModal';
@@ -362,34 +362,26 @@ export default function Dashboard() {
         const hi = Math.max(...series.map(d => d.value));
         const pad = (hi - lo) * 0.12 || hi * 0.02;
         return (
-          <div style={{ height: isMobile ? 170 : 210, marginTop: '10px' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={series} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="pv" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={trend} stopOpacity={0.22} />
-                    <stop offset="100%" stopColor={trend} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <YAxis domain={[lo - pad, hi + pad]} hide />
-                <Tooltip
-                  cursor={{ stroke: B.label, strokeDasharray: '2 2' }}
-                  contentStyle={{
-                    background: 'var(--bg-0d0d0d)', border: `1px solid ${B.border}`,
-                    fontFamily: 'Courier New, monospace', fontSize: '12px',
-                  }}
-                  labelStyle={{ color: B.label, fontSize: '10px', letterSpacing: '1px' }}
-                  itemStyle={{ color: B.text, fontWeight: 'bold' }}
-                  formatter={(v: number | undefined) => [v == null ? '—' : money(v), 'Value']}
-                />
-                <Area
-                  type="monotone" dataKey="value" stroke={trend} strokeWidth={2}
-                  fill="url(#pv)" dot={false} activeDot={{ r: 3, fill: trend }}
-                  isAnimationActive={false}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          <ScrubChart series={series} domain={[lo - pad, hi + pad]} trend={trend} money={money}>
+            <div style={{ height: isMobile ? 170 : 210, marginTop: '10px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={series} margin={{ top: CHART_TOP, right: 0, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="pv" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={trend} stopOpacity={0.22} />
+                      <stop offset="100%" stopColor={trend} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <YAxis domain={[lo - pad, hi + pad]} hide />
+                  <Area
+                    type="monotone" dataKey="value" stroke={trend} strokeWidth={2}
+                    fill="url(#pv)" dot={false} activeDot={false}
+                    isAnimationActive={false}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </ScrubChart>
         );
       })()}
 
@@ -564,6 +556,98 @@ function Row({
           {up ? '+' : '−'}${Math.abs(change).toFixed(2)} ({up ? '+' : '−'}{Math.abs(changePct).toFixed(2)}%)
         </div>
       </div>
+    </div>
+  );
+}
+
+const CHART_TOP = 4;
+const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
+/**
+ * Hover readout that glides along the drawn curve instead of snapping from one
+ * data point to the next. The marker is placed on the rendered path itself, so
+ * it never leaves the smoothed line, and the value is read back off its height.
+ */
+function ScrubChart({ series, domain, trend, money, children }: {
+  series: { date: string; value: number }[];
+  domain: [number, number];
+  trend: string;
+  money: (v: number) => string;
+  children: React.ReactNode;
+}) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [hover, setHover] = useState<{ x: number; y: number; value: number; date: string } | null>(null);
+
+  const onMove = (e: React.PointerEvent) => {
+    const wrap = wrapRef.current;
+    const path = wrap?.querySelector<SVGPathElement>('.recharts-area-curve');
+    const svg = path?.ownerSVGElement;
+    if (!wrap || !path || !svg) return;
+
+    const wrapBox = wrap.getBoundingClientRect();
+    const svgBox = svg.getBoundingClientRect();
+    const total = path.getTotalLength();
+    const startX = path.getPointAtLength(0).x;
+    const endX = path.getPointAtLength(total).x;
+    if (endX <= startX) return;
+    const x = Math.min(endX, Math.max(startX, e.clientX - svgBox.left));
+
+    // x only ever increases along the line, so bisect the length for this x.
+    let lo = 0, hi = total;
+    for (let i = 0; i < 24; i++) {
+      const mid = (lo + hi) / 2;
+      if (path.getPointAtLength(mid).x < x) lo = mid; else hi = mid;
+    }
+    const pt = path.getPointAtLength((lo + hi) / 2);
+
+    const plotH = svgBox.height - CHART_TOP;
+    const value = domain[1] - ((pt.y - CHART_TOP) / plotH) * (domain[1] - domain[0]);
+    const idx = Math.round(((x - startX) / (endX - startX)) * (series.length - 1));
+    const [, m, d] = series[idx].date.split('-');
+
+    setHover({
+      x: svgBox.left - wrapBox.left + x,
+      y: svgBox.top - wrapBox.top + pt.y,
+      value,
+      date: `${MONTHS[Number(m) - 1]} ${Number(d)}`,
+    });
+  };
+
+  const width = wrapRef.current?.clientWidth ?? 0;
+  const flip = hover !== null && hover.x > width - 150;
+
+  return (
+    <div
+      ref={wrapRef}
+      onPointerMove={onMove}
+      onPointerDown={onMove}
+      onPointerLeave={() => setHover(null)}
+      style={{ position: 'relative', touchAction: 'pan-y', cursor: 'crosshair' }}
+    >
+      {children}
+      {hover && (
+        <>
+          <div style={{
+            position: 'absolute', left: hover.x, top: 10, bottom: 0, width: 0,
+            borderLeft: `1px dashed ${B.label}`, pointerEvents: 'none',
+          }} />
+          <div style={{
+            position: 'absolute', left: hover.x - 4, top: hover.y - 4, width: 8, height: 8,
+            borderRadius: '50%', background: trend, pointerEvents: 'none',
+          }} />
+          <div style={{
+            position: 'absolute', top: 14,
+            left: flip ? undefined : hover.x + 10,
+            right: flip ? width - hover.x + 10 : undefined,
+            background: 'var(--bg-0d0d0d)', border: `1px solid ${B.border}`,
+            padding: '6px 10px', pointerEvents: 'none', whiteSpace: 'nowrap',
+            fontFamily: 'Courier New, monospace',
+          }}>
+            <div style={{ color: B.label, fontSize: '10px', letterSpacing: '1px' }}>{hover.date}</div>
+            <div style={{ color: B.text, fontSize: '13px', fontWeight: 'bold', marginTop: '2px' }}>{money(hover.value)}</div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
