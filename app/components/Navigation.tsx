@@ -108,17 +108,24 @@ export default function Navigation() {
     if (searchOpen) overlayInputRef.current?.focus();
   }, [searchOpen]);
 
-  function navigate(ticker: string) {
-    router.push(`/stock/${ticker}`);
+  function navigate(ticker: string, path = `/stock/${ticker}`) {
+    router.push(path);
     setSearchValue(''); setSuggestions([]); setSearchOpen(false);
     inputRef.current?.blur(); overlayInputRef.current?.blur();
   }
 
+  // Fund suggestions carry the CIK as their symbol and open the fund page.
+  function open(s: Suggestion) {
+    navigate(s.symbol, s.type === 'fund' ? `/fund/${s.symbol}` : undefined);
+  }
+
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
-    const ticker = activeIndex >= 0 && suggestions[activeIndex]
-      ? suggestions[activeIndex].symbol
-      : searchValue.trim().toUpperCase();
+    if (activeIndex >= 0 && suggestions[activeIndex]) return open(suggestions[activeIndex]);
+    // A typed fund name with no ticker match beats opening /stock/BRIDGEWATER.
+    const top = suggestions[0];
+    if (top?.type === 'fund' && !suggestions.some(s => s.type !== 'fund' && s.symbol === searchValue.trim())) return open(top);
+    const ticker = searchValue.trim().toUpperCase();
     if (ticker) navigate(ticker);
   }
 
@@ -187,7 +194,7 @@ export default function Navigation() {
                   onChange={e => setSearchValue(e.target.value.toUpperCase())}
                   onFocus={() => setSearchFocused(true)}
                   onKeyDown={handleKeyDown}
-                  placeholder="SEARCH TICKER"
+                  placeholder="TICKER OR FUND"
                   style={{
                     background: 'transparent', border: 'none',
                     borderBottom: `1px solid ${searchFocused ? 'var(--bg-ff8c00)' : 'var(--bg-666666)'}`,
@@ -205,14 +212,14 @@ export default function Navigation() {
                   borderTop: 'none', zIndex: 100, width: '240px',
                 }}>
                   {suggestions.map((s, i) => (
-                    <div key={s.symbol} onMouseDown={() => navigate(s.symbol)} style={{
+                    <div key={s.symbol} onMouseDown={() => open(s)} style={{
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                       padding: '7px 12px', cursor: 'pointer',
                       background: i === activeIndex ? 'var(--bg-1a1a00)' : 'transparent',
                       borderBottom: i < suggestions.length - 1 ? '1px solid var(--bg-1a1a1a)' : 'none',
                     }}>
-                      <span style={{ color: 'var(--fg-ff8c00)', fontWeight: 'bold', fontSize: '13px', letterSpacing: '1px', fontFamily: 'Courier New, monospace' }}>{s.symbol}</span>
-                      <span style={{ color: 'var(--fg-666666)', fontSize: '11px', marginLeft: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }}>{s.name}</span>
+                      <span style={{ color: s.type === 'fund' ? 'var(--bg-00e5ff)' : 'var(--fg-ff8c00)', fontWeight: 'bold', fontSize: '13px', letterSpacing: '1px', fontFamily: 'Courier New, monospace' }}>{s.type === 'fund' ? 'FUND' : s.symbol}</span>
+                      <span style={{ color: 'var(--fg-666666)', fontSize: '11px', marginLeft: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: s.type === 'fund' ? '170px' : '140px' }}>{s.name}</span>
                     </div>
                   ))}
                 </div>
@@ -271,7 +278,7 @@ export default function Navigation() {
                 value={searchValue}
                 onChange={e => setSearchValue(e.target.value.toUpperCase())}
                 onKeyDown={handleKeyDown}
-                placeholder="SEARCH TICKER"
+                placeholder="TICKER OR FUND"
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="characters"
@@ -303,13 +310,13 @@ export default function Navigation() {
               ✦ AI SEARCH <span style={{ color: 'var(--fg-666666)', fontWeight: 'normal', fontSize: '11px' }}>— search by theme or headline</span>
             </button>
             {suggestions.map(s => (
-              <button key={s.symbol} onClick={() => navigate(s.symbol)} style={{
+              <button key={s.symbol} onClick={() => open(s)} style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 gap: '12px', width: '100%', textAlign: 'left',
                 padding: '14px 16px', background: 'none',
                 border: 'none', borderBottom: '1px solid var(--bg-141414)', cursor: 'pointer',
               }}>
-                <span style={{ color: 'var(--fg-ff8c00)', fontWeight: 'bold', fontSize: '15px', letterSpacing: '1px', fontFamily: 'Courier New, monospace' }}>{s.symbol}</span>
+                <span style={{ color: s.type === 'fund' ? 'var(--bg-00e5ff)' : 'var(--fg-ff8c00)', fontWeight: 'bold', fontSize: '15px', letterSpacing: '1px', fontFamily: 'Courier New, monospace' }}>{s.type === 'fund' ? 'FUND' : s.symbol}</span>
                 <span style={{ color: 'var(--fg-777777)', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
               </button>
             ))}
@@ -386,21 +393,6 @@ export default function Navigation() {
       )}
 
       {aiOpen && <AISearch onClose={closeAi} />}
-
-      {/* Compliance bar */}
-      <div style={{ background: 'var(--bg-0a0a0a)', borderBottom: '1px solid var(--bg-1a1a1a)', padding: '4px 16px', textAlign: 'center' }}>
-        <span style={{ color: 'var(--fg-444444)', fontSize: '9px', letterSpacing: '1.5px', fontFamily: 'Courier New, monospace' }}>
-          <span className="compliance-full">
-            NOT FINANCIAL ADVICE &nbsp;·&nbsp; ALL TRADING INVOLVES RISK OF LOSS &nbsp;·&nbsp; 13F DATA REFLECTS PRIOR QUARTER (45-DAY DELAY) &nbsp;·&nbsp;{' '}
-          </span>
-          <span className="compliance-short">
-            NOT ADVICE &nbsp;·&nbsp; 13F DATA IS 45 DAYS DELAYED &nbsp;·&nbsp;{' '}
-          </span>
-          <a href="/terms" style={{ color: 'var(--fg-555555)', textDecoration: 'underline' }}>TERMS</a>
-          &nbsp;·&nbsp;
-          <a href="/privacy" style={{ color: 'var(--fg-555555)', textDecoration: 'underline' }}>PRIVACY</a>
-        </span>
-      </div>
 
       {/* Mobile tab bar — the primary navigation on a phone. */}
       <nav className="tabbar" aria-label="Primary">

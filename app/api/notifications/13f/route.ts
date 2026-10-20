@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/supabase/admin';
 import axios from 'axios';
+import { isOnDemand } from '@/lib/funds/directory';
 
 const USER_AGENT = process.env.SEC_USER_AGENT || '13F Follower App contact@example.com';
 
@@ -25,8 +26,11 @@ function dateToQuarter(dateString: string): string {
 
 export async function GET() {
   try {
-    const { data: funds, error } = await db.from('funds').select('id, cik, name').eq('enabled', true);
+    const { data: all, error } = await db.from('funds').select('id, cik, name').eq('enabled', true);
     if (error) throw new Error(error.message);
+    // On-demand funds refresh themselves when viewed; alerting on them would
+    // flag every never-opened fund as "new filing available".
+    const funds = (all ?? []).filter(f => !isOnDemand(f.cik));
 
     const alerts: FilingAlert[] = [];
 

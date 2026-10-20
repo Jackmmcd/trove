@@ -30,8 +30,11 @@ function stepBack(q, n) {
 }
 
 (async () => {
-  const { data: funds } = await sb
+  const { data: allFunds } = await sb
     .from('funds').select('id, cik, name').is('user_id', null).eq('enabled', true).order('name');
+  // On-demand funds (config/fund-directory.json) are fetched when viewed, never backfilled.
+  const onDemand = new Set(require('../config/fund-directory.json').funds.filter(f => f.sync === 'on_demand').map(f => f.cik));
+  const funds = allFunds.filter(f => !onDemand.has(f.cik));
 
   const { data: holdings } = await sb.from('holdings').select('fund_id, quarter');
   const have = new Map();

@@ -22,6 +22,61 @@ export function classifyInstrument(cusip: string | null | undefined): Instrument
 
 const USER_AGENT = process.env.SEC_USER_AGENT || '13F Follower App contact@example.com';
 
+/** "S&amp;P GLOBAL" → "S&P GLOBAL". Issuer names arrive XML-escaped; rows stored before this fix still are. */
+export function decodeXmlEntities(s: string): string {
+  return s
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&amp;/g, '&');
+}
+
+// ---------------------------------------------------------------------------
+// CUSIP → ticker cache (supabase-migration-securities.sql)
+// ---------------------------------------------------------------------------
+// Imported lazily and failure-tolerant: the cache is an accelerator, so a
+// missing table or an environment without Supabase (tests) degrades to plain
+// OpenFIGI lookups rather than failing the sync.
+
+const CACHE_CHUNK = 200;
+
+/** cusip → ticker for every CUSIP seen before; null means OpenFIGI had no answer. */
+async function readCachedTickers(cusips: string[]): Promise<Map<string, string | null>> {
+  const out = new Map<string, string | null>();
+  try {
+    const { db } = await import('@/lib/supabase/admin');
+    for (let i = 0; i < cusips.length; i += CACHE_CHUNK) {
+      const { data, error } = await db.from('securities')
+        .select('cusip, ticker, resolved').in('cusip', cusips.slice(i, i + CACHE_CHUNK));
+      if (error) throw new Error(error.message);
+      for (const r of data ?? []) out.set(r.cusip, r.resolved ? r.ticker : null);
+    }
+  } catch (e: any) {
+    console.warn('securities cache read skipped:', e?.message);
+  }
+  return out;
+}
+
+async function writeCachedTickers(rows: { cusip: string; ticker: string | null }[], holdings: Holding[]) {
+  if (!rows.length) return;
+  const issuer = new Map(holdings.filter(h => h.cusip).map(h => [h.cusip!, h.name ?? null]));
+  try {
+    const { db } = await import('@/lib/supabase/admin');
+    const now = new Date().toISOString();
+    for (let i = 0; i < rows.length; i += 500) {
+      const { error } = await db.from('securities').upsert(
+        rows.slice(i, i + 500).map(r => ({
+          cusip: r.cusip, ticker: r.ticker, issuer_name: issuer.get(r.cusip) ?? null,
+          resolved: !!r.ticker, updated_at: now,
+        })),
+        { onConflict: 'cusip' },
+      );
+      if (error) throw new Error(error.message);
+    }
+  } catch (e: any) {
+    console.warn('securities cache write skipped:', e?.message);
+  }
+}
+
 const edgarClient = axios.create({
   baseURL: 'https://data.sec.gov',
   headers: {
@@ -43,15 +98,16 @@ export class SECApiClient {
    * Fetch 13F holdings for a fund by CIK.
    * @param cik - CIK number (will be zero-padded to 10 digits)
    * @param quarter - Optional "2024-Q1" format; defaults to latest filing
+   * @param opts.tickerBudgetMs - Cap on time spent resolving uncached CUSIPs
    */
-  async fetch13FHoldings(cik: string, quarter?: string): Promise<FundHoldings> {
+  async fetch13FHoldings(cik: string, quarter?: string, opts: { tickerBudgetMs?: number } = {}): Promise<FundHoldings> {
     const normalizedCik = cik.replace(/^0+/, '').padStart(10, '0');
     const filing = await this.getLatest13FFiling(normalizedCik, quarter);
 
     const rawHoldings = this.parseInfoTableXml(filing.xmlContent);
 
     // Resolve CUSIPs to tickers via OpenFIGI
-    await this.resolveTickers(rawHoldings);
+    await this.resolveTickers(rawHoldings, opts.tickerBudgetMs);
 
     // Deduplicate — large filers (e.g. Berkshire, Coatue) split holdings across
     // multiple investment managers, producing repeated entries per filing.
@@ -102,6 +158,19 @@ export class SECApiClient {
       name: response.data.name as string,
       cik: padded,
     };
+  }
+
+  /**
+   * The newest 13F on file — one small request, no holdings. Used to decide
+   * whether a cached portfolio is still the latest without re-downloading it.
+   */
+  async latest13F(cik: string): Promise<{ periodEnd: string; filingDate: string } | null> {
+    const padded = cik.replace(/^0+/, '').padStart(10, '0');
+    const { data } = await edgarClient.get(`/submissions/CIK${padded}.json`, { timeout: 10000 });
+    const r = data?.filings?.recent;
+    const i = (r?.form ?? []).findIndex((f: string) => f === '13F-HR' || f === '13F-HR/A');
+    if (i < 0) return null;
+    return { periodEnd: r.reportDate[i] ?? r.filingDate[i], filingDate: r.filingDate[i] };
   }
 
   // ---------------------------------------------------------------------------
@@ -252,29 +321,53 @@ export class SECApiClient {
   private extractXmlTag(xml: string, tag: string): string | null {
     const re = new RegExp(`<${tag}[^>]*>([^<]*)<\/${tag}>`, 'i');
     const m = xml.match(re);
-    return m ? m[1].trim() : null;
+    return m ? decodeXmlEntities(m[1].trim()) : null;
   }
 
   /**
    * Batch-resolve CUSIPs to tickers using the OpenFIGI API (free, no key required).
    * https://www.openfigi.com/api
+   *
+   * Resolutions are cached in the `securities` table, so a CUSIP is looked up
+   * once ever rather than once per fund per quarter — most of a new filer's book
+   * is names some other fund already holds.
+   *
+   * `budgetMs` bounds the OpenFIGI phase. Without a key the API takes 10 CUSIPs
+   * per 2.6s, so Citadel's ~8,000-line book would take most of an hour. Lookups
+   * run largest position first; whatever the budget doesn't reach keeps its CUSIP
+   * as the ticker (displayed by issuer name) rather than the issuer-name guess,
+   * because the guess collides — every iShares fund becomes "ISHARES".
    */
-  private async resolveTickers(holdings: Holding[]): Promise<void> {
+  private async resolveTickers(holdings: Holding[], budgetMs = Infinity): Promise<void> {
     const withCusip = holdings.filter(h => h.cusip);
     if (withCusip.length === 0) return;
 
-    const uniqueCusips = [...new Set(withCusip.map(h => h.cusip!))];
+    // Largest positions first, so a budget cut-off only costs the tail.
+    const byValue = [...withCusip].sort((a, b) => b.value - a.value);
+    const uniqueCusips = [...new Set(byValue.map(h => h.cusip!))];
+    const cached = await readCachedTickers(uniqueCusips);
     const tickerMap: Record<string, string> = {};
+    for (const [cusip, ticker] of cached) if (ticker) tickerMap[cusip] = ticker;
+    const misses = uniqueCusips.filter(c => !cached.has(c));
+    const missSet = new Set(misses);
 
-    // OpenFIGI: max 10 items per request without an API key
-    const batchSize = 10;
-    for (let i = 0; i < uniqueCusips.length; i += batchSize) {
-      const batch = uniqueCusips.slice(i, i + batchSize);
+    // OpenFIGI: 10 jobs/request and 25 requests/min anonymously; with a key,
+    // 100 jobs/request and 250 requests/min.
+    const apiKey = process.env.OPENFIGI_API_KEY;
+    const batchSize = apiKey ? 100 : 10;
+    const pause = apiKey ? 250 : 2600;
+    const deadline = Date.now() + budgetMs;
+    const attempted = new Set<string>();
+    const fresh: { cusip: string; ticker: string | null }[] = [];
+
+    for (let i = 0; i < misses.length; i += batchSize) {
+      if (Date.now() > deadline) break;
+      const batch = misses.slice(i, i + batchSize);
       const body = batch.map(cusip => ({ idType: 'ID_CUSIP', idValue: cusip }));
 
       try {
         const res = await axios.post('https://api.openfigi.com/v3/mapping', body, {
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...(apiKey ? { 'X-OPENFIGI-APIKEY': apiKey } : {}) },
           timeout: 15000,
         });
 
@@ -288,21 +381,28 @@ export class SECApiClient {
           );
           const ticker = (us ?? items[0])?.ticker;
           if (ticker) tickerMap[batch[idx]] = ticker;
+          attempted.add(batch[idx]);
+          fresh.push({ cusip: batch[idx], ticker: ticker ?? null });
         });
       } catch (err: any) {
         console.error('OpenFIGI error:', err?.response?.status, err?.response?.data ?? err?.message);
       }
 
-      // Respect rate limit: 25 req/min without API key → ~2.5s between requests
-      if (i + batchSize < uniqueCusips.length) {
-        await new Promise(r => setTimeout(r, 2600));
+      if (i + batchSize < misses.length) {
+        await new Promise(r => setTimeout(r, pause));
       }
     }
 
-    // Apply resolved tickers; fall back to first word of issuer name
+    await writeCachedTickers(fresh, holdings);
+
+    // Apply resolved tickers. A CUSIP OpenFIGI actually answered "unknown" for
+    // falls back to the first word of the issuer name, as it always has; one the
+    // budget never reached keeps the CUSIP.
     for (const h of holdings) {
       if (h.cusip && tickerMap[h.cusip]) {
         h.ticker = tickerMap[h.cusip];
+      } else if (h.cusip && missSet.has(h.cusip) && !attempted.has(h.cusip)) {
+        h.ticker = h.cusip;
       } else if (h.name) {
         h.ticker = h.name.split(/\s+/)[0].toUpperCase().replace(/[^A-Z]/g, '').substring(0, 6) || 'UNKNOWN';
       }

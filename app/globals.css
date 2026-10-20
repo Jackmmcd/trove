@@ -456,18 +456,6 @@ html, body { max-width: 100%; overflow-x: clip; }
   .rebal-split > div + div { border-top: 1px solid var(--border); }
 }
 
-/* ── Compliance bar ───────────────────────────────────────────────── */
-
-/* The full disclosure runs to three lines on a phone and pushes the page
-   down on every route, so the bar carries a short form for narrow screens
-   and the full wording for everything else. Both always link out. */
-.compliance-short { display: none; }
-
-@media (max-width: 640px) {
-  .compliance-full { display: none; }
-  .compliance-short { display: inline; }
-}
-
 /* ── On-screen keyboard ───────────────────────────────────────────── */
 
 /* While the keyboard is up it covers the tab bar anyway; hiding it stops it

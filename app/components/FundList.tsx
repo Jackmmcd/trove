@@ -1,27 +1,40 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import TradeModal from './TradeModal';
 import BasketModal from './BasketModal';
 import TickerTooltip from './TickerTooltip';
 import useAccountSource from './useAccountSource';
+import useFundSearch from './useFundSearch';
 
 interface Holding {
   ticker: string;
   shares: number;
   value: number;
   weight: number;
+  issuer_name?: string | null;
 }
 
 interface Fund {
   id: string;
   cik: string;
   name: string;
-  enabled: boolean;
+  quarter: string | null;
+  holdings_total: number;
   holdings: Holding[];
   thesis: string | null;
 }
+
+interface EdgarHit { cik: string; name: string; last13F: string }
+
+const TYPE_LABEL: Record<string, string> = {
+  hedge_fund: 'HEDGE FUND', asset_manager: 'ASSET MANAGER', endowment: 'ENDOWMENT',
+  sovereign_wealth: 'SOVEREIGN WEALTH', corporate: 'CORPORATE',
+};
+
+const EXAMPLES = ['Ray Dalio', 'Buffett', 'quant funds', 'activist', 'tiger cubs'];
 
 interface Toast {
   id: number;
@@ -66,14 +79,43 @@ export default function FundList() {
     setCollapsedMap(prev => ({ ...prev, [fundId]: !prev[fundId] }));
   }
 
-  const [addCik, setAddCik] = useState('');
-  const [addName, setAddName] = useState('');
-  const [lookingUp, setLookingUp] = useState(false);
-  const [adding, setAdding] = useState(false);
+  const [query, setQuery] = useState('');
+  const [edgarHits, setEdgarHits] = useState<EdgarHit[] | null>(null);
+  const [edgarLoading, setEdgarLoading] = useState(false);
+  const [followingCik, setFollowingCik] = useState<string | null>(null);
+  const edgarSeq = useRef(0);
 
   useEffect(() => {
     fetchFunds();
   }, []);
+
+  // Directory matches are local and instant: names, managers, nicknames, strategies.
+  // …and matches by what funds hold arrive from the embedding index once typing pauses.
+  const { instant: directoryHits, semantic: portfolioHits, loading: semanticLoading } = useFundSearch(query);
+  const followed = useMemo(() => new Set(funds.map(f => f.cik)), [funds]);
+  const cikQuery = /^\d{1,10}$/.test(query.trim()) ? query.trim().padStart(10, '0') : null;
+
+  // EDGAR covers every other 13F filer. Searched automatically when the
+  // directory comes up short, debounced so typing doesn't fan out requests.
+  useEffect(() => {
+    setEdgarHits(null);
+    const q = query.trim();
+    if (q.length < 3 || cikQuery || directoryHits.length >= 3) return;
+    const seq = ++edgarSeq.current;
+    const t = setTimeout(async () => {
+      setEdgarLoading(true);
+      try {
+        const res = await fetch(`/api/sec/search?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        if (seq === edgarSeq.current) setEdgarHits(data.success ? data.data : []);
+      } catch {
+        if (seq === edgarSeq.current) setEdgarHits([]);
+      } finally {
+        if (seq === edgarSeq.current) setEdgarLoading(false);
+      }
+    }, 450);
+    return () => clearTimeout(t);
+  }, [query, cikQuery, directoryHits.length]);
 
   function toast(message: string, type: 'success' | 'error' = 'success') {
     const id = ++toastId;
@@ -81,13 +123,14 @@ export default function FundList() {
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
   }
 
-  async function fetchFunds() {
+  async function fetchFunds(quiet = false): Promise<Fund[]> {
     try {
-      setLoading(true);
+      if (!quiet) setLoading(true);
       const res = await fetch('/api/funds');
       const data = await res.json();
-      if (data.success) setFunds(data.data);
+      if (data.success) { setFunds(data.data); return data.data; }
     } catch { toast('FAILED TO LOAD FUNDS', 'error'); } finally { setLoading(false); }
+    return [];
   }
 
   async function syncAll() {
@@ -100,7 +143,7 @@ export default function FundList() {
         const failed = results.filter(r => !r.success);
         if (failed.length === 0) toast(`SYNCED ${results.length} FUND${results.length !== 1 ? 'S' : ''}`);
         else toast(`${results.length - failed.length} OK, ${failed.length} FAILED`, 'error');
-        await fetchFunds();
+        await fetchFunds(true);
       } else toast(data.error || 'SYNC FAILED', 'error');
     } catch { toast('SYNC FAILED', 'error'); } finally { setSyncing(false); }
   }
@@ -110,52 +153,34 @@ export default function FundList() {
     try {
       const res = await fetch(`/api/funds/${cik}`, { method: 'PUT' });
       const data = await res.json();
-      if (data.success) { toast(`${name} — ${data.data.holdingsCount} HOLDINGS (${data.data.quarter})`); await fetchFunds(); }
+      if (data.success) { toast(`${name} — ${data.data.holdingsCount} HOLDINGS (${data.data.quarter})`); await fetchFunds(true); }
       else toast(data.error || `SYNC FAILED: ${name}`, 'error');
     } catch { toast(`SYNC FAILED: ${name}`, 'error'); } finally { setSyncingCik(null); }
   }
 
-  async function toggleEnabled(cik: string, name: string, currentlyEnabled: boolean) {
-    try {
-      const res = await fetch(`/api/funds/${cik}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: !currentlyEnabled }) });
-      const data = await res.json();
-      if (data.success) { setFunds(prev => prev.map(f => f.cik === cik ? { ...f, enabled: !currentlyEnabled } : f)); }
-      else toast(data.error || 'UPDATE FAILED', 'error');
-    } catch { toast('UPDATE FAILED', 'error'); }
-  }
-
-  async function deleteFund(cik: string, name: string) {
-    if (!confirm(`REMOVE ${name.toUpperCase()} AND ALL HOLDINGS?`)) return;
+  async function unfollow(cik: string, name: string) {
+    if (!confirm(`STOP FOLLOWING ${name.toUpperCase()}?`)) return;
     try {
       const res = await fetch(`/api/funds/${cik}`, { method: 'DELETE' });
       const data = await res.json();
-      if (data.success) { toast(`${name.toUpperCase()} REMOVED`); setFunds(prev => prev.filter(f => f.cik !== cik)); }
-      else toast(data.error || 'DELETE FAILED', 'error');
-    } catch { toast('DELETE FAILED', 'error'); }
+      if (data.success) { toast(`UNFOLLOWED ${name.toUpperCase()}`); setFunds(prev => prev.filter(f => f.cik !== cik)); }
+      else toast(data.error || 'UNFOLLOW FAILED', 'error');
+    } catch { toast('UNFOLLOW FAILED', 'error'); }
   }
 
-  async function lookupCik() {
-    const cik = addCik.trim().replace(/^0+/, '');
-    if (!cik || !/^\d+$/.test(cik)) { toast('ENTER A NUMERIC CIK', 'error'); return; }
-    setLookingUp(true);
+  async function follow(cik: string, name: string) {
+    setFollowingCik(cik);
     try {
-      const res = await fetch(`/api/sec/lookup?cik=${cik}`);
+      const res = await fetch('/api/funds', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cik }) });
       const data = await res.json();
-      if (data.success) { setAddName(data.data.name); setAddCik(data.data.cik); }
-      else toast(data.error || 'CIK NOT FOUND', 'error');
-    } catch { toast('LOOKUP FAILED', 'error'); } finally { setLookingUp(false); }
-  }
-
-  async function addFund() {
-    const cik = addCik.trim(); const name = addName.trim();
-    if (!cik || !name) { toast('CIK AND NAME REQUIRED', 'error'); return; }
-    setAdding(true);
-    try {
-      const res = await fetch('/api/funds', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cik, name }) });
-      const data = await res.json();
-      if (data.success) { toast(`${name.toUpperCase()} ADDED`); setShowAddForm(false); setAddCik(''); setAddName(''); await fetchFunds(); }
-      else toast(data.error || 'FAILED TO ADD FUND', 'error');
-    } catch { toast('FAILED TO ADD FUND', 'error'); } finally { setAdding(false); }
+      if (!data.success) { toast(data.error || 'FOLLOW FAILED', 'error'); return; }
+      const shown = data.data?.name ?? name;
+      toast(`FOLLOWING ${shown.toUpperCase()}`);
+      // A fund nobody has opened has no holdings yet — load it now rather than
+      // leaving an empty card. Large filers take a minute; the card says so.
+      const fresh = (await fetchFunds(true)).find(f => f.cik === data.data.cik);
+      if (fresh && !fresh.quarter) syncOne(fresh.cik, shown);
+    } catch { toast('FOLLOW FAILED', 'error'); } finally { setFollowingCik(null); }
   }
 
   function getSelected(fundId: string, holdings: Holding[]): Set<string> {
@@ -208,8 +233,8 @@ export default function FundList() {
         <div style={{ display: 'flex', gap: '8px' }}>
           <button onClick={() => setShowAddForm(v => !v)} style={btnAmber}>+ ADD FUND</button>
           {!isPaper && (
-            <button onClick={syncAll} disabled={syncing || funds.filter(f => f.enabled).length === 0}
-              style={{ ...btnGhost, color: syncing ? B.label : B.cyan, borderColor: syncing ? B.border : 'var(--bg-004a5a)', opacity: (syncing || funds.filter(f => f.enabled).length === 0) ? 0.5 : 1 }}>
+            <button onClick={syncAll} disabled={syncing || funds.length === 0}
+              style={{ ...btnGhost, color: syncing ? B.label : B.cyan, borderColor: syncing ? B.border : 'var(--bg-004a5a)', opacity: (syncing || funds.length === 0) ? 0.5 : 1 }}>
               {syncing ? 'SYNCING...' : 'SYNC ALL'}
             </button>
           )}
@@ -219,38 +244,96 @@ export default function FundList() {
       {/* Add Fund Form */}
       {showAddForm && (
         <div style={{ ...panelStyle, padding: '16px', borderColor: B.amberDim, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <div style={{ color: B.amber, fontSize: '11px', fontWeight: 'bold', letterSpacing: '2px' }}>ADD FUND BY CIK</div>
-          <p style={{ color: B.label, fontSize: '11px', letterSpacing: '0.5px' }}>
-            Enter the SEC CIK number.{' '}
-            <a href="https://www.sec.gov/search-filings" target="_blank" rel="noopener noreferrer" style={{ color: B.cyan, textDecoration: 'none' }}>
-              FIND ON SEC EDGAR ↗
-            </a>
-          </p>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <input type="text" placeholder="CIK e.g. 1067983" value={addCik} onChange={e => { setAddCik(e.target.value); setAddName(''); }} style={inputStyle} />
-            <button onClick={lookupCik} disabled={lookingUp || !addCik.trim()} style={{ ...btnGhost, opacity: lookingUp || !addCik.trim() ? 0.5 : 1 }}>
-              {lookingUp ? 'LOOKING UP...' : 'LOOKUP'}
-            </button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+            <div style={{ color: B.amber, fontSize: '11px', fontWeight: 'bold', letterSpacing: '2px' }}>FIND A FUND</div>
+            <button onClick={() => { setShowAddForm(false); setQuery(''); }} style={btnGhost}>CLOSE</button>
           </div>
-          {addName && (
-            <div style={{ background: 'var(--bg-001a00)', border: `1px solid ${B.green}`, padding: '6px 12px', color: B.green, fontSize: '11px', letterSpacing: '1px' }}>
-              ✓ {addName}
+          <input
+            type="text" autoFocus value={query} onChange={e => setQuery(e.target.value)}
+            placeholder="Fund, manager or strategy — e.g. “Ray Dalio’s fund”, “quant funds” — or a CIK"
+            style={{ ...inputStyle, padding: '9px 12px', fontSize: '13px' }}
+          />
+          {!query.trim() && (
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {EXAMPLES.map(ex => (
+                <button key={ex} onClick={() => setQuery(ex)} style={{ ...btnGhost, fontSize: '10px', padding: '3px 9px' }}>{ex}</button>
+              ))}
             </div>
           )}
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-            <button onClick={() => { setShowAddForm(false); setAddCik(''); setAddName(''); }} style={btnGhost}>CANCEL</button>
-            <button onClick={addFund} disabled={adding || !addCik.trim() || !addName.trim()} style={{ ...btnAmber, opacity: adding || !addCik.trim() || !addName.trim() ? 0.5 : 1 }}>
-              {adding ? 'ADDING...' : 'ADD FUND'}
-            </button>
-          </div>
+
+          {cikQuery && (
+            <SearchRow
+              name={`CIK ${cikQuery}`} detail="Follow any 13F filer by its SEC number"
+              cik={cikQuery} followed={followed.has(cikQuery)} busy={followingCik === cikQuery}
+              onFollow={() => follow(cikQuery, `CIK ${cikQuery}`)}
+            />
+          )}
+
+          {directoryHits.length > 0 && (
+            <div style={{ border: `1px solid ${B.border}` }}>
+              {directoryHits.map(f => (
+                <SearchRow
+                  key={f.cik} name={f.name} badge={TYPE_LABEL[f.entity_type]}
+                  detail={[f.aliases.filter(a => a.toLowerCase() !== f.name.toLowerCase()).slice(0, 3).join(' · '), f.tags.join(', ')].filter(Boolean).join(' — ')}
+                  cik={f.cik} followed={followed.has(f.cik)} busy={followingCik === f.cik}
+                  onFollow={() => follow(f.cik, f.name)}
+                />
+              ))}
+            </div>
+          )}
+
+          {(semanticLoading || portfolioHits.length > 0) && (
+            <div>
+              <div style={{ color: B.label, fontSize: '9.5px', letterSpacing: '2px', margin: '4px 0 6px' }}>
+                {semanticLoading && !portfolioHits.length ? 'MATCHING AGAINST WHAT FUNDS HOLD…' : 'MATCHED BY WHAT THEY HOLD'}
+              </div>
+              {portfolioHits.length > 0 && (
+                <div style={{ border: `1px solid ${B.border}` }}>
+                  {portfolioHits.map(f => (
+                    <SearchRow
+                      key={f.cik} name={f.name} badge={TYPE_LABEL[f.entity_type]}
+                      detail={f.why ? `Largest: ${f.why}` : `Profile match — holdings not loaded yet${f.tags.length ? ` · ${f.tags.join(', ')}` : ''}`}
+                      cik={f.cik} followed={followed.has(f.cik)} busy={followingCik === f.cik}
+                      onFollow={() => follow(f.cik, f.name)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* "None on EDGAR" only matters when nothing tracked matched either —
+              a theme query never names an EDGAR filer. */}
+          {(!!edgarHits?.length || (edgarHits && !semanticLoading && !portfolioHits.length && !directoryHits.length)) && (
+            <div>
+              <div style={{ color: B.label, fontSize: '9.5px', letterSpacing: '2px', margin: '4px 0 6px' }}>
+                {edgarLoading ? 'SEARCHING SEC EDGAR…' : `OTHER 13F FILERS ON SEC EDGAR${edgarHits?.length ? '' : ' — NONE MATCH'}`}
+              </div>
+              {!!edgarHits?.length && (
+                <div style={{ border: `1px solid ${B.border}` }}>
+                  {edgarHits.map(h => (
+                    <SearchRow
+                      key={h.cik} name={h.name} detail={`CIK ${h.cik} · last 13F filed ${h.last13F}`}
+                      cik={h.cik} followed={followed.has(h.cik)} busy={followingCik === h.cik}
+                      onFollow={() => follow(h.cik, h.name)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {query.trim() && !cikQuery && directoryHits.length === 0 && query.trim().length < 3 && (
+            <div style={{ color: B.label, fontSize: '11px' }}>Keep typing…</div>
+          )}
         </div>
       )}
 
       {/* Fund list */}
       {funds.length === 0 ? (
         <div style={{ ...panelStyle, padding: '48px', textAlign: 'center' }}>
-          <p style={{ color: B.label, fontSize: '12px', letterSpacing: '1px' }}>NO FUNDS ADDED</p>
-          <p style={{ color: 'var(--fg-444444)', fontSize: '11px', marginTop: '6px' }}>CLICK + ADD FUND TO GET STARTED</p>
+          <p style={{ color: B.label, fontSize: '12px', letterSpacing: '1px' }}>NOT FOLLOWING ANY FUNDS</p>
+          <p style={{ color: 'var(--fg-444444)', fontSize: '11px', marginTop: '6px' }}>CLICK + ADD FUND AND SEARCH BY NAME, MANAGER OR STRATEGY</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -258,31 +341,29 @@ export default function FundList() {
             const isSyncingThis = syncingCik === fund.cik;
             const isExpanded = !!collapsedMap[fund.id];
             return (
-              <div key={fund.id} style={{ ...panelStyle, opacity: fund.enabled ? 1 : 0.5 }} onMouseEnter={() => setHoveredFund(fund.id)} onMouseLeave={() => setHoveredFund(null)}>
+              <div key={fund.id} style={panelStyle} onMouseEnter={() => setHoveredFund(fund.id)} onMouseLeave={() => setHoveredFund(null)}>
                 {/* Fund header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap', padding: '10px 14px', borderBottom: isExpanded ? `1px solid ${B.border}` : 'none' }}>
                   <button onClick={() => toggleCollapsed(fund.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', padding: 0, textAlign: 'left', minWidth: 0, flex: '1 1 180px' }}>
                     <span style={{ color: B.amber, fontSize: '10px', userSelect: 'none' }}>{isExpanded ? '▼' : '▶'}</span>
                     <div>
                       <div style={{ color: B.amber, fontWeight: 'bold', fontSize: '13px', letterSpacing: '1px', fontFamily: 'Courier New, monospace', overflowWrap: 'anywhere' }}>{fund.name.toUpperCase()}</div>
-                      <div style={{ color: B.label, fontSize: '10px', letterSpacing: '1px' }}>CIK: {fund.cik}</div>
+                      <div style={{ color: B.label, fontSize: '10px', letterSpacing: '1px' }}>
+                        CIK: {fund.cik}
+                        {fund.quarter ? ` · ${fund.quarter} · ${fund.holdings_total.toLocaleString()} POSITIONS` : isSyncingThis ? ' · LOADING FROM SEC — LARGE FILERS TAKE A MINUTE' : ' · NOT LOADED YET'}
+                      </div>
                     </div>
                   </button>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                    <span style={{ fontSize: '10px', letterSpacing: '1px', padding: '2px 8px', border: `1px solid ${fund.enabled ? 'var(--bg-004400)' : B.border}`, color: fund.enabled ? B.green : B.label }}>
-                      {fund.enabled ? 'ACTIVE' : 'DISABLED'}
-                    </span>
-                    {!isPaper && <>
-                      <button onClick={() => toggleEnabled(fund.cik, fund.name, fund.enabled)} style={btnGhost}>
-                        {fund.enabled ? 'DISABLE' : 'ENABLE'}
-                      </button>
+                    <Link href={`/fund/${fund.cik}`} style={{ ...btnGhost, color: B.amber, textDecoration: 'none' }}>FULL PORTFOLIO →</Link>
+                    {!isPaper && (
                       <button onClick={() => syncOne(fund.cik, fund.name)} disabled={isSyncingThis}
                         style={{ ...btnGhost, color: B.cyan, borderColor: 'var(--bg-004a5a)', opacity: isSyncingThis ? 0.5 : 1 }}>
                         {isSyncingThis ? 'SYNCING...' : 'SYNC'}
                       </button>
-                      <button onClick={() => deleteFund(fund.cik, fund.name)} style={btnRed}>REMOVE</button>
-                    </>}
+                    )}
+                    <button onClick={() => unfollow(fund.cik, fund.name)} style={btnRed}>UNFOLLOW</button>
                   </div>
                 </div>
 
@@ -394,9 +475,10 @@ export default function FundList() {
                           </tbody>
                         </table>
                       </div>
-                      {fund.holdings.length > 15 && (
+                      {fund.holdings_total > 15 && (
                         <p style={{ color: B.label, fontSize: '10px', letterSpacing: '1px', textAlign: 'right', marginTop: '6px' }}>
-                          SHOWING 15 OF {fund.holdings.length} HOLDINGS
+                          SHOWING 15 OF {fund.holdings_total.toLocaleString()} HOLDINGS ·{' '}
+                          <Link href={`/fund/${fund.cik}`} style={{ color: B.amber, textDecoration: 'none' }}>SEE ALL →</Link>
                         </p>
                       )}
                     </div>
@@ -418,6 +500,35 @@ export default function FundList() {
         <BasketModal fundId={basketFund.fund.id} fundName={basketFund.fund.name} holdings={basketFund.selected}
           isPaper={isPaper}
           onClose={() => setBasketFund(null)} />
+      )}
+    </div>
+  );
+}
+
+function SearchRow({ name, detail, badge, cik, followed, busy, onFollow }: {
+  name: string; detail?: string; badge?: string; cik: string;
+  followed: boolean; busy: boolean; onFollow: () => void;
+}) {
+  return (
+    <div style={{
+      display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', alignItems: 'center', gap: '10px',
+      padding: '9px 12px', borderTop: '1px solid var(--bg-161616)', background: 'var(--bg-000000)',
+    }}>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
+          <Link href={`/fund/${cik}`} style={{ color: B.amber, fontWeight: 'bold', fontSize: '12.5px', textDecoration: 'none' }}>{name}</Link>
+          {badge && <span style={{ color: 'var(--fg-666666)', fontSize: '9px', letterSpacing: '1.5px' }}>{badge}</span>}
+        </div>
+        {detail && (
+          <div style={{ color: B.label, fontSize: '10.5px', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{detail}</div>
+        )}
+      </div>
+      {followed ? (
+        <span style={{ color: B.green, fontSize: '10px', letterSpacing: '1px', padding: '4px 4px' }}>✓ FOLLOWING</span>
+      ) : (
+        <button onClick={onFollow} disabled={busy} style={{ ...btnAmber, opacity: busy ? 0.5 : 1 }}>
+          {busy ? 'FOLLOWING…' : '+ FOLLOW'}
+        </button>
       )}
     </div>
   );

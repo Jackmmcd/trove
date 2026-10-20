@@ -24,8 +24,12 @@ const only = process.argv[2];
 (async () => {
   let q = sb.from('funds').select('cik, name, entity_type').is('user_id', null).eq('enabled', true);
   if (only) q = q.eq('cik', only);
-  const { data: funds, error } = await q;
+  const { data: rows, error } = await q;
   if (error) { console.error(error.message); process.exit(1); }
+  // On-demand funds load when their page is opened. Name one explicitly to
+  // force it: node scripts/sync-universe.js 0001350694
+  const onDemand = new Set(require('../config/fund-directory.json').funds.filter(f => f.sync === 'on_demand').map(f => f.cik));
+  const funds = only ? rows : rows.filter(f => !onDemand.has(f.cik));
 
   console.log(`syncing ${funds.length} funds via ${BASE}/api/cron/sync\n`);
 

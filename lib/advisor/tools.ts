@@ -2,6 +2,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import axios from 'axios';
 import { db } from '@/lib/supabase/admin';
 import { fetchAllRows } from '@/lib/supabase/paginate';
+import { directoryEntry, normalizeCik } from '@/lib/funds/directory';
+import { getFundProfile } from '@/lib/services/fund-profile';
 
 /**
  * Tool definitions and handlers.
@@ -15,11 +17,11 @@ export const ANALYST_TOOLS: Anthropic.Beta.BetaTool[] = [
   {
     name: 'get_fund_detail',
     description:
-      'Full position list for one fund, beyond the 25 largest already shown. Use when the user asks about a fund\'s smaller positions, its full book, or an older quarter.',
+      'Full position list for one fund, beyond the 25 largest already shown. Use when the user asks about a fund\'s smaller positions, its full book, or an older quarter — and for ANY fund in the fund directory that has no holdings block yet: the first lookup fetches its latest 13F from SEC EDGAR (it can take a minute for very large filers), after which it is cached.',
     input_schema: {
       type: 'object',
       properties: {
-        cik: { type: 'string', description: 'Zero-padded 10-digit CIK, exactly as shown for that fund.' },
+        cik: { type: 'string', description: 'Zero-padded 10-digit CIK, exactly as shown for that fund in the holdings blocks or the fund directory.' },
         quarter: { type: 'string', description: 'Optional, e.g. "2026-Q2". Defaults to the fund\'s latest filing.' },
       },
       required: ['cik'],
@@ -151,19 +153,35 @@ function prevQuarter(q: string): string {
   return qn === 1 ? `${parseInt(y, 10) - 1}-Q4` : `${y}-Q${qn - 1}`;
 }
 
-async function getFundDetail(cik: string, quarter?: string) {
-  const { data: fund } = await db
+const FUND_DETAIL_LIMIT = 300;
+
+async function getFundDetail(rawCik: string, quarter?: string) {
+  const cik = normalizeCik(rawCik);
+  const readFund = () => db
     .from('funds')
     .select('id, name, cik, entity_type, filer_note')
     .eq('cik', cik).is('user_id', null).maybeSingle();
+  const readRows = (fundId: string) => fetchAllRows<{
+    ticker: string; shares: number; value: number; weight: number; quarter: string; period_end: string | null;
+  }>((from, to) => db.from('holdings')
+    .select('ticker, shares, value, weight, quarter, period_end')
+    .eq('fund_id', fundId).order('id').range(from, to));
+
+  let { data: fund } = await readFund();
+  let rows = fund ? await readRows(fund.id) : [];
+
+  // On-demand funds have no holdings until someone asks. Asking is this.
+  if (!rows.length && (fund || directoryEntry(cik))) {
+    try {
+      await getFundProfile(cik);
+    } catch (e: any) {
+      return { error: `Could not load CIK ${cik} from SEC EDGAR: ${e.message}` };
+    }
+    ({ data: fund } = await readFund());
+    rows = fund ? await readRows(fund.id) : [];
+  }
   if (!fund) return { error: `Trove does not track a fund with CIK ${cik}.` };
 
-  const { data: all } = await db
-    .from('holdings')
-    .select('ticker, shares, value, weight, quarter, period_end')
-    .eq('fund_id', fund.id);
-
-  const rows = all ?? [];
   if (!rows.length) return { error: `${fund.name} has no holdings on record yet.` };
 
   const target = quarter ?? rows.map(r => r.quarter).sort().reverse()[0];
@@ -184,7 +202,13 @@ async function getFundDetail(cik: string, quarter?: string) {
     has_prior_quarter: prior.length > 0,
     position_count: current.length,
     total_value: current.reduce((s, r) => s + r.value, 0),
-    positions: current.map(r => ({
+    // Citadel or BlackRock report thousands of lines; the full list would cost
+    // hundreds of thousands of tokens and the tail is sub-0.01% noise.
+    ...(current.length > FUND_DETAIL_LIMIT && {
+      truncated: `Showing the ${FUND_DETAIL_LIMIT} largest of ${current.length} positions. The full list is on the fund page: /fund/${fund.cik}`,
+    }),
+    fund_page: `/fund/${fund.cik}`,
+    positions: current.slice(0, FUND_DETAIL_LIMIT).map(r => ({
       ticker: r.ticker,
       weight: Number(r.weight.toFixed(2)),
       value: Math.round(r.value),

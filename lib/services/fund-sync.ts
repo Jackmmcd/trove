@@ -1,5 +1,6 @@
 import { db } from '@/lib/supabase/admin';
 import { getSECApiClient } from '@/lib/sec-api/client';
+import { isOnDemand } from '@/lib/funds/directory';
 import Anthropic from '@anthropic-ai/sdk';
 
 async function generateThesis(
@@ -49,13 +50,18 @@ export async function syncAllFunds(userId?: string): Promise<SyncResult[]> {
   query = userId ? query.eq('user_id', userId) : query.is('user_id', null);
   const { data: enabledFunds } = await query;
   const results: SyncResult[] = [];
-  for (const fund of (enabledFunds ?? [])) {
+  // On-demand funds load when someone opens them (lib/services/fund-profile.ts);
+  // a scheduled pass over Citadel and BlackRock would be the crawl they exist to avoid.
+  for (const fund of (enabledFunds ?? []).filter(f => !isOnDemand(f.cik))) {
     results.push(await syncFund(fund.cik, fund.user_id ?? undefined));
   }
   return results;
 }
 
-export async function syncFund(cik: string, userId?: string, quarter?: string): Promise<SyncResult> {
+export async function syncFund(
+  cik: string, userId?: string, quarter?: string,
+  opts: { tickerBudgetMs?: number } = {},
+): Promise<SyncResult> {
   const secClient = getSECApiClient();
 
   let fundQuery = db.from('funds').select('*').eq('cik', cik);
@@ -66,7 +72,7 @@ export async function syncFund(cik: string, userId?: string, quarter?: string): 
   }
 
   try {
-    const holdingsData = await secClient.fetch13FHoldings(cik, quarter);
+    const holdingsData = await secClient.fetch13FHoldings(cik, quarter, opts);
 
     let del = db.from('holdings').delete().eq('fund_id', fund.id).eq('quarter', holdingsData.quarter);
     del = userId ? del.eq('user_id', userId) : del.is('user_id', null);
@@ -92,9 +98,12 @@ export async function syncFund(cik: string, userId?: string, quarter?: string): 
     }
     const rows = [...byTicker.values()];
 
-    if (rows.length > 0) {
+    // Chunked: the largest filers report several thousand positions, well past
+    // what one PostgREST request body comfortably carries.
+    const INSERT_CHUNK = 1000;
+    for (let i = 0; i < rows.length; i += INSERT_CHUNK) {
       const { error: insertError } = await db.from('holdings').insert(
-        rows.map(h => ({
+        rows.slice(i, i + INSERT_CHUNK).map(h => ({
           fund_id: fund.id,
           user_id: userId ?? null,
           ticker: h.ticker,
@@ -113,6 +122,9 @@ export async function syncFund(cik: string, userId?: string, quarter?: string): 
       // Never swallow this. Reporting a fetch count as if it were a write count
       // is how 12 funds ended up silently missing a quarter.
       if (insertError) {
+        // Roll back the chunks already written: a half-stored quarter would be
+        // served as the whole portfolio, with weights that don't add up.
+        if (i > 0) await db.from('holdings').delete().eq('fund_id', fund.id).eq('quarter', holdingsData.quarter);
         return {
           fundId: fund.id, cik, name: fund.name, success: false, holdingsCount: 0,
           quarter: holdingsData.quarter,
@@ -128,6 +140,15 @@ export async function syncFund(cik: string, userId?: string, quarter?: string): 
       const thesisText = await generateThesis(fund.name, holdingsData.holdings, holdingsData.quarter);
       if (thesisText) {
         await db.from('fund_theses').insert({ fund_id: fund.id, thesis: thesisText, quarter: holdingsData.quarter });
+      }
+      // Re-embed from the new book so semantic fund search reflects what the
+      // fund holds now. Best-effort: a missing table or Voyage outage must not
+      // fail a sync that has already written its holdings.
+      try {
+        const { indexFunds } = await import('@/lib/funds/embeddings');
+        await indexFunds([cik]);
+      } catch (e: any) {
+        console.warn(`fund embedding skipped for ${cik}:`, e?.message);
       }
     }
 

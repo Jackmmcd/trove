@@ -1,5 +1,6 @@
 import { db } from '@/lib/supabase/admin';
 import { getTastytradeClient } from '@/lib/tastytrade/client';
+import { isOnDemand } from '@/lib/funds/directory';
 import {
   TargetWeight,
   CurrentPosition,
@@ -25,8 +26,12 @@ function getCurrentQuarter(): string {
 
 export async function calculateTargetWeights(): Promise<TargetWeight[]> {
   const quarter = await getLatestQuarter();
-  const { data: funds } = await db.from('funds').select('id').eq('enabled', true);
-  if (!funds?.length) return [];
+  // Weights are dollar-summed across funds, so one opened BlackRock page would
+  // otherwise turn the target into the market index. On-demand funds are for
+  // looking at, not for following.
+  const { data: all } = await db.from('funds').select('id, cik').eq('enabled', true);
+  const funds = (all ?? []).filter(f => !isOnDemand(f.cik));
+  if (!funds.length) return [];
 
   const { data: holdings } = await db.from('holdings').select('ticker, value, fund_id').in('fund_id', funds.map(f => f.id)).eq('quarter', quarter);
 

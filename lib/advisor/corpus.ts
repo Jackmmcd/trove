@@ -1,5 +1,6 @@
 import { db } from '@/lib/supabase/admin';
 import { fetchAllRows } from '@/lib/supabase/paginate';
+import { directoryEntry } from '@/lib/funds/directory';
 
 /**
  * The universe digest — a frozen, plain-text rendering of every fund in the
@@ -247,7 +248,9 @@ export async function buildDigest(): Promise<{ digest: string; fundCount: number
       holders: c.holders.length,
       weight: c.weight,
       added: c.added,
-      score: (c.holders.length / fundRows.length) * c.weight,
+      // Breadth over funds with holdings: an on-demand fund nobody has opened
+      // yet holds nothing on record, and shouldn't dilute everyone else's agreement.
+      score: (c.holders.length / Math.max(blocks.length, 1)) * c.weight,
     }))
     .sort((a, b) => b.score - a.score)
     .slice(0, CONSENSUS_LIMIT);
@@ -268,12 +271,30 @@ export async function buildDigest(): Promise<{ digest: string; fundCount: number
     ...ranked.map(r => `${r.label} | ${r.holders} | ${r.weight.toFixed(1)} | ${r.added} | ${r.cap ?? '-'} | ${r.mixed ? 'yes' : 'no'} | ${r.issuer ?? '-'}`),
   ].join('\n');
 
+  // The directory lets "what does Ray Dalio own?" resolve to a CIK even when
+  // Bridgewater has never been loaded and so has no holdings block above.
+  const loaded = new Set(fundRows.filter(f => byFund.has(f.id)).map(f => f.cik));
+  const directoryBlock = [
+    '# FUND DIRECTORY',
+    'Every fund Trove tracks, with the names people use for it. "loaded" funds have a',
+    'holdings block above. For any other fund, call get_fund_detail with its CIK — the',
+    'first call fetches its latest 13F from SEC EDGAR. Every fund has a page at /fund/<CIK>.',
+    'name | CIK | type | also known as | strategy | loaded',
+    ...fundRows.map(f => {
+      const d = directoryEntry(f.cik);
+      return [
+        d?.name ?? f.name, f.cik, TYPE_LABEL[f.entity_type] ?? f.entity_type,
+        d?.aliases.join(', ') || '-', d?.tags.join(', ') || '-', loaded.has(f.cik) ? 'yes' : 'no',
+      ].join(' | ');
+    }),
+  ].join('\n');
+
   const digest = [
     '# FUNDS TROVE TRACKS',
     // Header wording is deliberate: the model echoes the vocabulary it reads here,
     // and words like "universe" or "corpus" are engineering terms that mean
     // nothing to a reader when they surface in an answer.
-    `${fundRows.length} institutions that file 13Fs. Each block states its own "as of" quarter —`,
+    `${fundRows.length} institutions that file 13Fs; ${blocks.length} have holdings loaded below. Each block states its own "as of" quarter —`,
     'filers are not synchronised, and a fund may be a full quarter behind its peers.',
     'All 13F positions are disclosed up to 45 days after the quarter closes, so they',
     'may already have changed.',
@@ -281,6 +302,8 @@ export async function buildDigest(): Promise<{ digest: string; fundCount: number
     blocks.join('\n\n'),
     '',
     consensusBlock,
+    '',
+    directoryBlock,
   ].join('\n');
 
   return { digest, fundCount: fundRows.length };
