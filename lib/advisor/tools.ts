@@ -145,6 +145,7 @@ Bear Case:
 interface HolderRow {
   fund_id: string; ticker: string; weight: number; value: number;
   quarter: string; instrument_type: string | null; issuer_name: string | null;
+  put_call: 'put' | 'call' | null;
 }
 
 function prevQuarter(q: string): string {
@@ -163,8 +164,9 @@ async function getFundDetail(rawCik: string, quarter?: string) {
     .eq('cik', cik).is('user_id', null).maybeSingle();
   const readRows = (fundId: string) => fetchAllRows<{
     ticker: string; shares: number; value: number; weight: number; quarter: string; period_end: string | null;
+    put_call: 'put' | 'call' | null;
   }>((from, to) => db.from('holdings')
-    .select('ticker, shares, value, weight, quarter, period_end')
+    .select('ticker, shares, value, weight, quarter, period_end, put_call')
     .eq('fund_id', fundId).order('id').range(from, to));
 
   let { data: fund } = await readFund();
@@ -191,7 +193,9 @@ async function getFundDetail(rawCik: string, quarter?: string) {
   }
 
   const prior = rows.filter(r => r.quarter === prevQuarter(target));
-  const priorWeight = new Map(prior.map(r => [r.ticker, r.weight]));
+  const posKey = (r: { ticker: string; put_call: string | null }) => `${r.ticker}|${r.put_call ?? ''}`;
+  const priorWeight = new Map(prior.map(r => [posKey(r), r.weight]));
+  const hasOptions = current.some(r => r.put_call);
 
   return {
     fund: fund.name,
@@ -208,12 +212,16 @@ async function getFundDetail(rawCik: string, quarter?: string) {
       truncated: `Showing the ${FUND_DETAIL_LIMIT} largest of ${current.length} positions. The full list is on the fund page: /fund/${fund.cik}`,
     }),
     fund_page: `/fund/${fund.cik}`,
+    ...(hasOptions && {
+      options_note: 'Positions marked option: put are bets that the stock FALLS — never describe them as holdings or support. Option value and weight are the underlying shares controlled, not money spent.',
+    }),
     positions: current.slice(0, FUND_DETAIL_LIMIT).map(r => ({
       ticker: r.ticker,
+      ...(r.put_call && { option: r.put_call }),
       weight: Number(r.weight.toFixed(2)),
       value: Math.round(r.value),
       change: prior.length === 0 ? null
-        : priorWeight.has(r.ticker) ? Number((r.weight - priorWeight.get(r.ticker)!).toFixed(2)) : 'NEW',
+        : priorWeight.has(posKey(r)) ? Number((r.weight - priorWeight.get(posKey(r))!).toFixed(2)) : 'NEW',
     })),
   };
 }
@@ -244,7 +252,7 @@ async function getTickerHolders(ticker: string) {
     seed = null;
   }
 
-  const cols = 'fund_id, ticker, weight, value, quarter, instrument_type, issuer_name';
+  const cols = 'fund_id, ticker, weight, value, quarter, instrument_type, issuer_name, put_call';
   const byIssuer = async () => fetchAllRows<HolderRow>((from, to) =>
     db.from('holdings').select(cols).eq('cusip6', seed!.cusip6!).in('fund_id', fundIds).order('id').range(from, to));
   const byTicker = async () => fetchAllRows<HolderRow>((from, to) =>
@@ -254,12 +262,15 @@ async function getTickerHolders(ticker: string) {
   try {
     rows = seed?.cusip6 ? await byIssuer() : await byTicker();
   } catch {
-    const legacy = await fetchAllRows<Omit<HolderRow, 'instrument_type'>>((from, to) =>
+    const legacy = await fetchAllRows<Omit<HolderRow, 'instrument_type' | 'put_call'>>((from, to) =>
       db.from('holdings')
         .select('fund_id, ticker, weight, value, quarter, issuer_name')
         .eq('ticker', sym).in('fund_id', fundIds).order('id').range(from, to));
-    rows = legacy.map(r => ({ ...r, instrument_type: null }));
+    rows = legacy.map(r => ({ ...r, instrument_type: null, put_call: null }));
   }
+  // An option is its own instrument: "put option" never counts as an equity
+  // holder, so a fund betting against a stock can't read as support for it.
+  rows = rows.map(r => (r.put_call ? { ...r, instrument_type: `${r.put_call} option` } : r));
 
   if (!rows.length) return { ticker: sym, holders: [], note: 'No tracked fund reports this ticker.' };
 
@@ -298,9 +309,11 @@ async function getTickerHolders(ticker: string) {
     // Only equity weights are comparable; summing a bond weight into an equity
     // total produces a number that means nothing.
     aggregate_equity_weight: Number(equityHolders.reduce((s, h) => s + h.weight, 0).toFixed(2)),
-    note: holders.some(h => h.instrument !== 'equity')
-      ? 'Some holders hold debt or warrants, not stock. Those are different bets — say which is which.'
-      : undefined,
+    note: holders.some(h => h.instrument === 'put option')
+      ? 'At least one fund holds PUT options — a bet that this stock FALLS. Never count it as a holder or as support; say plainly that it is betting against the company.'
+      : holders.some(h => h.instrument !== 'equity')
+        ? 'Some holders hold debt, warrants or call options, not stock. Those are different bets — say which is which.'
+        : undefined,
     holders,
   };
 }
@@ -603,7 +616,8 @@ async function getMarketSnapshot(tickers?: string[]) {
 
   const { data: rows } = await db
     .from('holdings')
-    .select('ticker, fund_id, quarter, value');
+    .select('ticker, fund_id, quarter, value')
+    .is('put_call', null);
 
   const all = rows ?? [];
   const latest = all.map(r => r.quarter).sort().reverse()[0];
@@ -715,7 +729,8 @@ export async function searchSecurities(query: string, limit?: number) {
     .from('holdings')
     .select('ticker, fund_id, weight, quarter')
     .in('ticker', matches.map(m => m.ticker))
-    .eq('instrument_type', 'equity');
+    .eq('instrument_type', 'equity')
+    .is('put_call', null); // "held by N funds" must not count funds betting against it
 
   const latestByFund = new Map<string, string>();
   for (const r of rows ?? []) {

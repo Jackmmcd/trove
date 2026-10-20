@@ -33,6 +33,8 @@ export interface ProfilePosition {
   ticker: string; resolved: boolean; issuer: string | null; cusip: string | null;
   instrument: string; shares: number; value: number; weight: number;
   change: number | 'NEW' | null; sector: string | null;
+  /** Set for option lines. A put is a bet the stock falls; value is the underlying, not the premium. */
+  option: 'put' | 'call' | null;
 }
 
 export interface FundProfile {
@@ -51,6 +53,8 @@ export interface FundProfile {
   stats: {
     positions: number; total_value: number;
     top10_weight: number; top25_weight: number; unresolved: number;
+    /** Option lines as a share of reported value — shown so a put-heavy book can't read as a long one. */
+    puts: { count: number; weight: number }; calls: { count: number; weight: number };
   };
   composition: {
     by_instrument: { type: string; weight: number; count: number }[];
@@ -59,14 +63,14 @@ export interface FundProfile {
     sector_coverage: number;
   };
   has_prior_quarter: boolean;
-  exited: { ticker: string; issuer: string | null; weight: number }[];
+  exited: { ticker: string; issuer: string | null; weight: number; option: 'put' | 'call' | null }[];
   positions: ProfilePosition[];
 }
 
 interface HoldingRow {
   ticker: string; cusip: string | null; issuer_name: string | null; instrument_type: string | null;
   shares: number; value: number; weight: number; quarter: string;
-  period_end: string | null; filing_date: string | null;
+  period_end: string | null; filing_date: string | null; put_call: 'put' | 'call' | null;
 }
 
 export class FundNotFoundError extends Error {}
@@ -161,7 +165,7 @@ async function latestQuarter(fundId: string) {
 async function quarterRows(fundId: string, quarter: string): Promise<HoldingRow[]> {
   return fetchAllRows<HoldingRow>((from, to) =>
     db.from('holdings')
-      .select('ticker, cusip, issuer_name, instrument_type, shares, value, weight, quarter, period_end, filing_date')
+      .select('ticker, cusip, issuer_name, instrument_type, shares, value, weight, quarter, period_end, filing_date, put_call')
       .eq('fund_id', fundId).is('user_id', null).eq('quarter', quarter)
       .order('value', { ascending: false }).order('id')
       .range(from, to));
@@ -227,7 +231,10 @@ export async function getFundProfile(rawCik: string): Promise<FundProfile> {
   const empty: FundProfile = {
     fund: fundInfo, quarter: null, period_end: null, filing_date: null, source, stale_warning: staleWarning,
     thesis: null,
-    stats: { positions: 0, total_value: 0, top10_weight: 0, top25_weight: 0, unresolved: 0 },
+    stats: {
+      positions: 0, total_value: 0, top10_weight: 0, top25_weight: 0, unresolved: 0,
+      puts: { count: 0, weight: 0 }, calls: { count: 0, weight: 0 },
+    },
     composition: { by_instrument: [], by_sector: [], sector_coverage: 0 },
     has_prior_quarter: false, exited: [], positions: [],
   };
@@ -240,20 +247,23 @@ export async function getFundProfile(rawCik: string): Promise<FundProfile> {
   ]);
 
   const total = current.reduce((s, r) => s + r.value, 0);
-  const priorWeight = new Map(previous.map(r => [r.cusip ?? r.ticker, r.weight]));
+  // Shares and options on one CUSIP are separate positions, quarter to quarter too.
+  const posKey = (r: HoldingRow) => `${r.cusip ?? r.ticker}|${r.put_call ?? ''}`;
+  const priorWeight = new Map(previous.map(r => [posKey(r), r.weight]));
   const hasPrior = previous.length > 0;
   const sectorOf = await sectors(
     current.slice(0, SECTOR_LOOKUP_LIMIT).map(r => r.ticker).filter(t => EQUITY_TICKER.test(t)),
   );
 
   const positions: ProfilePosition[] = current.map(r => {
-    const key = r.cusip ?? r.ticker;
+    const key = posKey(r);
     return {
       ticker: r.ticker,
       resolved: EQUITY_TICKER.test(r.ticker),
       issuer: r.issuer_name && decodeXmlEntities(r.issuer_name),
       cusip: r.cusip,
       instrument: r.instrument_type ?? 'unknown',
+      option: r.put_call,
       shares: r.shares,
       value: r.value,
       weight: r.weight,
@@ -275,9 +285,15 @@ export async function getFundProfile(rawCik: string): Promise<FundProfile> {
       .sort((a, b) => b.weight - a.weight);
   };
 
-  const bySector = group(p => p.sector);
-  const currentKeys = new Set(current.map(r => r.cusip ?? r.ticker));
+  // Sectors describe what the fund owns. A put on Palantir does not make the
+  // fund 66% software, so option lines stay out of this chart.
+  const bySector = group(p => (p.option ? null : p.sector));
+  const currentKeys = new Set(current.map(posKey));
   const sum = (n: number) => Number(positions.slice(0, n).reduce((s, p) => s + p.weight, 0).toFixed(2));
+  const optionStats = (kind: 'put' | 'call') => {
+    const ps = positions.filter(p => p.option === kind);
+    return { count: ps.length, weight: Number(ps.reduce((s, p) => s + p.weight, 0).toFixed(2)) };
+  };
 
   return {
     ...empty,
@@ -291,17 +307,19 @@ export async function getFundProfile(rawCik: string): Promise<FundProfile> {
       top10_weight: sum(10),
       top25_weight: sum(25),
       unresolved: positions.filter(p => !p.resolved).length,
+      puts: optionStats('put'),
+      calls: optionStats('call'),
     },
     composition: {
-      by_instrument: group(p => p.instrument).map(g => ({ type: g.k, weight: g.weight, count: g.count })),
+      by_instrument: group(p => (p.option ? `${p.option}_option` : p.instrument)).map(g => ({ type: g.k, weight: g.weight, count: g.count })),
       by_sector: bySector.map(g => ({ sector: g.k, weight: g.weight, count: g.count })),
       sector_coverage: Number(bySector.reduce((s, g) => s + g.weight, 0).toFixed(1)),
     },
     has_prior_quarter: hasPrior,
     exited: previous
-      .filter(r => !currentKeys.has(r.cusip ?? r.ticker))
+      .filter(r => !currentKeys.has(posKey(r)))
       .sort((a, b) => b.weight - a.weight).slice(0, 15)
-      .map(r => ({ ticker: r.ticker, issuer: r.issuer_name && decodeXmlEntities(r.issuer_name), weight: Number(r.weight.toFixed(2)) })),
+      .map(r => ({ ticker: r.ticker, issuer: r.issuer_name && decodeXmlEntities(r.issuer_name), weight: Number(r.weight.toFixed(2)), option: r.put_call })),
     positions,
   };
 }

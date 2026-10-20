@@ -5,7 +5,7 @@ import Anthropic from '@anthropic-ai/sdk';
 
 async function generateThesis(
   fundName: string,
-  holdings: { ticker: string; weight: number; name?: string }[],
+  holdings: { ticker: string; weight: number; name?: string; putCall?: 'put' | 'call' }[],
   quarter: string,
 ): Promise<string> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -14,9 +14,16 @@ async function generateThesis(
   // Include the issuer name from the filing. Given bare tickers, the model cannot
   // identify recently-listed or thinly-covered names and says so — which then ends
   // up quoted in Analyst's context as "this data looks fictional".
+  // Options are spelled out: unlabelled, a put reads as the fund's biggest bet
+  // FOR a company it is actually betting against.
+  const optionNote = (h: { putCall?: 'put' | 'call' }) =>
+    h.putCall === 'put' ? ' — PUT OPTIONS: a bet that this stock FALLS'
+      : h.putCall === 'call' ? ' — CALL OPTIONS: a leveraged bet that this stock rises'
+      : '';
   const holdingsList = top
-    .map((h, i) => `${i + 1}. ${h.name ? `${h.name} (${h.ticker})` : h.ticker} — ${h.weight.toFixed(1)}%`)
+    .map((h, i) => `${i + 1}. ${h.name ? `${h.name} (${h.ticker})` : h.ticker} — ${h.weight.toFixed(1)}%${optionNote(h)}`)
     .join('\n');
+  const hasPuts = top.some(h => h.putCall === 'put');
   try {
     const client = new Anthropic({ apiKey });
     const msg = await client.messages.create({
@@ -24,7 +31,7 @@ async function generateThesis(
       max_tokens: 350,
       messages: [{
         role: 'user',
-        content: `Look at these stock holdings from "${fundName}" as of ${quarter}. Write 4-5 sentences explaining what kinds of companies this fund bets on and why — pitched at a smart high schooler who knows nothing about finance. Describe what the actual companies do in plain terms (make chips, run cloud servers, sell insurance, etc.), what the common thread is across the holdings, and what big trend or belief seems to be driving the bets. Be specific — name actual companies or industries where it helps. No buzzwords like "diversified", "exposure", "portfolio", "thesis", "positioned", "leverage", or "sectors". No markdown, headers, or hashtags — plain text only.\n\nHoldings:\n${holdingsList}`,
+        content: `Look at these stock holdings from "${fundName}" as of ${quarter}. Write 4-5 sentences explaining what kinds of companies this fund bets on and why — pitched at a smart high schooler who knows nothing about finance. Describe what the actual companies do in plain terms (make chips, run cloud servers, sell insurance, etc.), what the common thread is across the holdings, and what big trend or belief seems to be driving the bets. Be specific — name actual companies or industries where it helps. No buzzwords like "diversified", "exposure", "portfolio", "thesis", "positioned", "leverage", or "sectors". No markdown, headers, or hashtags — plain text only.${hasPuts ? ' Some lines are PUT options — bets that those stocks will fall. Describe them as bets against those companies, never as investments in them. Option weights are the value of the shares the options control, not money spent.' : ''}\n\nHoldings:\n${holdingsList}`,
       }],
     });
     return (msg.content[0] as { type: string; text: string }).text.trim();
@@ -78,13 +85,15 @@ export async function syncFund(
     del = userId ? del.eq('user_id', userId) : del.is('user_id', null);
     await del;
 
-    // holdings is UNIQUE(fund_id, ticker, quarter), but positions are deduped on
-    // CUSIP — so two share classes or a stock plus its warrant can arrive with
-    // one ticker and different CUSIPs. Collapse them here or the whole batch is
-    // rejected. The first CUSIP wins as the row's identity.
+    // holdings is UNIQUE(fund_id, ticker, quarter, put_call), but positions are
+    // deduped on CUSIP — so two share classes or a stock plus its warrant can
+    // arrive with one ticker and different CUSIPs. Collapse them here or the
+    // whole batch is rejected. The first CUSIP wins as the row's identity.
+    // Never collapse across option type: shares plus a put is not a bigger position.
     const byTicker = new Map<string, typeof holdingsData.holdings[number]>();
     for (const h of holdingsData.holdings) {
-      const existing = byTicker.get(h.ticker);
+      const key = `${h.ticker}|${h.putCall ?? ''}`;
+      const existing = byTicker.get(key);
       if (existing) {
         existing.shares += h.shares;
         existing.value += h.value;
@@ -93,7 +102,7 @@ export async function syncFund(
         // combined position is equity. Say we don't know rather than lie.
         if (existing.instrumentType !== h.instrumentType) existing.instrumentType = 'unknown';
       } else {
-        byTicker.set(h.ticker, { ...h });
+        byTicker.set(key, { ...h });
       }
     }
     const rows = [...byTicker.values()];
@@ -111,6 +120,7 @@ export async function syncFund(
           cusip6: h.cusip6 ?? null,
           instrument_type: h.instrumentType ?? 'unknown',
           issuer_name: h.name ?? null,
+          put_call: h.putCall ?? null,
           shares: h.shares,
           value: h.value,
           weight: h.weight,

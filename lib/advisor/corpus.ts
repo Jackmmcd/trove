@@ -48,6 +48,12 @@ interface HoldingRow {
   quarter: string; period_end: string | null;
   cusip: string | null; cusip6: string | null;
   instrument_type: string | null; issuer_name: string | null;
+  put_call: 'put' | 'call' | null;
+}
+
+/** Shares, calls and puts on one stock are three positions; compare like with like across quarters. */
+function positionKey(h: { ticker: string; put_call: string | null }): string {
+  return `${h.ticker}|${h.put_call ?? ''}`;
 }
 
 /**
@@ -66,7 +72,10 @@ function securityKey(h: HoldingRow): string {
 }
 
 /** Short marker so a non-equity line is never read as a stock position. */
-function instrumentTag(t: string | null): string {
+function instrumentTag(t: string | null, putCall: string | null = null): string {
+  // Spelled out, not abbreviated: the model must never summarise a put as a holding.
+  if (putCall === 'put') return ' [PUT OPTIONS — a bet this stock falls]';
+  if (putCall === 'call') return ' [call options]';
   if (t === 'debt') return ' [debt]';
   if (t === 'warrant') return ' [warrant]';
   return '';
@@ -130,7 +139,7 @@ export async function buildDigest(): Promise<{ digest: string; fundCount: number
   // and a truncated read here silently produces a digest missing most funds.
   const holdings = await fetchAllRows<HoldingRow>((from, to) =>
     db.from('holdings')
-      .select('fund_id, ticker, value, weight, quarter, period_end, cusip, cusip6, instrument_type, issuer_name')
+      .select('fund_id, ticker, value, weight, quarter, period_end, cusip, cusip6, instrument_type, issuer_name, put_call')
       .in('fund_id', fundRows.map(f => f.id))
       .order('id')
       .range(from, to)
@@ -166,8 +175,8 @@ export async function buildDigest(): Promise<{ digest: string; fundCount: number
     const previous = rows.filter(r => r.quarter === prior);
     const hasHistory = previous.length > 0;
 
-    const prevWeight = new Map(previous.map(r => [r.ticker, r.weight]));
-    const currentTickers = new Set(current.map(r => r.ticker));
+    const prevWeight = new Map(previous.map(r => [positionKey(r), r.weight]));
+    const currentTickers = new Set(current.map(r => positionKey(r)));
 
     const sorted = [...current].sort((a, b) => b.value - a.value);
     const total = sorted.reduce((s, r) => s + r.value, 0);
@@ -190,7 +199,7 @@ export async function buildDigest(): Promise<{ digest: string; fundCount: number
     for (const r of sorted.slice(0, POSITIONS_PER_FUND)) {
       let delta = '';
       if (hasHistory) {
-        const before = prevWeight.get(r.ticker);
+        const before = prevWeight.get(positionKey(r));
         if (before === undefined) delta = ' NEW';
         else {
           const d = r.weight - before;
@@ -199,12 +208,14 @@ export async function buildDigest(): Promise<{ digest: string; fundCount: number
       }
       const label = displayName(r.ticker, r.issuer_name);
       const cap = caps.get(r.ticker);
-      lines.push(`${label} ${r.weight.toFixed(1)}%${delta}${instrumentTag(r.instrument_type)}${cap ? ` [${cap}]` : ''}`);
+      lines.push(`${label} ${r.weight.toFixed(1)}%${delta}${instrumentTag(r.instrument_type, r.put_call)}${cap ? ` [${cap}]` : ''}`);
 
       // Aggregate on the security's real identity, and exclude only genuine
       // non-equity products — never on the shape of the ticker string, which
       // would drop every position OpenFIGI failed to resolve.
-      if (!NON_EQUITY.has(r.ticker) && r.weight >= 0.25) {
+      // Options stay out of consensus: a put is the opposite of agreement, and a
+      // call's weight is notional exposure, not capital the fund committed.
+      if (!r.put_call && !NON_EQUITY.has(r.ticker) && r.weight >= 0.25) {
         const key = securityKey(r);
         const c = consensus.get(key) ?? {
           label, ticker: r.ticker, cap, issuer: r.issuer_name,
@@ -216,7 +227,7 @@ export async function buildDigest(): Promise<{ digest: string; fundCount: number
         if (!c.holders.includes(fund.name)) c.holders.push(fund.name);
         c.instruments.add(r.instrument_type ?? 'unknown');
         c.weight += r.weight;
-        if (hasHistory && !prevWeight.has(r.ticker)) c.added++;
+        if (hasHistory && !prevWeight.has(positionKey(r))) c.added++;
         consensus.set(key, c);
       }
     }
@@ -227,8 +238,9 @@ export async function buildDigest(): Promise<{ digest: string; fundCount: number
     );
 
     if (hasHistory) {
-      const exited = previous.filter(r => !currentTickers.has(r.ticker))
-        .sort((a, b) => b.weight - a.weight).slice(0, 10).map(r => r.ticker);
+      const exited = previous.filter(r => !currentTickers.has(positionKey(r)))
+        .sort((a, b) => b.weight - a.weight).slice(0, 10)
+        .map(r => (r.put_call ? `${r.ticker} ${r.put_call}s` : r.ticker));
       if (exited.length) head.push(`Exited since ${prior}: ${exited.join(', ')}`);
     }
 

@@ -113,9 +113,11 @@ export class SECApiClient {
     // multiple investment managers, producing repeated entries per filing.
     // Key on CUSIP where present: it is the security's real identity, whereas the
     // ticker is a guess from OpenFIGI that may be missing or wrong.
+    // The option type is part of the key: shares, calls and puts on one CUSIP
+    // are three different positions, and the put points the other way.
     const positionMap = new Map<string, Holding>();
     for (const h of rawHoldings) {
-      const key = h.cusip ?? `t:${h.ticker}`;
+      const key = `${h.cusip ?? `t:${h.ticker}`}|${h.putCall ?? ''}`;
       const existing = positionMap.get(key);
       if (existing) {
         existing.shares += h.shares;
@@ -296,6 +298,9 @@ export class SECApiClient {
       const cusip = this.extractXmlTag(block, 'cusip');
       const rawValue = this.extractXmlTag(block, 'value');
       const rawShares = this.extractXmlTag(block, 'sshPrnamt');
+      // <putCall> marks an option line. Ignoring it is how Scion's Palantir
+      // PUT — a $912M bet against the stock — was shown as 66% long Palantir.
+      const putCall = this.extractXmlTag(block, 'putCall')?.toLowerCase();
 
       if (!rawValue) continue;
 
@@ -312,6 +317,7 @@ export class SECApiClient {
         cusip6: cusip ? cusip.slice(0, 6) : undefined,
         instrumentType: classifyInstrument(cusip),
         name: name ?? undefined,
+        putCall: putCall === 'put' || putCall === 'call' ? putCall : undefined,
       });
     }
 

@@ -51,7 +51,7 @@ export async function GET() {
         // The list shows a preview, not the book — the fund page has the rest.
         // Capped so following Citadel doesn't ship 7,000 rows to this page.
         const holdings = latest
-          ? (await db.from('holdings').select('ticker, shares, value, weight, issuer_name')
+          ? (await db.from('holdings').select('ticker, shares, value, weight, issuer_name, put_call')
               .eq('fund_id', fund.id).is('user_id', null).eq('quarter', latest.quarter)
               .order('weight', { ascending: false }).limit(50)).data ?? []
           : [];

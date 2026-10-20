@@ -50,18 +50,24 @@ export async function fundDocument(cik: string) {
   if (!latest) return { cik, source: 'directory' as const, quarter: null, content: clean(parts.join(' ')) };
 
   const [{ data: top }, { data: thesis }] = await Promise.all([
-    db.from('holdings').select('ticker, issuer_name, weight')
+    db.from('holdings').select('ticker, issuer_name, weight, put_call')
       .eq('fund_id', fund.id).is('user_id', null).eq('quarter', latest.quarter)
       .order('weight', { ascending: false }).limit(TOP_ISSUERS),
     db.from('fund_theses').select('thesis').eq('fund_id', fund.id).maybeSingle(),
   ]);
   if (thesis?.thesis) parts.push(`What it bets on: ${thesis.thesis}`);
-  if (top?.length) {
-    parts.push(`Largest positions: ${top.map(h => {
-      const issuer = h.issuer_name ? clean(h.issuer_name) : h.ticker;
-      return `${issuer}${/^[A-Z]{1,5}$/.test(h.ticker) ? ` (${h.ticker})` : ''} ${h.weight.toFixed(1)}%`;
-    }).join(', ')}.`);
+  const label = (h: { ticker: string; issuer_name: string | null; weight: number }) => {
+    const issuer = h.issuer_name ? clean(h.issuer_name) : h.ticker;
+    return `${issuer}${/^[A-Z]{1,5}$/.test(h.ticker) ? ` (${h.ticker})` : ''} ${h.weight.toFixed(1)}%`;
+  };
+  // Puts listed separately as bets against, so "funds backing Palantir" can't
+  // match a fund whose only Palantir position is a put on it.
+  const longs = (top ?? []).filter(h => h.put_call !== 'put');
+  const puts = (top ?? []).filter(h => h.put_call === 'put');
+  if (longs.length) {
+    parts.push(`Largest positions: ${longs.map(h => `${label(h)}${h.put_call === 'call' ? ' call options' : ''}`).join(', ')}.`);
   }
+  if (puts.length) parts.push(`Betting against (put options): ${puts.map(label).join(', ')}.`);
   return { cik, source: 'holdings' as const, quarter: latest.quarter, content: clean(parts.join(' ')) };
 }
 
@@ -149,7 +155,7 @@ export async function hybridFundSearch(query: string, limit = 12): Promise<{ res
         const entry = directoryEntry(m.cik);
         const { data: fund } = entry ? { data: null } : await db.from('funds')
           .select('name, entity_type').eq('cik', m.cik).is('user_id', null).maybeSingle();
-        const largest = m.content.match(/Largest positions: (.*?)\.$/)?.[1];
+        const largest = m.content.match(/Largest positions: (.*?)\.(?: Betting against|$)/)?.[1];
         out.set(m.cik, {
           cik: m.cik,
           name: entry?.name ?? fund?.name ?? m.cik,

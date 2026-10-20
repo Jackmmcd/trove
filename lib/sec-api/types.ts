@@ -9,6 +9,12 @@ export interface Holding {
   cusip6?: string;          // Issuer half — same company across instruments
   instrumentType?: InstrumentType;
   name?: string;
+  /**
+   * Set when the line is an option, not the security itself. A put is a bet
+   * the price FALLS; `value` and `shares` describe the underlying the option
+   * controls, not what was paid for it. Never treat these as long positions.
+   */
+  putCall?: 'put' | 'call';
 }
 
 export interface FundHoldings {

@@ -58,7 +58,8 @@ export async function analyzeDiversification(userId: string) {
   // cap, which would silently drop funds from the scoring.
   const holdings = await fetchAllRows<{ ticker: string; value: number; weight: number; fund_id: string }>(
     (from, to) => db.from('holdings').select('ticker, value, weight, fund_id')
-      .in('fund_id', funds.map(f => f.id)).eq('quarter', quarter).order('id').range(from, to)
+      // Options excluded: a put is a bet against the name, not a vote for it.
+      .in('fund_id', funds.map(f => f.id)).eq('quarter', quarter).is('put_call', null).order('id').range(from, to)
   );
 
   const fundNameMap = new Map(funds.map(f => [f.id, f.name]));
@@ -91,13 +92,13 @@ export async function scoreCompanies(userId: string, limit = 20): Promise<Compan
 
   // Previous quarter holdings — only for funds that actually had data then
   const previousHoldings = await fetchAllRows<{ ticker: string; fund_id: string }>((from, to) =>
-    db.from('holdings').select('ticker, fund_id').in('fund_id', fundIds).eq('quarter', previousQuarter).order('id').range(from, to));
+    db.from('holdings').select('ticker, fund_id').in('fund_id', fundIds).eq('quarter', previousQuarter).is('put_call', null).order('id').range(from, to));
   const previousTickerSet = new Set(previousHoldings.map(h => `${h.fund_id}-${h.ticker}`));
   // Track which funds had any previous quarter data
   const fundsWithPreviousData = new Set(previousHoldings.map(h => h.fund_id));
 
   const currentHoldings = await fetchAllRows<{ ticker: string; fund_id: string }>((from, to) =>
-    db.from('holdings').select('ticker, fund_id').in('fund_id', fundIds).eq('quarter', latestQuarter).order('id').range(from, to));
+    db.from('holdings').select('ticker, fund_id').in('fund_id', fundIds).eq('quarter', latestQuarter).is('put_call', null).order('id').range(from, to));
   const currentByTicker = new Map<string, string[]>();
   for (const h of currentHoldings) {
     currentByTicker.set(h.ticker, [...(currentByTicker.get(h.ticker) ?? []), h.fund_id]);

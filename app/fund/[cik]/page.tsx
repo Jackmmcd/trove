@@ -29,10 +29,31 @@ function shares(n: number): string {
 
 const INSTRUMENT_LABEL: Record<string, string> = {
   equity: 'Stock', debt: 'Bonds / notes', warrant: 'Warrants & rights', unknown: 'Unclassified',
+  put_option: 'Put options (bets against)', call_option: 'Call options',
 };
 
+// Muted red for bearish positions. Never color alone — every put also carries a PUT label.
+const PUT_COLOR = 'var(--fg-d98b6f)';
+
+function OptionBadge({ option }: { option: ProfilePosition['option'] }) {
+  if (!option) return null;
+  const put = option === 'put';
+  return (
+    <span title={put ? 'Put options — a bet that this stock falls' : 'Call options — a leveraged bet that this stock rises'}
+      style={{
+        color: put ? PUT_COLOR : 'var(--fg-bbbbbb)', border: `1px solid ${put ? PUT_COLOR : 'var(--bg-444444)'}`,
+        fontSize: '9px', letterSpacing: '1px', padding: '0 4px', marginLeft: '6px', fontWeight: 'bold',
+      }}>
+      {put ? 'PUT' : 'CALL'}
+    </span>
+  );
+}
+
+/** Shares and options on one CUSIP are separate rows; React keys must say so. */
+const rowKey = (p: ProfilePosition) => `${p.cusip ?? p.ticker}|${p.option ?? ''}`;
+
 const Label = ({ children }: { children: React.ReactNode }) => (
-  <div style={{ color: B.dim, fontSize: '9.5px', letterSpacing: '2px', marginBottom: '10px' }}>{children}</div>
+  <div style={{ color: B.label, fontSize: '11px', letterSpacing: '2px', marginBottom: '12px' }}>{children}</div>
 );
 
 const Panel = ({ children }: { children: React.ReactNode }) => (
@@ -47,11 +68,11 @@ const Panel = ({ children }: { children: React.ReactNode }) => (
 function BarList({ rows }: { rows: { label: string; weight: number; count: number }[] }) {
   const max = Math.max(...rows.map(r => r.weight), 0.01);
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
       {rows.map(r => (
         <div key={r.label} title={`${r.label}: ${r.weight.toFixed(2)}% across ${r.count} position${r.count === 1 ? '' : 's'}`}
-          style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 11rem) 1fr 3.6rem', alignItems: 'center', gap: '10px', fontSize: '11.5px' }}>
-          <span style={{ color: 'var(--fg-bbbbbb)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.label}</span>
+          style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 14rem) 1fr 4rem', alignItems: 'center', gap: '12px', fontSize: '13px' }}>
+          <span style={{ color: 'var(--fg-cccccc)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.label}</span>
           <div style={{ height: '8px', background: 'var(--bg-161616)' }}>
             <div style={{ width: `${(r.weight / max) * 100}%`, height: '100%', background: B.amber, borderRadius: '0 4px 4px 0', minWidth: '2px' }} />
           </div>
@@ -72,13 +93,21 @@ function Change({ c }: { c: ProfilePosition['change'] }) {
 function PositionName({ p }: { p: ProfilePosition }) {
   if (p.resolved) {
     return (
-      <Link href={`/company/${p.ticker}`} style={{ color: B.amber, textDecoration: 'none', fontWeight: 'bold', letterSpacing: '1px' }}>
-        {p.ticker}
-      </Link>
+      <>
+        <Link href={`/company/${p.ticker}`} style={{ color: B.amber, textDecoration: 'none', fontWeight: 'bold', letterSpacing: '1px' }}>
+          {p.ticker}
+        </Link>
+        <OptionBadge option={p.option} />
+      </>
     );
   }
   // Unresolved: the CUSIP is the real identity, the issuer name is the readable one.
-  return <span style={{ color: 'var(--fg-999999)', fontSize: '10.5px' }} title={p.cusip ?? undefined}>{p.cusip ?? p.ticker}</span>;
+  return (
+    <>
+      <span style={{ color: 'var(--fg-999999)', fontSize: '10.5px' }} title={p.cusip ?? undefined}>{p.cusip ?? p.ticker}</span>
+      <OptionBadge option={p.option} />
+    </>
+  );
 }
 
 export default function FundPage() {
@@ -243,6 +272,17 @@ export default function FundPage() {
               </div>
             )}
 
+            {s && s.puts.count > 0 && (
+              <div style={{ border: `1px solid ${PUT_COLOR}`, borderLeft: `3px solid ${PUT_COLOR}`, background: B.panel, color: 'var(--fg-dddddd)', fontSize: '12.5px', padding: '11px 14px', lineHeight: 1.6 }}>
+                <strong style={{ color: PUT_COLOR, letterSpacing: '1px' }}>PUT OPTIONS · {s.puts.weight.toFixed(1)}% OF REPORTED VALUE</strong>
+                <br />
+                {s.puts.count === 1 ? 'One position is' : `${s.puts.count} positions are`} put options — bets that the stock
+                falls: {data.positions.filter(p => p.option === 'put').slice(0, 5).map(p => p.resolved ? p.ticker : (p.issuer ?? p.ticker)).join(', ')}.
+                {' '}13Fs report options at the value of the shares they control, not what the options cost, so these weights
+                overstate the money at risk. They&apos;re marked PUT below and left out of the sector chart.
+              </div>
+            )}
+
             {!data.quarter ? (
               <Panel>
                 <div style={{ color: 'var(--fg-8a8070)', fontSize: '12.5px', lineHeight: 1.6 }}>
@@ -278,7 +318,7 @@ export default function FundPage() {
                     {sectorRows.length ? (
                       <>
                         <BarList rows={sectorRows} />
-                        <div style={{ color: 'var(--fg-555555)', fontSize: '10px', marginTop: '12px', lineHeight: 1.5 }}>
+                        <div style={{ color: B.label, fontSize: '11.5px', marginTop: '14px', lineHeight: 1.6 }}>
                           % of reported value. Sector known for {data.composition.sector_coverage.toFixed(0)}% of the book
                           {data.composition.sector_coverage < 95 ? ' — the rest is unclassified (ETFs, bonds, or names not yet enriched).' : '.'}
                         </div>
@@ -293,8 +333,9 @@ export default function FundPage() {
                   <Panel>
                     <Label>BY INSTRUMENT</Label>
                     <BarList rows={data.composition.by_instrument.map(r => ({ label: INSTRUMENT_LABEL[r.type] ?? r.type, weight: r.weight, count: r.count }))} />
-                    <div style={{ color: 'var(--fg-555555)', fontSize: '10px', marginTop: '12px', lineHeight: 1.5 }}>
-                      13Fs show long positions only — shorts, cash and most derivatives are not disclosed.
+                    <div style={{ color: B.label, fontSize: '11.5px', marginTop: '14px', lineHeight: 1.6 }}>
+                      13Fs show stock, convertible bonds and listed options — not short sales or cash. Options are
+                      reported at the value of the shares they control.
                       {s && s.unresolved > 0 && ` ${s.unresolved.toLocaleString()} position${s.unresolved === 1 ? '' : 's'} shown by CUSIP and issuer name (no ticker match).`}
                     </div>
                   </Panel>
@@ -307,7 +348,7 @@ export default function FundPage() {
                       {newPositions.length === 0 ? (
                         <div style={{ color: 'var(--fg-8a8070)', fontSize: '12px' }}>No new positions.</div>
                       ) : newPositions.map(p => (
-                        <div key={p.cusip ?? p.ticker} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', fontSize: '12px', padding: '4px 0' }}>
+                        <div key={rowKey(p)} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', fontSize: '12px', padding: '4px 0' }}>
                           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             <PositionName p={p} /> <span style={{ color: B.dim, fontSize: '11px' }}>{p.issuer}</span>
                           </span>
@@ -318,7 +359,7 @@ export default function FundPage() {
                         <>
                           <div style={{ color: B.dim, fontSize: '9.5px', letterSpacing: '2px', margin: '14px 0 6px' }}>EXITED</div>
                           <div style={{ color: 'var(--fg-999999)', fontSize: '11.5px', lineHeight: 1.7 }}>
-                            {data.exited.map(x => /^[A-Z]{1,5}(\.[A-Z]{1,2})?$/.test(x.ticker) ? x.ticker : (x.issuer ?? x.ticker)).join(' · ')}
+                            {data.exited.map(x => (/^[A-Z]{1,5}(\.[A-Z]{1,2})?$/.test(x.ticker) ? x.ticker : (x.issuer ?? x.ticker)) + (x.option ? ` ${x.option}s` : '')).join(' · ')}
                           </div>
                         </>
                       )}
@@ -328,7 +369,7 @@ export default function FundPage() {
                       {movers.length === 0 ? (
                         <div style={{ color: 'var(--fg-8a8070)', fontSize: '12px' }}>No changes in continuing positions.</div>
                       ) : movers.map(p => (
-                        <div key={p.cusip ?? p.ticker} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', fontSize: '12px', padding: '4px 0' }}>
+                        <div key={rowKey(p)} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', fontSize: '12px', padding: '4px 0' }}>
                           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             <PositionName p={p} /> <span style={{ color: B.dim, fontSize: '11px' }}>{p.issuer}</span>
                           </span>
@@ -376,11 +417,11 @@ export default function FundPage() {
                           const rank = rankOf.get(p);
                           const maxW = data.positions[0]?.weight || 1;
                           return (
-                            <tr key={p.cusip ?? p.ticker} style={{ borderTop: '1px solid var(--bg-161616)' }}>
+                            <tr key={rowKey(p)} style={{ borderTop: '1px solid var(--bg-161616)' }}>
                               <td style={{ padding: '8px 6px 8px 18px', color: 'var(--fg-555555)', textAlign: 'right' }}>{rank}</td>
                               <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
                                 <PositionName p={p} />
-                                {p.instrument !== 'equity' && p.instrument !== 'unknown' && (
+                                {!p.option && p.instrument !== 'equity' && p.instrument !== 'unknown' && (
                                   <span style={{ color: 'var(--fg-777777)', fontSize: '9px', letterSpacing: '1px', marginLeft: '6px' }}>
                                     {p.instrument.toUpperCase()}
                                   </span>
@@ -391,7 +432,7 @@ export default function FundPage() {
                               <td style={{ padding: '8px 12px' }} title={`${p.weight.toFixed(3)}% of reported value`}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                   <div style={{ flex: 1, height: '6px', background: 'var(--bg-161616)' }}>
-                                    <div style={{ width: `${(p.weight / maxW) * 100}%`, height: '100%', background: B.amber, borderRadius: '0 3px 3px 0', minWidth: '1px' }} />
+                                    <div style={{ width: `${(p.weight / maxW) * 100}%`, height: '100%', background: p.option === 'put' ? PUT_COLOR : B.amber, borderRadius: '0 3px 3px 0', minWidth: '1px' }} />
                                   </div>
                                   <span style={{ color: B.text, width: '3.4rem', textAlign: 'right' }}>{p.weight.toFixed(2)}%</span>
                                 </div>

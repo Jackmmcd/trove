@@ -33,7 +33,10 @@ export async function calculateTargetWeights(): Promise<TargetWeight[]> {
   const funds = (all ?? []).filter(f => !isOnDemand(f.cik));
   if (!funds.length) return [];
 
-  const { data: holdings } = await db.from('holdings').select('ticker, value, fund_id').in('fund_id', funds.map(f => f.id)).eq('quarter', quarter);
+  const { data: holdings } = await db.from('holdings').select('ticker, value, fund_id').in('fund_id', funds.map(f => f.id)).eq('quarter', quarter)
+    // Options are not ownership: a put is a bet against the stock, and a call's
+    // reported value is the underlying it controls, not capital committed.
+    .is('put_call', null);
 
   const tickerMap = new Map<string, { totalValue: number }>();
   for (const h of (holdings ?? [])) {

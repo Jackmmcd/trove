@@ -15,7 +15,12 @@ interface Holding {
   value: number;
   weight: number;
   issuer_name?: string | null;
+  put_call?: 'put' | 'call' | null;
 }
+
+// Options can't go into a basket: buying the stock to copy a PUT is the opposite
+// trade, and a call's 13F value is the shares it controls, not a stock position.
+const buyable = (h: Holding) => !h.put_call;
 
 interface Fund {
   id: string;
@@ -184,7 +189,7 @@ export default function FundList() {
   }
 
   function getSelected(fundId: string, holdings: Holding[]): Set<string> {
-    return selectedMap[fundId] ?? new Set(holdings.map(h => h.ticker));
+    return selectedMap[fundId] ?? new Set(holdings.filter(buyable).map(h => h.ticker));
   }
 
   function toggleTicker(fundId: string, ticker: string, holdings: Holding[]) {
@@ -195,7 +200,8 @@ export default function FundList() {
 
   function toggleAll(fundId: string, holdings: Holding[]) {
     const current = getSelected(fundId, holdings);
-    const next = current.size === holdings.length ? new Set<string>() : new Set(holdings.map(h => h.ticker));
+    const all = holdings.filter(buyable);
+    const next = current.size === all.length ? new Set<string>() : new Set(all.map(h => h.ticker));
     setSelectedMap(prev => ({ ...prev, [fundId]: next }));
   }
 
@@ -397,9 +403,10 @@ export default function FundList() {
                       </div>
                     );
                   }
-                  const allChecked = selected.size === fund.holdings.length;
+                  const buyableCount = fund.holdings.filter(buyable).length;
+                  const allChecked = buyableCount > 0 && selected.size === buyableCount;
                   const someChecked = selected.size > 0 && !allChecked;
-                  const selectedHoldings = fund.holdings.filter(h => selected.has(h.ticker));
+                  const selectedHoldings = fund.holdings.filter(h => buyable(h) && selected.has(h.ticker));
                   return (
                     <div style={{ padding: '10px 14px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
@@ -411,7 +418,7 @@ export default function FundList() {
                           disabled={selectedHoldings.length === 0}
                           style={{ ...btnAmber, background: selectedHoldings.length === 0 ? 'var(--bg-333333)' : B.green, color: 'var(--fg-000000)', opacity: selectedHoldings.length === 0 ? 0.4 : 1 }}
                         >
-                          BUY BASKET{selected.size < fund.holdings.length ? ` (${selected.size})` : ''}
+                          BUY BASKET{selected.size < buyableCount ? ` (${selected.size})` : ''}
                         </button>
                       </div>
                       <div className="r-scroll">
@@ -430,15 +437,16 @@ export default function FundList() {
                           </thead>
                           <tbody>
                             {fund.holdings.slice(0, 15).map((h, idx) => {
-                              const checked = selected.has(h.ticker);
+                              const option = !buyable(h);
+                              const checked = !option && selected.has(h.ticker);
                               return (
-                                <tr key={idx} onClick={() => toggleTicker(fund.id, h.ticker, fund.holdings)}
-                                  style={{ cursor: 'pointer', opacity: checked ? 1 : 0.35 }}
+                                <tr key={idx} onClick={() => { if (!option) toggleTicker(fund.id, h.ticker, fund.holdings); }}
+                                  style={{ cursor: option ? 'default' : 'pointer', opacity: checked || option ? 1 : 0.35 }}
                                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-1a1a00)')}
                                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                                 >
                                   <td data-label="Include" style={{ ...tdStyle, width: '32px' }} onClick={e => e.stopPropagation()}>
-                                    <input type="checkbox" checked={checked} onChange={() => toggleTicker(fund.id, h.ticker, fund.holdings)} style={{ cursor: 'pointer', accentColor: B.amber }} />
+                                    <input type="checkbox" checked={checked} disabled={option} title={option ? 'Options can’t be bought as part of a basket' : undefined} onChange={() => toggleTicker(fund.id, h.ticker, fund.holdings)} style={{ cursor: option ? 'not-allowed' : 'pointer', accentColor: B.amber }} />
                                   </td>
                                   <td data-label="" style={{ ...tdStyle, color: B.label, fontSize: '10px' }}>{idx + 1}</td>
                                   <td data-head="" data-label="Ticker" style={{ ...tdStyle, color: B.amber, fontWeight: 'bold', letterSpacing: '1px' }} onClick={e => e.stopPropagation()}>
@@ -450,6 +458,12 @@ export default function FundList() {
                                         {h.ticker}
                                       </span>
                                     </TickerTooltip>
+                                    {h.put_call && (
+                                      <span title={h.put_call === 'put' ? 'Put options — a bet that this stock falls' : 'Call options'}
+                                        style={{ marginLeft: '6px', fontSize: '9px', padding: '0 4px', color: h.put_call === 'put' ? 'var(--fg-d98b6f)' : B.label, border: `1px solid ${h.put_call === 'put' ? 'var(--fg-d98b6f)' : B.border}` }}>
+                                        {h.put_call === 'put' ? 'PUT' : 'CALL'}
+                                      </span>
+                                    )}
                                   </td>
                                   <td data-label="Shares" style={tdStyle}>{h.shares.toLocaleString()}</td>
                                   <td data-label="Value" style={{ ...tdStyle, color: B.cyan }}>
@@ -464,10 +478,10 @@ export default function FundList() {
                                     </div>
                                   </td>
                                   <td data-label="Trade" style={tdStyle} onClick={e => e.stopPropagation()}>
-                                    <button onClick={() => setTradeTarget({ symbol: h.ticker, price: 0 })}
+                                    {!option && <button onClick={() => setTradeTarget({ symbol: h.ticker, price: 0 })}
                                       style={{ padding: '2px 8px', background: B.green, color: 'var(--fg-000000)', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '10px', letterSpacing: '1px' }}>
                                       BUY
-                                    </button>
+                                    </button>}
                                   </td>
                                 </tr>
                               );
