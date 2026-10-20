@@ -2,28 +2,19 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { db } from '@/lib/supabase/admin';
-import axios from 'axios';
+import { sessionCloses } from '@/lib/market/close';
 
 /** Matches scripts/init-paper-accounts.js so provisioning is consistent. */
 const STARTING_CASH = 10000;
 
+/**
+ * Settled closes, so a paper position is valued the same way a live one is:
+ * the last completed session during the week, Friday's all weekend.
+ */
 async function fetchPrices(symbols: string[]): Promise<Record<string, number>> {
   if (!symbols.length) return {};
-  const prices: Record<string, number> = {};
-  await Promise.allSettled(
-    symbols.map(async sym => {
-      try {
-        const res = await axios.get(
-          `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}`,
-          { params: { interval: '1d', range: '1d' }, headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 6000 }
-        );
-        const meta = res.data?.chart?.result?.[0]?.meta ?? {};
-        const p = meta.regularMarketPrice ?? meta.previousClose ?? 0;
-        if (p > 0) prices[sym] = p;
-      } catch { /* use cost basis fallback */ }
-    })
-  );
-  return prices;
+  const closes = await sessionCloses(symbols);
+  return Object.fromEntries(Object.entries(closes).map(([s, c]) => [s, c.close]));
 }
 
 export async function GET() {

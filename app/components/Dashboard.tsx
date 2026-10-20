@@ -2,15 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, Cell, ReferenceLine,
-  LineChart, Line, Area, AreaChart,
-} from 'recharts';
+import { YAxis, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import LoginButton from './LoginButton';
 import useIsMobile from './useIsMobile';
 import TradeModal from './TradeModal';
-import TickerTooltip from './TickerTooltip';
 import { groupPositions, type BasketRecord, type PortfolioRow } from '@/lib/baskets/group';
 
 interface AccountBalance {
@@ -45,55 +40,11 @@ const B = {
   text: 'var(--fg-e0e0e0)',
 };
 
-const panelStyle: React.CSSProperties = {
-  background: B.panel,
-  border: `1px solid ${B.border}`,
-  padding: '12px 16px',
-};
 
-const labelStyle: React.CSSProperties = {
-  color: B.label,
-  fontSize: '10px',
-  letterSpacing: '1px',
-  textTransform: 'uppercase',
-  marginBottom: '4px',
-};
 
-const valueStyle: React.CSSProperties = {
-  color: B.text,
-  fontSize: '20px',
-  fontWeight: 'bold',
-  letterSpacing: '0.5px',
-};
 
-const sectionHeaderStyle: React.CSSProperties = {
-  color: B.amber,
-  fontSize: '11px',
-  fontWeight: 'bold',
-  letterSpacing: '2px',
-  textTransform: 'uppercase',
-  borderBottom: `1px solid ${B.border}`,
-  paddingBottom: '6px',
-  marginBottom: '10px',
-};
 
-const thStyle: React.CSSProperties = {
-  color: B.label,
-  fontSize: '10px',
-  letterSpacing: '1px',
-  textTransform: 'uppercase',
-  padding: '6px 12px',
-  textAlign: 'left',
-  borderBottom: `1px solid ${B.border}`,
-  fontWeight: 'normal',
-};
 
-const tdStyle: React.CSSProperties = {
-  padding: '7px 12px',
-  borderBottom: `1px solid var(--bg-1a1a1a)`,
-  fontSize: '13px',
-  color: B.text,
-};
 
 // Module-level cache keyed by user ID — survives remounts, invalidates on account switch
 const _caches = new Map<string, {
@@ -104,6 +55,15 @@ const _caches = new Map<string, {
   ts: number;
 }>();
 const CACHE_TTL = 3 * 60 * 1000;
+
+/** Chart windows, sliced client-side from the single year the API returns. */
+const TIMEFRAMES = [
+  { id: '1W', days: 7,   label: 'Past week' },
+  { id: '1M', days: 30,  label: 'Past month' },
+  { id: '3M', days: 90,  label: 'Past 3 months' },
+  { id: '6M', days: 180, label: 'Past 6 months' },
+  { id: '1Y', days: 365, label: 'Past year' },
+] as const;
 
 export default function Dashboard() {
   const router = useRouter();
@@ -119,6 +79,7 @@ export default function Dashboard() {
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
   const [baskets, setBaskets] = useState<BasketRecord[]>([]);
   const [openBaskets, setOpenBaskets] = useState<Record<string, boolean>>({});
+  const [timeframe, setTimeframe] = useState<string>('1M');
 
   // Basket membership decides how positions are grouped below, so it is loaded
   // once here rather than inside the row rendering.
@@ -195,6 +156,13 @@ export default function Dashboard() {
         setPositions(paperPositions);
         setLoading(false);
 
+        // The chart is the point of the page, and a paper account has a
+        // history too — it just needed asking for.
+        fetch('/api/tastytrade/portfolio-history?range=1y')
+          .then(r => r.json())
+          .then(d => { if (d.success && d.data?.length) setPortfolioHistory(d.data); })
+          .catch(() => {});
+
         // Don't cache paper positions — always fetch fresh so trades from other pages show immediately
         _caches.delete(uid);
         return;
@@ -252,9 +220,9 @@ export default function Dashboard() {
       const abortTimer = setTimeout(() => abort.abort(), 25000);
 
       const [qData, hData, portData] = await Promise.all([
-        symbols ? fetch(`/api/tastytrade/quotes?symbols=${encodeURIComponent(symbols)}`).then(r => r.json()).catch(() => ({})) : Promise.resolve({}),
+        symbols ? fetch(`/api/tastytrade/quotes?symbols=${encodeURIComponent(symbols)}&basis=close`).then(r => r.json()).catch(() => ({})) : Promise.resolve({}),
         symbols ? fetch(`/api/tastytrade/history?symbols=${encodeURIComponent(symbols)}`, { signal: abort.signal }).then(r => r.json()).catch(() => ({})) : Promise.resolve({}),
-        fetch('/api/tastytrade/portfolio-history', { signal: abort.signal }).then(r => r.json()).catch(() => ({})),
+        fetch('/api/tastytrade/portfolio-history?range=1y', { signal: abort.signal }).then(r => r.json()).catch(() => ({})),
       ]);
       clearTimeout(abortTimer);
 
@@ -296,7 +264,7 @@ export default function Dashboard() {
     if (requiresAuth) {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '64px', gap: '16px' }}>
-          <div style={{ ...panelStyle, border: `1px solid ${B.amber}`, padding: '24px', textAlign: 'center' }}>
+          <div style={{ background: B.panel, border: `1px solid ${B.amber}`, padding: '24px', textAlign: 'center' }}>
             <p style={{ color: B.amber, marginBottom: '16px', letterSpacing: '1px' }}>{error}</p>
             <LoginButton />
           </div>
@@ -304,7 +272,7 @@ export default function Dashboard() {
       );
     }
     return (
-      <div style={{ margin: '16px', ...panelStyle, border: `1px solid ${B.red}` }}>
+      <div style={{ margin: '16px', padding: '12px 16px', background: B.panel, border: `1px solid ${B.red}` }}>
         <p style={{ color: B.red }}>ERROR: {error}</p>
         <button onClick={() => fetchData()} style={{ marginTop: '8px', padding: '6px 16px', background: B.red, color: 'var(--fg-000000)', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 'bold' }}>
           RETRY
@@ -317,8 +285,6 @@ export default function Dashboard() {
   const totalCost = positions.reduce((sum, p) => sum + p.avgOpenPrice * p.quantity, 0);
   const totalGainLoss = positions.reduce((sum, p) => sum + p.gainLoss, 0);
   const totalReturn = totalCost > 0 ? (totalGainLoss / totalCost) * 100 : 0;
-  const totalDailyPnL = positions.every(p => p.dailyPnL !== null) ? positions.reduce((s, p) => s + (p.dailyPnL ?? 0), 0) : null;
-  const totalWeeklyPnL = positions.every(p => p.weeklyPnL !== null) ? positions.reduce((s, p) => s + (p.weeklyPnL ?? 0), 0) : null;
 
   // One row per deliberate position: a basket counts once, however many
   // fractional legs the broker reports underneath it.
@@ -327,338 +293,214 @@ export default function Dashboard() {
     baskets.filter(b => Boolean(b.isPaper) === isPaper),
   );
 
-  const chartData = positions.map(p => ({
-    symbol: p.symbol,
-    cost: parseFloat((p.avgOpenPrice * p.quantity).toFixed(2)),
-    value: parseFloat(p.totalValue.toFixed(2)),
-    gainLoss: parseFloat(p.gainLoss.toFixed(2)),
-  }));
 
-  const formatCurrency = (v: number) => v >= 1000 ? `$${(v / 1000).toFixed(1)}k` : `$${v.toFixed(0)}`;
 
-  const tooltipStyle = {
-    backgroundColor: 'var(--bg-0d0d0d)',
-    border: `1px solid ${B.amber}`,
-    fontFamily: 'Courier New, monospace',
-    fontSize: '13px',
-  };
-  const tooltipLabelStyle = { color: B.amber, fontWeight: 'bold', letterSpacing: '1px', marginBottom: '4px' };
-  const tooltipItemStyle = { color: 'var(--fg-ffffff)', fontWeight: 'bold', fontSize: '14px' };
+
+  // Windows the chart can show, sliced from the one year the API returns.
+  const frame = TIMEFRAMES.find(t => t.id === timeframe) ?? TIMEFRAMES[1];
+  const cutoff = new Date(Date.now() - frame.days * 86400000).toISOString().slice(0, 10);
+  const series = portfolioHistory.filter(d => d.date >= cutoff);
+
+  const windowFirst = series.length > 1 ? series[0].value : null;
+  const windowLast = series.length > 1 ? series[series.length - 1].value : null;
+  const windowChange = windowFirst !== null && windowLast !== null ? windowLast - windowFirst : null;
+  const windowPct = windowChange !== null && windowFirst ? (windowChange / windowFirst) * 100 : null;
+  const up = (windowChange ?? 0) >= 0;
+  const trend = up ? B.green : B.red;
+
+  // The headline is the account's own figure. The chart only reconstructs
+  // today's holdings backwards, so it is a shape, not a second source of truth.
+  const headline = balance?.netLiquidity ?? totalValue;
+
+  const money = (v: number, dp = 2) =>
+    `$${v.toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp })}`;
+
+  const sub: React.CSSProperties = { color: B.label, fontSize: '11px', letterSpacing: '0.5px' };
 
   return (
-    <div style={{ padding: '12px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+    <div style={{ maxWidth: '760px', margin: '0 auto', padding: '0 0 28px' }}>
 
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          <div style={{ color: B.amber, fontSize: '14px', fontWeight: 'bold', letterSpacing: '3px' }}>
-            ACCOUNT OVERVIEW
-          </div>
-          {isPaper && (
-            <div style={{
-              background: 'var(--bg-002200)', border: '1px solid var(--bg-00ff41)', color: 'var(--fg-00ff41)',
-              fontSize: '9px', fontWeight: 'bold', letterSpacing: '2px',
-              padding: '2px 8px',
-            }}>
-              PAPER TRADING
-            </div>
-          )}
-        </div>
-        <LoginButton />
-      </div>
-
-      {/* Balance tiles */}
-      <div className="r-grid-4">
-        {[
-          { label: 'Net Liquidity', value: balance?.netLiquidity },
-          { label: 'Total Equity', value: balance?.totalEquity },
-          { label: 'Cash Available', value: balance?.cashAvailableForTrading },
-          { label: 'Buying Power', value: balance?.buyingPower },
-        ].map(({ label, value }) => (
-          <div key={label} style={panelStyle}>
-            <div style={labelStyle}>{label}</div>
-            <div style={valueStyle}>
-              ${value?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {positions.length > 0 && (
-        <>
-          {/* Summary bar */}
-          <div className="r-stats" style={{ ...panelStyle, display: 'flex', gap: '32px', flexWrap: 'wrap', alignItems: 'center', borderColor: B.amberDim }}>
-            <div>
-              <div style={labelStyle}>Total Invested</div>
-              <div style={{ color: B.text, fontSize: '16px', fontWeight: 'bold' }}>
-                ${totalCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </div>
-            </div>
-            <div>
-              <div style={labelStyle}>Current Value</div>
-              <div style={{ color: B.cyan, fontSize: '16px', fontWeight: 'bold' }}>
-                ${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-              </div>
-            </div>
-            <div>
-              <div style={labelStyle}>Total P&L</div>
-              <div style={{ color: totalGainLoss >= 0 ? B.green : B.red, fontSize: '16px', fontWeight: 'bold' }}>
-                {totalReturn >= 0 ? '+' : ''}{totalReturn.toFixed(2)}%
-              </div>
-            </div>
-            {totalDailyPnL !== null && (() => {
-              const prevVal = totalValue - totalDailyPnL;
-              const pct = prevVal > 0 ? (totalDailyPnL / prevVal) * 100 : 0;
-              return (
-                <div>
-                  <div style={labelStyle}>Day P&L</div>
-                  <div style={{ color: totalDailyPnL >= 0 ? B.green : B.red, fontSize: '16px', fontWeight: 'bold' }}>
-                    {pct >= 0 ? '+' : ''}{pct.toFixed(2)}%
-                  </div>
-                </div>
-              );
-            })()}
-            {totalWeeklyPnL !== null && (() => {
-              const prevVal = totalValue - totalWeeklyPnL;
-              const pct = prevVal > 0 ? (totalWeeklyPnL / prevVal) * 100 : 0;
-              return (
-                <div>
-                  <div style={labelStyle}>Week P&L</div>
-                  <div style={{ color: totalWeeklyPnL >= 0 ? B.green : B.red, fontSize: '16px', fontWeight: 'bold' }}>
-                    {pct >= 0 ? '+' : ''}{pct.toFixed(2)}%
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* Portfolio value line chart */}
-          {portfolioHistory.length > 1 && (() => {
-            const first = portfolioHistory[0].value;
-            const last = portfolioHistory[portfolioHistory.length - 1].value;
-            const isUp = last >= first;
-            const lineColor = isUp ? B.green : B.red;
-            const minVal = Math.min(...portfolioHistory.map(d => d.value));
-            const maxVal = Math.max(...portfolioHistory.map(d => d.value));
-            const pad = (maxVal - minVal) * 0.1 || maxVal * 0.05;
-            // Show only ~8 x-axis labels
-            const labelStep = Math.max(1, Math.floor(portfolioHistory.length / 8));
-            return (
-              <div style={panelStyle}>
-                <div style={sectionHeaderStyle}>PORTFOLIO VALUE — 3 MONTHS</div>
-                <ResponsiveContainer width="100%" height={isMobile ? 160 : 200}>
-                  <AreaChart data={portfolioHistory} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="portfolioGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={lineColor} stopOpacity={0.15} />
-                        <stop offset="95%" stopColor={lineColor} stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="2 2" vertical={false} stroke="var(--bg-1a1a1a)" />
-                    <XAxis
-                      dataKey="date"
-                      tick={{ fontSize: 10, fill: 'var(--fg-888888)', fontFamily: 'Courier New' }}
-                      tickFormatter={(v, i) => i % labelStep === 0 ? v.slice(5) : ''}
-                      interval={0}
-                    />
-                    <YAxis
-                      domain={[minVal - pad, maxVal + pad]}
-                      tickFormatter={formatCurrency}
-                      tick={{ fontSize: 10, fill: 'var(--fg-888888)', fontFamily: 'Courier New' }}
-                      width={56}
-                    />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      formatter={(v: number | undefined) => v == null ? ['—', 'Portfolio'] : [`$${v.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 'Portfolio']}
-                      labelStyle={tooltipLabelStyle}
-                      itemStyle={tooltipItemStyle}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="value"
-                      stroke={lineColor}
-                      strokeWidth={2}
-                      fill="url(#portfolioGrad)"
-                      dot={false}
-                      activeDot={{ r: 3, fill: lineColor }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            );
-          })()}
-
-          {/* Charts */}
-          <div className="r-grid-2">
-            <div style={panelStyle}>
-              <div style={sectionHeaderStyle}>COST BASIS vs CURRENT VALUE</div>
-              <ResponsiveContainer width="100%" height={isMobile ? 180 : 220}>
-                <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="2 2" vertical={false} stroke="var(--bg-1a1a1a)" />
-                  <XAxis dataKey="symbol" tick={{ fontSize: 10, fill: 'var(--fg-888888)', fontFamily: 'Courier New' }} />
-                  <YAxis tickFormatter={formatCurrency} tick={{ fontSize: 10, fill: 'var(--fg-888888)', fontFamily: 'Courier New' }} width={52} />
-                  <Tooltip formatter={(v: number | undefined) => v == null ? ['—', undefined] : [`$${v.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, undefined]} contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
-                  <Legend wrapperStyle={{ fontSize: '10px', color: 'var(--fg-888888)', fontFamily: 'Courier New' }} />
-                  <Bar dataKey="cost" name="Cost Basis" fill="var(--bg-444444)" radius={[2, 2, 0, 0]} />
-                  <Bar dataKey="value" name="Current Value" radius={[2, 2, 0, 0]}>
-                    {chartData.map((entry, i) => (
-                      <Cell key={i} fill={entry.value >= entry.cost ? 'var(--bg-00ff41)' : 'var(--bg-ff3333)'} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div style={panelStyle}>
-              <div style={sectionHeaderStyle}>GAIN / LOSS BY POSITION</div>
-              <ResponsiveContainer width="100%" height={isMobile ? 180 : 220}>
-                <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="2 2" vertical={false} stroke="var(--bg-1a1a1a)" />
-                  <XAxis dataKey="symbol" tick={{ fontSize: 10, fill: 'var(--fg-888888)', fontFamily: 'Courier New' }} />
-                  <YAxis tickFormatter={formatCurrency} tick={{ fontSize: 10, fill: 'var(--fg-888888)', fontFamily: 'Courier New' }} width={52} />
-                  <Tooltip formatter={(v: number | undefined) => v == null ? ['—', 'P&L'] : [`${v >= 0 ? '+' : ''}$${v.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 'P&L']} contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
-                  <ReferenceLine y={0} stroke="var(--bg-444444)" strokeWidth={1} />
-                  <Bar dataKey="gainLoss" name="Gain / Loss" radius={[2, 2, 0, 0]}>
-                    {chartData.map((entry, i) => (
-                      <Cell key={i} fill={entry.gainLoss >= 0 ? 'var(--bg-00ff41)' : 'var(--bg-ff3333)'} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Positions table */}
-      <div style={panelStyle}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-          <div style={{ ...sectionHeaderStyle, marginBottom: 0, borderBottom: 'none', paddingBottom: 0 }}>CURRENT POSITIONS</div>
-          <span style={{ color: B.label, fontSize: '10px', letterSpacing: '1px', whiteSpace: 'nowrap' }}>
-            {isMobile ? 'TAP TO TRADE' : 'CLICK ROW TO TRADE'}
+      {/* Headline */}
+      <div style={{ padding: '18px 18px 0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+          <span style={{ color: B.label, fontSize: '10px', letterSpacing: '2px' }}>
+            {isPaper ? 'PAPER PORTFOLIO' : 'PORTFOLIO'}
           </span>
+          {isPaper && (
+            <span style={{
+              background: 'var(--bg-002200)', border: '1px solid var(--bg-00ff41)', color: 'var(--fg-00ff41)',
+              fontSize: '9px', fontWeight: 'bold', letterSpacing: '1.5px', padding: '1px 7px',
+            }}>
+              SIMULATED
+            </span>
+          )}
+          <span style={{ marginLeft: 'auto' }}><LoginButton /></span>
         </div>
-        {positions.length === 0 ? (
-          <p style={{ color: B.label, fontSize: '12px' }}>NO POSITIONS FOUND</p>
-        ) : (
-          <div className="r-scroll">
-            <table className="r-cards" style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  {['Symbol', 'Shares', 'Avg Cost', 'Last Price', 'Value', 'Day P&L', 'Week P&L', 'Total P&L'].map(h => (
-                    <th key={h} style={thStyle}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map(row => {
-                  if (row.kind === 'basket') {
-                    const isOpen = openBaskets[row.id];
-                    const shares = row.legs.reduce((sum, l) => sum + l.shares, 0);
-                    const avgCost = shares > 0 ? row.cost / shares : 0;
-                    return (
-                      <React.Fragment key={'basket-' + row.id}>
-                        <tr
-                          onClick={() => setOpenBaskets(prev => ({ ...prev, [row.id]: !prev[row.id] }))}
-                          style={{ cursor: 'pointer', background: 'var(--bg-0a0a00)' }}
-                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-1a1a00)')}
-                          onMouseLeave={e => (e.currentTarget.style.background = 'var(--bg-0a0a00)')}
-                        >
-                          <td data-head="" data-label="Symbol" style={{ ...tdStyle, color: B.amber, fontWeight: 'bold' }}>
-                            <span style={{ marginRight: '6px', fontSize: '10px' }}>{isOpen ? '\u25bc' : '\u25b6'}</span>
-                            {row.fundName.toUpperCase()}
-                            <span style={{ color: B.label, fontWeight: 'normal', fontSize: '10px', letterSpacing: '1px', marginLeft: '8px' }}>
-                              BASKET &middot; {row.legs.length}
-                            </span>
-                          </td>
-                          <td data-label="Shares" style={{ ...tdStyle, color: B.label }}>&mdash;</td>
-                          <td data-label="Avg Cost" style={{ ...tdStyle, color: B.label }}>${avgCost.toFixed(2)}</td>
-                          <td data-label="Last" style={{ ...tdStyle, color: B.label }}>&mdash;</td>
-                          <td data-label="Value" style={tdStyle}>${row.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                          <td data-label="Day P&L" style={{ ...tdStyle, color: row.dailyPnL === null ? B.label : row.dailyPnL >= 0 ? B.green : B.red, fontWeight: 'bold' }}>
-                            {row.dailyPnL === null ? '\u2014' : `${row.dailyPnL >= 0 ? '+' : ''}$${row.dailyPnL.toFixed(2)}`}
-                          </td>
-                          <td data-label="Week P&L" style={{ ...tdStyle, color: row.weeklyPnL === null ? B.label : row.weeklyPnL >= 0 ? B.green : B.red, fontWeight: 'bold' }}>
-                            {row.weeklyPnL === null ? '\u2014' : `${row.weeklyPnL >= 0 ? '+' : ''}$${row.weeklyPnL.toFixed(2)}`}
-                          </td>
-                          <td data-label="Total P&L" style={{ ...tdStyle, color: row.gainLoss >= 0 ? B.green : B.red, fontWeight: 'bold' }}>
-                            {row.gainLoss >= 0 ? '+' : ''}${row.gainLoss.toFixed(2)}
-                          </td>
-                        </tr>
-                        {isOpen && row.legs.map(leg => (
-                          <tr key={row.id + '-' + leg.symbol} style={{ background: 'var(--bg-050500)' }}>
-                            <td data-head="" data-label="Symbol" style={{ ...tdStyle, color: B.amberDim, paddingLeft: '28px' }}>
-                              <span onClick={() => router.push(`/stock/${leg.symbol}`)} style={{ cursor: 'pointer' }}>{leg.symbol}</span>
-                            </td>
-                            <td data-label="Shares" style={{ ...tdStyle, color: B.label }}>{leg.shares}</td>
-                            <td data-label="Avg Cost" style={{ ...tdStyle, color: B.label }}>${leg.entryPrice.toFixed(2)}</td>
-                            <td data-label="Last" style={{ ...tdStyle, color: B.cyan }}>${leg.currentPrice.toFixed(2)}</td>
-                            <td data-label="Value" style={{ ...tdStyle, color: B.label }}>${leg.value.toFixed(2)}</td>
-                            <td data-label="Day P&L" style={{ ...tdStyle, color: B.label }}>&mdash;</td>
-                            <td data-label="Week P&L" style={{ ...tdStyle, color: B.label }}>&mdash;</td>
-                            <td data-label="Total P&L" style={{ ...tdStyle, color: leg.gainLoss >= 0 ? B.green : B.red }}>
-                              {leg.gainLoss >= 0 ? '+' : ''}${leg.gainLoss.toFixed(2)}
-                            </td>
-                          </tr>
-                        ))}
-                      </React.Fragment>
-                    );
-                  }
 
-                  const p = row.position;
-                  return (
-                  <tr
-                    key={p.symbol}
-                    onClick={() => setSelectedPosition(p)}
-                    style={{ cursor: 'pointer' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-1a1a00)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                  >
-                    <td data-head="" data-label="Symbol" style={{ ...tdStyle, color: B.amber, fontWeight: 'bold' }} onClick={e => e.stopPropagation()}>
-                      <TickerTooltip ticker={p.symbol}>
-                        <span onClick={() => router.push(`/stock/${p.symbol}`)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#ff8c0066' }}>
-                          {p.symbol}
-                        </span>
-                      </TickerTooltip>
-                    </td>
-                    <td data-label="Shares" style={tdStyle}>{p.quantity}</td>
-                    <td data-label="Avg Cost" style={tdStyle}>${p.avgOpenPrice.toFixed(2)}</td>
-                    <td data-label="Last" style={{ ...tdStyle, color: B.cyan }}>${p.currentPrice.toFixed(2)}</td>
-                    <td data-label="Value" style={tdStyle}>${p.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td data-label="Day P&L" style={{ ...tdStyle, color: p.dailyPnL === null ? B.label : p.dailyPnL >= 0 ? B.green : B.red, fontWeight: 'bold' }}>
-                      {p.dailyPnL === null ? '—' : `${p.dailyPnL >= 0 ? '+' : ''}$${p.dailyPnL.toFixed(2)}`}
-                    </td>
-                    <td data-label="Week P&L" style={{ ...tdStyle, color: p.weeklyPnL === null ? B.label : p.weeklyPnL >= 0 ? B.green : B.red, fontWeight: 'bold' }}>
-                      {p.weeklyPnL === null ? '—' : `${p.weeklyPnL >= 0 ? '+' : ''}$${p.weeklyPnL.toFixed(2)}`}
-                    </td>
-                    <td data-label="Total P&L" style={{ ...tdStyle, color: p.gainLoss >= 0 ? B.green : B.red, fontWeight: 'bold' }}>
-                      {p.gainLoss >= 0 ? '+' : ''}${p.gainLoss.toFixed(2)}
-                    </td>
-                  </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr style={{ borderTop: `1px solid ${B.border}` }}>
-                  <td colSpan={4} style={{ ...tdStyle, color: B.label, fontSize: '10px', letterSpacing: '1px' }}>TOTAL</td>
-                  <td style={{ ...tdStyle, color: B.cyan, fontWeight: 'bold' }}>
-                    ${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </td>
-                  <td style={{ ...tdStyle, color: totalDailyPnL === null ? B.label : totalDailyPnL >= 0 ? B.green : B.red, fontWeight: 'bold' }}>
-                    {totalDailyPnL === null ? '—' : `${totalDailyPnL >= 0 ? '+' : ''}$${totalDailyPnL.toFixed(2)}`}
-                  </td>
-                  <td style={{ ...tdStyle, color: totalWeeklyPnL === null ? B.label : totalWeeklyPnL >= 0 ? B.green : B.red, fontWeight: 'bold' }}>
-                    {totalWeeklyPnL === null ? '—' : `${totalWeeklyPnL >= 0 ? '+' : ''}$${totalWeeklyPnL.toFixed(2)}`}
-                  </td>
-                  <td style={{ ...tdStyle, color: totalGainLoss >= 0 ? B.green : B.red, fontWeight: 'bold' }}>
-                    {totalGainLoss >= 0 ? '+' : ''}${totalGainLoss.toFixed(2)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
+        <div style={{
+          color: B.text, fontSize: 'clamp(32px, 9vw, 44px)', fontWeight: 'bold',
+          letterSpacing: '-0.5px', lineHeight: 1.05,
+        }}>
+          {money(headline)}
+        </div>
+
+        {windowChange !== null ? (
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '7px', flexWrap: 'wrap' }}>
+            <span style={{ color: trend, fontSize: '14px', fontWeight: 'bold' }}>
+              {up ? '▲' : '▼'} {money(Math.abs(windowChange))} ({up ? '+' : '−'}{windowPct !== null ? Math.abs(windowPct).toFixed(2) : '0.00'}%)
+            </span>
+            <span style={sub}>{frame.label}</span>
           </div>
+        ) : (
+          <div style={{ ...sub, marginTop: '7px' }}>NOT ENOUGH HISTORY YET</div>
         )}
       </div>
+
+      {/* Chart: no axes, no grid, no legend */}
+      {series.length > 1 && (() => {
+        const lo = Math.min(...series.map(d => d.value));
+        const hi = Math.max(...series.map(d => d.value));
+        const pad = (hi - lo) * 0.12 || hi * 0.02;
+        return (
+          <div style={{ height: isMobile ? 170 : 210, marginTop: '10px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={series} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="pv" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={trend} stopOpacity={0.22} />
+                    <stop offset="100%" stopColor={trend} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <YAxis domain={[lo - pad, hi + pad]} hide />
+                <Tooltip
+                  cursor={{ stroke: B.label, strokeDasharray: '2 2' }}
+                  contentStyle={{
+                    background: 'var(--bg-0d0d0d)', border: `1px solid ${B.border}`,
+                    fontFamily: 'Courier New, monospace', fontSize: '12px',
+                  }}
+                  labelStyle={{ color: B.label, fontSize: '10px', letterSpacing: '1px' }}
+                  itemStyle={{ color: B.text, fontWeight: 'bold' }}
+                  formatter={(v: number | undefined) => [v == null ? '—' : money(v), 'Value']}
+                />
+                <Area
+                  type="monotone" dataKey="value" stroke={trend} strokeWidth={2}
+                  fill="url(#pv)" dot={false} activeDot={{ r: 3, fill: trend }}
+                  isAnimationActive={false}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        );
+      })()}
+
+      {/* Timeframe */}
+      <div className="r-hscroll" style={{ display: 'flex', gap: '6px', padding: '10px 18px 0' }}>
+        {TIMEFRAMES.map(t => {
+          const on = t.id === timeframe;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTimeframe(t.id)}
+              style={{
+                background: on ? trend : 'transparent',
+                color: on ? 'var(--bg-000000)' : B.label,
+                border: `1px solid ${on ? trend : B.border}`,
+                fontFamily: 'Courier New, monospace', fontWeight: 'bold',
+                fontSize: '11px', letterSpacing: '1px', padding: '6px 13px',
+                cursor: 'pointer', minWidth: '44px',
+              }}
+            >
+              {t.id}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Buying power */}
+      <div style={{
+        display: 'flex', gap: '28px', flexWrap: 'wrap',
+        padding: '16px 18px', margin: '16px 0 0',
+        borderTop: `1px solid ${B.border}`, borderBottom: `1px solid ${B.border}`,
+      }}>
+        <div>
+          <div style={sub}>BUYING POWER</div>
+          <div style={{ color: B.text, fontSize: '15px', fontWeight: 'bold', marginTop: '3px' }}>
+            {money(balance?.buyingPower ?? 0)}
+          </div>
+        </div>
+        <div>
+          <div style={sub}>TOTAL RETURN</div>
+          <div style={{ color: totalGainLoss >= 0 ? B.green : B.red, fontSize: '15px', fontWeight: 'bold', marginTop: '3px' }}>
+            {totalGainLoss >= 0 ? '+' : '−'}{money(Math.abs(totalGainLoss))} ({totalReturn >= 0 ? '+' : '−'}{Math.abs(totalReturn).toFixed(2)}%)
+          </div>
+        </div>
+      </div>
+
+      {/* Positions */}
+      <div style={{ padding: '18px 18px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '4px' }}>
+          <span style={{ color: B.amber, fontSize: '11px', fontWeight: 'bold', letterSpacing: '2px' }}>POSITIONS</span>
+          <span style={{ ...sub, fontSize: '10px' }}>{isMobile ? 'TAP TO TRADE' : 'CLICK TO TRADE'}</span>
+        </div>
+      </div>
+
+      {positions.length === 0 ? (
+        <p style={{ ...sub, padding: '14px 18px' }}>NO POSITIONS FOUND</p>
+      ) : (
+        <div>
+          {rows.map(row => {
+            if (row.kind === 'basket') {
+              const isOpen = openBaskets[row.id];
+              const pct = row.cost > 0 ? (row.gainLoss / row.cost) * 100 : 0;
+              return (
+                <React.Fragment key={'basket-' + row.id}>
+                  <Row
+                    onClick={() => setOpenBaskets(prev => ({ ...prev, [row.id]: !prev[row.id] }))}
+                    title={`${isOpen ? '▼' : '▶'}  ${row.fundName.toUpperCase()}`}
+                    subtitle={`BASKET · ${row.legs.length} ${row.legs.length === 1 ? 'POSITION' : 'POSITIONS'}`}
+                    value={money(row.totalValue)}
+                    change={row.gainLoss}
+                    changePct={pct}
+                    B={B}
+                  />
+                  {isOpen && row.legs.map(leg => {
+                    const legPct = leg.entryPrice > 0 ? ((leg.currentPrice - leg.entryPrice) / leg.entryPrice) * 100 : 0;
+                    return (
+                      <Row
+                        key={row.id + '-' + leg.symbol}
+                        indented
+                        onClick={() => router.push(`/stock/${leg.symbol}`)}
+                        title={leg.symbol}
+                        subtitle={`${leg.shares} · ${money(leg.entryPrice)}`}
+                        value={money(leg.value)}
+                        change={leg.gainLoss}
+                        changePct={legPct}
+                        B={B}
+                      />
+                    );
+                  })}
+                </React.Fragment>
+              );
+            }
+
+            const p = row.position;
+            const cost = p.avgOpenPrice * p.quantity;
+            const pct = cost > 0 ? (p.gainLoss / cost) * 100 : 0;
+            return (
+              <Row
+                key={p.symbol}
+                onClick={() => setSelectedPosition(p)}
+                title={p.symbol}
+                subtitle={`${p.quantity} · ${money(p.currentPrice)}`}
+                value={money(p.totalValue)}
+                change={p.gainLoss}
+                changePct={pct}
+                B={B}
+              />
+            );
+          })}
+        </div>
+      )}
 
       {selectedPosition && (
         <TradeModal
@@ -670,6 +512,58 @@ export default function Dashboard() {
           onSuccess={() => { setSelectedPosition(null); if (userId) _caches.delete(userId); fetchData(); }}
         />
       )}
+    </div>
+  );
+}
+
+/**
+ * One line of the holdings list: what it is on the left, what it is worth on
+ * the right. Replaces an eight-column table that could not be read on a phone
+ * and did not earn the space anywhere else.
+ */
+function Row({
+  title, subtitle, value, change, changePct, onClick, indented, B,
+}: {
+  title: string;
+  subtitle: string;
+  value: string;
+  change: number;
+  changePct: number;
+  onClick?: () => void;
+  indented?: boolean;
+  B: Record<string, string>;
+}) {
+  const up = change >= 0;
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px',
+        padding: indented ? '11px 18px 11px 34px' : '13px 18px',
+        borderBottom: '1px solid var(--bg-1a1a1a)',
+        cursor: onClick ? 'pointer' : 'default',
+        background: indented ? 'var(--bg-050505)' : 'transparent',
+      }}
+      onMouseEnter={e => { if (onClick) e.currentTarget.style.background = 'var(--bg-0a0a0a)'; }}
+      onMouseLeave={e => { e.currentTarget.style.background = indented ? 'var(--bg-050505)' : 'transparent'; }}
+    >
+      <div style={{ minWidth: 0 }}>
+        <div style={{
+          color: indented ? B.amberDim : B.amber, fontWeight: 'bold',
+          fontSize: indented ? '13px' : '14px', letterSpacing: '1px',
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        }}>
+          {title}
+        </div>
+        <div style={{ color: B.label, fontSize: '11px', marginTop: '3px' }}>{subtitle}</div>
+      </div>
+
+      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+        <div style={{ color: B.text, fontSize: '14px', fontWeight: 'bold' }}>{value}</div>
+        <div style={{ color: up ? B.green : B.red, fontSize: '11px', marginTop: '3px', fontWeight: 'bold' }}>
+          {up ? '+' : '−'}${Math.abs(change).toFixed(2)} ({up ? '+' : '−'}{Math.abs(changePct).toFixed(2)}%)
+        </div>
+      </div>
     </div>
   );
 }

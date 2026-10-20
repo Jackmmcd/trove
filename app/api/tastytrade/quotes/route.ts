@@ -3,9 +3,17 @@ import { getTastytradeClient } from '@/lib/tastytrade/client';
 import { getValidAccessToken } from '@/lib/auth/session';
 import { AlpacaClient } from '@/lib/alpaca/client';
 import { requireSignedIn } from '@/lib/broker/guard';
+import { sessionCloses } from '@/lib/market/close';
 import axios from 'axios';
 
-/** GET /api/tastytrade/quotes?symbols=AAPL,MSFT,AMZN */
+/**
+ * GET /api/tastytrade/quotes?symbols=AAPL,MSFT,AMZN
+ *
+ * `basis=close` returns the last completed session's close rather than a live
+ * mark — what the portfolio is valued at, so the numbers hold still between
+ * refreshes and stay on Friday's close all weekend. Order tickets leave it off
+ * and get the live price they are actually trading against.
+ */
 export async function GET(request: Request) {
   const denied = await requireSignedIn();
   if (denied) return denied;
@@ -16,6 +24,24 @@ export async function GET(request: Request) {
 
   if (symbols.length === 0) {
     return NextResponse.json({ success: false, error: 'No symbols provided' }, { status: 400 });
+  }
+
+  if (searchParams.get('basis') === 'close') {
+    try {
+      const closes = await sessionCloses(symbols);
+      const prices: Record<string, number> = {};
+      const prevCloses: Record<string, number> = {};
+      const asOf: Record<string, string> = {};
+      for (const [symbol, c] of Object.entries(closes)) {
+        prices[symbol] = c.close;
+        prevCloses[symbol] = c.prevClose;
+        asOf[symbol] = c.closeDate;
+      }
+      return NextResponse.json({ success: true, data: prices, prevCloses, asOf, source: 'close' });
+    } catch (error: any) {
+      console.error('Session close lookup failed:', error.message);
+      return NextResponse.json({ success: false, error: 'Failed to fetch closing prices' }, { status: 500 });
+    }
   }
 
   // Alpaca mode: use Alpaca market data, fall through to Yahoo on failure

@@ -2,27 +2,16 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
 import { db } from '@/lib/supabase/admin';
+import { sessionCloses } from '@/lib/market/close';
 
+/**
+ * Settled closes, so a paper position is valued the same way a live one is:
+ * the last completed session during the week, Friday's all weekend.
+ */
 async function fetchPrices(symbols: string[]): Promise<Record<string, number>> {
   if (!symbols.length) return {};
-  try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbols[0]}?interval=1d&range=1d`;
-    const prices: Record<string, number> = {};
-    await Promise.all(
-      symbols.map(async (sym) => {
-        try {
-          const res = await fetch(
-            `https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=1d`,
-            { headers: { 'User-Agent': 'Mozilla/5.0' }, next: { revalidate: 60 } }
-          );
-          const json = await res.json();
-          const meta = json?.chart?.result?.[0]?.meta;
-          prices[sym] = meta?.regularMarketPrice ?? meta?.previousClose ?? 0;
-        } catch { prices[sym] = 0; }
-      })
-    );
-    return prices;
-  } catch { return {}; }
+  const closes = await sessionCloses(symbols);
+  return Object.fromEntries(Object.entries(closes).map(([s, c]) => [s, c.close]));
 }
 
 export async function GET() {
