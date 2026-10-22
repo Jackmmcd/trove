@@ -78,7 +78,6 @@ export default function FundList() {
   const [basketFund, setBasketFund] = useState<{ fund: Fund; selected: Holding[] } | null>(null);
   const [selectedMap, setSelectedMap] = useState<Record<string, Set<string>>>({});
   const [collapsedMap, setCollapsedMap] = useState<Record<string, boolean>>({});
-  const [hoveredFund, setHoveredFund] = useState<string | null>(null);
 
   function toggleCollapsed(fundId: string) {
     setCollapsedMap(prev => ({ ...prev, [fundId]: !prev[fundId] }));
@@ -347,7 +346,7 @@ export default function FundList() {
             const isSyncingThis = syncingCik === fund.cik;
             const isExpanded = !!collapsedMap[fund.id];
             return (
-              <div key={fund.id} style={panelStyle} onMouseEnter={() => setHoveredFund(fund.id)} onMouseLeave={() => setHoveredFund(null)}>
+              <div key={fund.id} style={panelStyle}>
                 {/* Fund header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap', padding: '10px 14px', borderBottom: isExpanded ? `1px solid ${B.border}` : 'none' }}>
                   <button onClick={() => toggleCollapsed(fund.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', padding: 0, textAlign: 'left', minWidth: 0, flex: '1 1 180px' }}>
@@ -373,9 +372,11 @@ export default function FundList() {
                   </div>
                 </div>
 
-                {/* Fund thesis — revealed on hover */}
+                {/* Fund thesis — shown with the fund's holdings, not on hover:
+                    a pointer crossing the row is not a request to read it, and
+                    on a touch screen there is no hover to begin with. */}
                 {fund.thesis && (() => {
-                  const showThesis = hoveredFund === fund.id || isExpanded;
+                  const showThesis = isExpanded;
                   return (
                   <div style={{
                     overflow: 'hidden',
