@@ -16,28 +16,73 @@ const KEY = () => (process.env.POLYGON_API_KEY ?? '').trim();
  * anywhere. Errors are now logged rather than discarded, so the next time this
  * breaks it is visible.
  */
+/**
+ * Response cache, and in-flight de-duplication.
+ *
+ * The plan allows five calls a minute. One stock page spends four on its own
+ * (details, a year of dailies, a snapshot, plus the chart's candles), so a
+ * second page view inside the same minute started coming back 429 — and since
+ * a failed call resolves to null, the page silently degraded to "—" for every
+ * price and an empty chart rather than showing an error.
+ *
+ * Everything served here is end-of-day data that does not change while the
+ * market is open, so holding it briefly costs nothing in accuracy and keeps
+ * the budget for calls that are actually new. Identical concurrent calls share
+ * one request instead of racing each other for the same quota.
+ */
+const TTL_MS = 10 * 60 * 1000;
+const cache = new Map<string, { at: number; value: unknown }>();
+const inflight = new Map<string, Promise<unknown>>();
+
+/** Keep the map from growing without bound on a long-lived instance. */
+function prune(now: number) {
+  if (cache.size < 200) return;
+  for (const [k, v] of cache) if (now - v.at > TTL_MS) cache.delete(k);
+}
+
 async function get<T>(path: string, params: Record<string, unknown> = {}, timeoutMs = 10000): Promise<T | null> {
   const url = new URL(BASE + path);
-  url.searchParams.set('apiKey', KEY());
   for (const [k, v] of Object.entries(params)) {
     if (v !== undefined && v !== null) url.searchParams.set(k, String(v));
   }
+  // Key on the URL without the secret, so the key never carries the API key.
+  const key = url.toString();
+  url.searchParams.set('apiKey', KEY());
 
-  const abort = new AbortController();
-  const timer = setTimeout(() => abort.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { signal: abort.signal, headers: { Accept: 'application/json' } });
-    if (!res.ok) {
-      console.error(`polygon ${path} -> ${res.status}`);
+  const now = Date.now();
+  const hit = cache.get(key);
+  if (hit && now - hit.at < TTL_MS) return hit.value as T | null;
+
+  const running = inflight.get(key);
+  if (running) return running as Promise<T | null>;
+
+  const request = (async (): Promise<T | null> => {
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { signal: abort.signal, headers: { Accept: 'application/json' } });
+      if (!res.ok) {
+        // 403 means the plan does not cover this endpoint and retrying will
+        // never help; 429 means the minute's budget is spent. Both are worth
+        // naming, because both used to vanish into a null.
+        console.error(`polygon ${path} -> ${res.status}${res.status === 429 ? ' (rate limited)' : res.status === 403 ? ' (not on plan)' : ''}`);
+        return null;
+      }
+      const json = (await res.json()) as T;
+      prune(now);
+      cache.set(key, { at: now, value: json });
+      return json;
+    } catch (e) {
+      console.error(`polygon ${path} failed:`, e instanceof Error ? e.message : e);
       return null;
+    } finally {
+      clearTimeout(timer);
+      inflight.delete(key);
     }
-    return (await res.json()) as T;
-  } catch (e) {
-    console.error(`polygon ${path} failed:`, e instanceof Error ? e.message : e);
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
+  })();
+
+  inflight.set(key, request);
+  return request;
 }
 
 interface Bar { o: number; h: number; l: number; c: number; v: number; t?: number }

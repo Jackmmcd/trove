@@ -36,9 +36,12 @@ export async function GET(
 
   switch (range) {
     case '1d': {
-      // 5-minute candles for today; fall back to the previous trading day if market hasn't opened yet
-      let raw = await getAggs(sym, today(), today(), 5, 'minute');
-      if (raw.length === 0) raw = await getAggs(sym, dateStr(4), today(), 5, 'minute');
+      // Intraday for *today* is real-time data this plan does not carry: it
+      // answered 403 every time while still costing one of the five calls a
+      // minute the plan allows. Asking across the last few days instead
+      // returns the most recent session that is actually available, in one
+      // request rather than two.
+      let raw = await getAggs(sym, dateStr(5), today(), 5, 'minute');
       // Keep only the most recent trading session
       if (raw.length > 0) {
         const lastDate = new Date(raw[raw.length - 1].t).toISOString().slice(0, 10);

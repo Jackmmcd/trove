@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAggs, getTickerDetails, getSnapshot } from '@/lib/polygon/client';
+import { getAggs, getTickerDetails } from '@/lib/polygon/client';
 import { getTastytradeClient } from '@/lib/tastytrade/client';
 import { getValidAccessToken } from '@/lib/auth/session';
 import axios from 'axios';
@@ -45,11 +45,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ ticker:
   const { ticker } = await params;
   const sym = ticker.toUpperCase();
 
-  // Fetch in parallel: Polygon data + Yahoo fundamentals
-  const [details, candles1Y, snapshot, yahoo] = await Promise.all([
+  // The snapshot endpoint is real-time and this plan does not include it. It
+  // answered 403 on every call while still spending one of the five requests a
+  // minute the plan allows, which is what pushed the rest of the page into
+  // 429s and blanked it. Everything it provided is derivable from the daily
+  // candles below, which is also the settled end-of-day basis prices use
+  // everywhere else now.
+  const [details, candles1Y, yahoo] = await Promise.all([
     getTickerDetails(sym),
     getAggs(sym, dateStr(400), dateStr(0), 1, 'day'),
-    getSnapshot(sym),
     fetchYahooSummary(sym),
   ]);
 
@@ -70,29 +74,25 @@ export async function GET(_req: Request, { params }: { params: Promise<{ ticker:
   const todayStr = new Date().toISOString().slice(0, 10);
   const completedCandles = candles1Y.filter(c => new Date(c.t).toISOString().slice(0, 10) < todayStr && c.c > 0);
   const lastClose = completedCandles.length > 0 ? completedCandles[completedCandles.length - 1].c : null;
-  const prevDayC = snapshot?.prevDay?.c;
+  // Price is the last completed session's close: the settled number, and the
+  // only one this plan can actually serve.
+  const price = ttPrice ?? lastClose;
 
-  // Price: Tastytrade → Polygon snapshot → last candle close (for non-market-hours / delisted)
-  const ltP = snapshot?.lastTrade?.p;
-  const dayC = snapshot?.day?.c;
-  const snapshotPrice = (ltP != null && ltP > 0 ? ltP : null)
-                      ?? (dayC != null && dayC > 0 ? dayC : null);
-  const price = ttPrice ?? snapshotPrice ?? lastClose;
-
-  // When the price is itself the last candle's close, comparing it to that same
-  // close always reads +0.00 — the day change is against the session before it.
-  const prevClose = ttPrice === null && snapshotPrice === null
+  // Comparing the last close to itself always reads +0.00, so the day change
+  // is measured against the session before it.
+  const prevClose = ttPrice === null
     ? (completedCandles[completedCandles.length - 2]?.c ?? null)
-    : (prevDayC != null && prevDayC > 0 ? prevDayC : null) ?? lastClose;
+    : lastClose;
 
   const change = price !== null && prevClose ? price - prevClose : null;
   const changePct = change !== null && prevClose ? change / prevClose : null;
 
-  // OPEN / DAY LOW / DAY HIGH — fall back to prev day when market is closed (today's values are 0)
-  const dayOpen = pos(snapshot?.day?.o) ?? pos(snapshot?.prevDay?.o);
-  const dayLow  = pos(snapshot?.day?.l) ?? pos(snapshot?.prevDay?.l);
-  const dayHigh = pos(snapshot?.day?.h) ?? pos(snapshot?.prevDay?.h);
-  const dayVol  = snapshot?.day?.v ?? snapshot?.prevDay?.v ?? null;
+  // The session the price belongs to, straight off the daily candle.
+  const lastBar = completedCandles[completedCandles.length - 1] ?? null;
+  const dayOpen = pos(lastBar?.o);
+  const dayLow  = pos(lastBar?.l);
+  const dayHigh = pos(lastBar?.h);
+  const dayVol  = lastBar?.v ?? null;
 
   // Period performance
   const last = completedCandles.length - 1;
