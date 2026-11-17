@@ -1,5 +1,6 @@
 'use client';
 
+import { clearSnapshots } from '@/lib/client-snapshot';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
@@ -31,6 +32,7 @@ export default function LoginButton() {
     <button
       onClick={async () => {
         const supabase = createClient();
+        clearSnapshots();
         await supabase.auth.signOut();
         router.push('/login');
       }}

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { readSnapshot, writeSnapshot } from '@/lib/client-snapshot';
 import { useRouter } from 'next/navigation';
 import { YAxis, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import LoginButton from './LoginButton';
@@ -47,6 +48,13 @@ const B = {
 
 
 // Module-level cache keyed by user ID — survives remounts, invalidates on account switch
+type DashSnapshot = {
+  balance: AccountBalance | null;
+  positions: Position[];
+  portfolioHistory: { date: string; value: number }[];
+  isPaper: boolean;
+};
+
 const _caches = new Map<string, {
   balance: AccountBalance | null;
   positions: Position[];
@@ -74,6 +82,9 @@ export default function Dashboard() {
   const [portfolioHistory, setPortfolioHistory] = useState<{ date: string; value: number }[]>([]);
   const [isPaper, setIsPaper] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
+  // Set while fresh data loads behind numbers already on screen (a snapshot
+  // from the last visit, or the previous load when the tab regains focus).
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [requiresAuth, setRequiresAuth] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
@@ -109,7 +120,17 @@ export default function Dashboard() {
           setIsPaper(cached.isPaper);
           setLoading(false);
         } else {
-          fetchData(uid);
+          // Draw the last visit's numbers at once, marked as updating, and
+          // refresh behind them rather than opening on a loading screen.
+          const snap = readSnapshot<DashSnapshot>('dashboard', uid);
+          if (snap) {
+            setBalance(snap.value.balance);
+            setPositions(snap.value.positions);
+            setPortfolioHistory(snap.value.portfolioHistory);
+            setIsPaper(snap.value.isPaper);
+            setLoading(false);
+          }
+          fetchData(uid, !!snap);
         }
       });
     });
@@ -120,16 +141,16 @@ export default function Dashboard() {
     const onVisible = () => {
       if (document.visibilityState === 'visible' && userId) {
         _caches.delete(userId);
-        fetchData(userId);
+        fetchData(userId, true);
       }
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [userId]);
 
-  const fetchData = async (uid = userId ?? 'anonymous') => {
+  const fetchData = async (uid = userId ?? 'anonymous', background = false) => {
     try {
-      setLoading(true);
+      if (background) setRefreshing(true); else setLoading(true);
       setError(null);
       setRequiresAuth(false);
 
@@ -158,9 +179,14 @@ export default function Dashboard() {
 
         // The chart is the point of the page, and a paper account has a
         // history too — it just needed asking for.
+        writeSnapshot<DashSnapshot>('dashboard', uid, { balance: balanceVal, positions: paperPositions, portfolioHistory, isPaper: true });
         fetch('/api/tastytrade/portfolio-history?range=1y')
           .then(r => r.json())
-          .then(d => { if (d.success && d.data?.length) setPortfolioHistory(d.data); })
+          .then(d => {
+            if (!d.success || !d.data?.length) return;
+            setPortfolioHistory(d.data);
+            writeSnapshot<DashSnapshot>('dashboard', uid, { balance: balanceVal, positions: paperPositions, portfolioHistory: d.data, isPaper: true });
+          })
           .catch(() => {});
 
         // Don't cache paper positions — always fetch fresh so trades from other pages show immediately
@@ -219,16 +245,22 @@ export default function Dashboard() {
       const abort = new AbortController();
       const abortTimer = setTimeout(() => abort.abort(), 25000);
 
-      const [qData, hData, portData] = await Promise.all([
+      // The chart draws as soon as its own data lands; it no longer waits on
+      // the quotes and week-change lookups below.
+      const portPromise: Promise<{ date: string; value: number }[]> =
+        fetch('/api/tastytrade/portfolio-history?range=1y', { signal: abort.signal })
+          .then(r => r.json())
+          .then(d => {
+            const h = d.success && d.data?.length > 0 ? d.data : [];
+            if (h.length) setPortfolioHistory(h);
+            return h;
+          })
+          .catch(() => []);
+
+      const [qData, hData] = await Promise.all([
         symbols ? fetch(`/api/tastytrade/quotes?symbols=${encodeURIComponent(symbols)}&basis=close`).then(r => r.json()).catch(() => ({})) : Promise.resolve({}),
         symbols ? fetch(`/api/tastytrade/history?symbols=${encodeURIComponent(symbols)}`, { signal: abort.signal }).then(r => r.json()).catch(() => ({})) : Promise.resolve({}),
-        fetch('/api/tastytrade/portfolio-history?range=1y', { signal: abort.signal }).then(r => r.json()).catch(() => ({})),
       ]);
-      clearTimeout(abortTimer);
-
-      const portHistory: { date: string; value: number }[] =
-        portData.success && portData.data?.length > 0 ? portData.data : [];
-      if (portHistory.length) setPortfolioHistory(portHistory);
 
       let finalPositions = stalePositions;
       if (symbols) {
@@ -244,11 +276,15 @@ export default function Dashboard() {
         setPositions(finalPositions);
       }
 
+      const portHistory = await portPromise;
+      clearTimeout(abortTimer);
       _caches.set(uid, { balance: balanceVal, positions: finalPositions, portfolioHistory: portHistory, isPaper: false, ts: Date.now() });
+      writeSnapshot<DashSnapshot>('dashboard', uid, { balance: balanceVal, positions: finalPositions, portfolioHistory: portHistory, isPaper: false });
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -333,6 +369,9 @@ export default function Dashboard() {
             }}>
               SIMULATED
             </span>
+          )}
+          {refreshing && (
+            <span role="status" style={{ color: B.label, fontSize: '9px', letterSpacing: '1.5px' }}>UPDATING…</span>
           )}
           <span style={{ marginLeft: 'auto' }}><LoginButton /></span>
         </div>
@@ -567,7 +606,12 @@ const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', '
  * Hover readout that glides along the drawn curve instead of snapping from one
  * data point to the next. The marker is placed on the rendered path itself, so
  * it never leaves the smoothed line, and the value is read back off its height.
+ *
+ * Press and drag to measure: the span between where the drag started and the
+ * cursor is shaded, and the readout gives the return across it.
  */
+type ScrubPoint = { x: number; y: number; value: number; date: string };
+
 function ScrubChart({ series, domain, trend, money, children }: {
   series: { date: string; value: number }[];
   domain: [number, number];
@@ -576,21 +620,22 @@ function ScrubChart({ series, domain, trend, money, children }: {
   children: React.ReactNode;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
-  const [hover, setHover] = useState<{ x: number; y: number; value: number; date: string } | null>(null);
+  const [hover, setHover] = useState<ScrubPoint | null>(null);
+  const [anchor, setAnchor] = useState<ScrubPoint | null>(null);
 
-  const onMove = (e: React.PointerEvent) => {
+  const sample = (clientX: number): ScrubPoint | null => {
     const wrap = wrapRef.current;
     const path = wrap?.querySelector<SVGPathElement>('.recharts-area-curve');
     const svg = path?.ownerSVGElement;
-    if (!wrap || !path || !svg) return;
+    if (!wrap || !path || !svg) return null;
 
     const wrapBox = wrap.getBoundingClientRect();
     const svgBox = svg.getBoundingClientRect();
     const total = path.getTotalLength();
     const startX = path.getPointAtLength(0).x;
     const endX = path.getPointAtLength(total).x;
-    if (endX <= startX) return;
-    const x = Math.min(endX, Math.max(startX, e.clientX - svgBox.left));
+    if (endX <= startX) return null;
+    const x = Math.min(endX, Math.max(startX, clientX - svgBox.left));
 
     // x only ever increases along the line, so bisect the length for this x.
     let lo = 0, hi = total;
@@ -605,48 +650,93 @@ function ScrubChart({ series, domain, trend, money, children }: {
     const idx = Math.round(((x - startX) / (endX - startX)) * (series.length - 1));
     const [, m, d] = series[idx].date.split('-');
 
-    setHover({
+    return {
       x: svgBox.left - wrapBox.left + x,
       y: svgBox.top - wrapBox.top + pt.y,
       value,
       date: `${MONTHS[Number(m) - 1]} ${Number(d)}`,
-    });
+    };
   };
 
+  const onDown = (e: React.PointerEvent) => {
+    const p = sample(e.clientX);
+    if (!p) return;
+    // Keep receiving moves if the drag leaves the chart.
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setAnchor(p);
+    setHover(p);
+  };
+  const onMove = (e: React.PointerEvent) => setHover(sample(e.clientX));
+  const onUp = () => setAnchor(null);
+  const onLeave = () => { if (!anchor) setHover(null); };
+
   const width = wrapRef.current?.clientWidth ?? 0;
-  const flip = hover !== null && hover.x > width - 150;
+  const measuring = anchor !== null && hover !== null && Math.abs(hover.x - anchor.x) > 2;
+  const [from, to] = measuring
+    ? (anchor!.x <= hover!.x ? [anchor!, hover!] : [hover!, anchor!])
+    : [null, null];
+  const delta = from && to ? to.value - from.value : 0;
+  const pct = from && from.value ? (delta / from.value) * 100 : 0;
+  const deltaColor = delta >= 0 ? B.green : B.red;
+
+  // The readout sits beside the cursor, flipped to the left near the right edge.
+  const flip = hover !== null && hover.x > width - 190;
+
+  const marker = (p: ScrubPoint, color: string) => (
+    <>
+      <div style={{
+        position: 'absolute', left: p.x, top: 10, bottom: 0, width: 0,
+        borderLeft: `1px dashed ${B.label}`, pointerEvents: 'none',
+      }} />
+      <div style={{
+        position: 'absolute', left: p.x - 4, top: p.y - 4, width: 8, height: 8,
+        borderRadius: '50%', background: color, pointerEvents: 'none',
+      }} />
+    </>
+  );
 
   return (
     <div
       ref={wrapRef}
+      onPointerDown={onDown}
       onPointerMove={onMove}
-      onPointerDown={onMove}
-      onPointerLeave={() => setHover(null)}
-      style={{ position: 'relative', touchAction: 'pan-y', cursor: 'crosshair' }}
+      onPointerUp={onUp}
+      onPointerCancel={() => { setAnchor(null); setHover(null); }}
+      onPointerLeave={onLeave}
+      style={{ position: 'relative', touchAction: 'pan-y', cursor: 'crosshair', userSelect: 'none' }}
     >
       {children}
+      {from && to && (
+        <div style={{
+          position: 'absolute', left: from.x, width: to.x - from.x, top: 10, bottom: 0,
+          background: deltaColor, opacity: 0.08, pointerEvents: 'none',
+        }} />
+      )}
+      {from && to && marker(from, deltaColor)}
+      {hover && marker(hover, measuring ? deltaColor : trend)}
       {hover && (
-        <>
-          <div style={{
-            position: 'absolute', left: hover.x, top: 10, bottom: 0, width: 0,
-            borderLeft: `1px dashed ${B.label}`, pointerEvents: 'none',
-          }} />
-          <div style={{
-            position: 'absolute', left: hover.x - 4, top: hover.y - 4, width: 8, height: 8,
-            borderRadius: '50%', background: trend, pointerEvents: 'none',
-          }} />
-          <div style={{
-            position: 'absolute', top: 14,
-            left: flip ? undefined : hover.x + 10,
-            right: flip ? width - hover.x + 10 : undefined,
-            background: 'var(--bg-0d0d0d)', border: `1px solid ${B.border}`,
-            padding: '6px 10px', pointerEvents: 'none', whiteSpace: 'nowrap',
-            fontFamily: 'Courier New, monospace',
-          }}>
-            <div style={{ color: B.label, fontSize: '10px', letterSpacing: '1px' }}>{hover.date}</div>
-            <div style={{ color: B.text, fontSize: '13px', fontWeight: 'bold', marginTop: '2px' }}>{money(hover.value)}</div>
-          </div>
-        </>
+        <div style={{
+          position: 'absolute', top: 14,
+          left: flip ? undefined : hover.x + 10,
+          right: flip ? width - hover.x + 10 : undefined,
+          background: 'var(--bg-0d0d0d)', border: `1px solid ${B.border}`,
+          padding: '6px 10px', pointerEvents: 'none', whiteSpace: 'nowrap',
+          fontFamily: 'Courier New, monospace',
+        }}>
+          {from && to ? (
+            <>
+              <div style={{ color: B.label, fontSize: '10px', letterSpacing: '1px' }}>{from.date} → {to.date}</div>
+              <div style={{ color: deltaColor, fontSize: '13px', fontWeight: 'bold', marginTop: '2px' }}>
+                {delta >= 0 ? '▲' : '▼'} {money(Math.abs(delta))} ({delta >= 0 ? '+' : '−'}{Math.abs(pct).toFixed(2)}%)
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ color: B.label, fontSize: '10px', letterSpacing: '1px' }}>{hover.date}</div>
+              <div style={{ color: B.text, fontSize: '13px', fontWeight: 'bold', marginTop: '2px' }}>{money(hover.value)}</div>
+            </>
+          )}
+        </div>
       )}
     </div>
   );

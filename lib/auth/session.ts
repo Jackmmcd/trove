@@ -198,6 +198,17 @@ async function authenticateWithSession(): Promise<string | null> {
 /**
  * Authenticate using OAuth refresh token
  */
+// The access token minted from the configured refresh token, reused until
+// shortly before it expires. Every brokerage route asks for a token, and one
+// dashboard load fires half a dozen of them; refreshing on each call put a
+// round trip to Tastytrade's OAuth endpoint in front of every one. The token
+// belongs to the single configured account, and the routes that use it are
+// already restricted to its owner (lib/broker/guard.ts), so sharing it across
+// requests on this server changes nothing about who can reach it.
+let cachedToken: { token: string; expiresAt: number } | null = null;
+let inflightRefresh: Promise<string | null> | null = null;
+const TOKEN_MARGIN_MS = 60_000;
+
 async function authenticateWithRefreshToken(): Promise<string | null> {
   const refreshToken = (process.env.TASTYTRADE_REFRESH_TOKEN ?? '').trim();
 
@@ -205,6 +216,13 @@ async function authenticateWithRefreshToken(): Promise<string | null> {
     return null;
   }
 
+  if (cachedToken && Date.now() < cachedToken.expiresAt - TOKEN_MARGIN_MS) return cachedToken.token;
+  // Parallel requests share one refresh rather than each starting their own.
+  inflightRefresh ??= refreshConfiguredToken(refreshToken).finally(() => { inflightRefresh = null; });
+  return inflightRefresh;
+}
+
+async function refreshConfiguredToken(refreshToken: string): Promise<string | null> {
   try {
     const { getTastytradeClient } = await import('../tastytrade/client');
     const client = getTastytradeClient();
@@ -219,8 +237,10 @@ async function authenticateWithRefreshToken(): Promise<string | null> {
       token_type: 'Bearer',
     });
 
+    cachedToken = { token: refreshed.access_token, expiresAt: Date.now() + refreshed.expires_in * 1000 };
     return refreshed.access_token;
   } catch (error) {
+    cachedToken = null;
     console.error('OAuth refresh token authentication failed:', error);
     return null;
   }

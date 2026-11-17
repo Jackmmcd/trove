@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { dailyCloses } from './candles';
 
 /**
  * Settled closing prices.
@@ -54,33 +54,8 @@ export function regularSessionIsOver(now = new Date()): boolean {
   return easternNow(now).hour >= 16;
 }
 
-/** Daily candles for one symbol, oldest first, invalid points dropped. */
-async function dailyCandles(symbol: string, range: string): Promise<{ date: string; close: number }[]> {
-  const res = await axios.get(
-    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}`,
-    {
-      params: { interval: '1d', range },
-      headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/json' },
-      timeout: 8000,
-    },
-  );
-  const result = res.data?.chart?.result?.[0];
-  const timestamps: number[] = result?.timestamp ?? [];
-  const closes: number[] = result?.indicators?.quote?.[0]?.close ?? [];
-
-  return timestamps
-    .map((ts, i) => {
-      const close = closes[i];
-      if (!close || close <= 0) return null;
-      // Yahoo stamps a daily candle at the session open in exchange time;
-      // reading the date back in Eastern keeps it on the right session.
-      const date = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
-      }).format(new Date(ts * 1000));
-      return { date, close };
-    })
-    .filter((d): d is { date: string; close: number } => d !== null);
-}
+/** Daily candles for one symbol, oldest first, invalid points dropped. Cached; see candles.ts. */
+const dailyCandles = dailyCloses;
 
 /**
  * Trim the in-progress candle. Yahoo includes today while the session is still

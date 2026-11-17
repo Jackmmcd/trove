@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import axios from 'axios';
 import { getValidAccessToken } from '@/lib/auth/session';
 import { cookies } from 'next/headers';
 import { createClient } from '@/utils/supabase/server';
@@ -7,6 +6,7 @@ import { db } from '@/lib/supabase/admin';
 import { isBrokerOwner } from '@/lib/broker/owner';
 import { getTastytradeClient } from '@/lib/tastytrade/client';
 import { completedSessions } from '@/lib/market/close';
+import { dailyCloses } from '@/lib/market/candles';
 
 interface DayValue {
   date: string;   // YYYY-MM-DD
@@ -15,34 +15,9 @@ interface DayValue {
 
 async function fetchDailyCloses(symbol: string, quantity: number, range: string): Promise<DayValue[]> {
   try {
-    const res = await axios.get(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}`,
-      {
-        params: { interval: '1d', range },
-        headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/json' },
-        timeout: 8000,
-      }
-    );
-    const result = res.data?.chart?.result?.[0];
-    const timestamps: number[] = result?.timestamp ?? [];
-    const closes: number[] = result?.indicators?.quote?.[0]?.close ?? [];
-
-    const daily = timestamps
-      .map((ts, i) => {
-        const close = closes[i];
-        if (!close || close <= 0) return null;
-        // Eastern, so a candle lands on the session it belongs to rather than
-        // slipping a day either side of UTC midnight.
-        const date = new Intl.DateTimeFormat('en-CA', {
-          timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
-        }).format(new Date(ts * 1000));
-        return { date, close };
-      })
-      .filter((d): d is { date: string; close: number } => d !== null);
-
     // Drop today's part-formed candle so the final point of the chart is the
     // same settled close the headline figure uses.
-    return completedSessions(daily).map(d => ({ date: d.date, value: d.close * quantity }));
+    return completedSessions(await dailyCloses(symbol, range)).map(d => ({ date: d.date, value: d.close * quantity }));
   } catch {
     return [];
   }
