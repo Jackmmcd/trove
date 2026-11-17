@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import TickerPanel from './TickerPanel';
 import useKeyboardInset from './useKeyboardInset';
 import { findTickerMatches } from '@/lib/analyst/tickers';
@@ -146,10 +147,10 @@ function RichText({ text, known, names, onTicker }: {
 }
 
 const STARTERS = [
+  'I think AI power demand is underrated. Which funds are positioned for it, and how?',
+  'Which of my holdings do the big funds agree with, and which am I alone in?',
+  "I like a company because I use its product every day. Who's on the other side?",
   'Which names are the most funds crowding into right now?',
-  'What did the activists add last quarter?',
-  'Where does my paper portfolio overlap with the funds I follow?',
-  'Show me a name with strong consensus that I do not already own.',
 ];
 
 export default function AnalystChat() {
@@ -303,6 +304,21 @@ export default function AnalystChat() {
     }
   }, [busy, convId, loadConversations]);
 
+  // A question asked from anywhere else in the app (the nav's search box, a
+  // fund or company page) arrives as ?q= and is asked straight away. The
+  // parameter is then dropped so a reload doesn't ask it a second time.
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const askedRef = useRef<string | null>(null);
+  const incoming = searchParams.get('q');
+  useEffect(() => {
+    if (!incoming) { askedRef.current = null; return; }
+    if (askedRef.current === incoming || busy) return;
+    askedRef.current = incoming;
+    router.replace('/advisor', { scroll: false });
+    send(incoming);
+  }, [incoming, busy, send, router]);
+
   const empty = messages.length === 0;
   const last = messages[messages.length - 1];
 
@@ -411,12 +427,13 @@ export default function AnalystChat() {
           }}>{sidebarOpen ? '✕' : '☰'} HISTORY</button>
           <h1 style={{ color: AMBER, fontSize: '22px', fontWeight: 900, letterSpacing: '3px', margin: 0 }}>ANALYST</h1>
           <span style={{ color: DIM, fontSize: '11px', letterSpacing: '1px' }}>
-            13F RESEARCH ASSISTANT{fundCount ? ` · ${fundCount} FUNDS IN CONTEXT` : ''}
+            YOUR IDEAS, CHECKED AGAINST THE SMART MONEY{fundCount ? ` · ${fundCount} FUNDS` : ''}
           </span>
         </div>
         <p style={{ color: 'var(--fg-888888)', fontSize: '12.5px', lineHeight: 1.6, margin: '10px 0 0', maxWidth: '62ch' }}>
-          Analyst reads every tracked filer&apos;s disclosed positions. It surfaces what to look
-          into and why — it does not give advice, and 13F data runs up to 45 days behind.
+          Bring a hunch, a theme, or a stock you own. Analyst connects it to where the biggest
+          investors have put their money — who agrees, who&apos;s on the other side, and how the
+          pros express the same idea. Not advice; 13F filings run up to 45 days behind.
         </p>
       </div>
 
@@ -530,7 +547,7 @@ export default function AnalystChat() {
               if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input); }
             }}
             rows={1}
-            placeholder="Ask Analyst about the funds…"
+            placeholder="Share an idea, a stock you like, or a question about the funds…"
             disabled={busy}
             style={{
               flex: 1, background: 'var(--bg-0a0a0a)', border: '1px solid var(--bg-2a2a2a)',
@@ -553,7 +570,7 @@ export default function AnalystChat() {
           maxWidth: '860px', margin: '7px auto 0', color: 'var(--fg-333333)',
           fontSize: '9px', letterSpacing: '1px', textAlign: 'center',
         }}>
-          NOT FINANCIAL ADVICE · ED CAN BE WRONG · VERIFY BEFORE ACTING ·{' '}
+          NOT FINANCIAL ADVICE · ANALYST CAN BE WRONG · VERIFY BEFORE ACTING ·{' '}
           <Link href="/terms" style={{ color: 'var(--fg-444444)' }}>TERMS</Link>
         </div>
       </div>

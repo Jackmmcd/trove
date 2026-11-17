@@ -1,5 +1,6 @@
 'use client';
 
+import AskAnalyst from '@/app/components/AskAnalyst';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -123,6 +124,9 @@ export default function CompanyPage() {
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '14px', flexWrap: 'wrap', marginBottom: '4px' }}>
           <h1 style={{ color: B.amber, fontSize: '30px', fontWeight: 900, letterSpacing: '4px', margin: 0 }}>{ticker}</h1>
           {name && <span style={{ color: 'var(--fg-bbbbbb)', fontSize: '14px' }}>{name}</span>}
+          <span style={{ marginLeft: 'auto', alignSelf: 'center' }}>
+            <AskAnalyst question={`Which tracked funds hold ${ticker}, and who added to or cut it in the latest filings?`} />
+          </span>
         </div>
         <div style={{ color: 'var(--fg-444444)', fontSize: '10px', letterSpacing: '2px', marginBottom: '22px' }}>
           COMPANY OVERVIEW · 13F HOLDERS

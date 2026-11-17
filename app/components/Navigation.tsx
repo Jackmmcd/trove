@@ -1,13 +1,17 @@
 'use client';
 
+import { clearSnapshots } from '@/lib/client-snapshot';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import AISearch from './AISearch';
 import ThemeToggle from './ThemeToggle';
 
 interface Suggestion { symbol: string; name: string; type: string; }
+
+// Three words or more reads as a question, not a name: it goes to the
+// Analyst, and skips the ticker lookup (Polygon allows ~5 calls a minute).
+const isQuestion = (q: string) => q.trim().split(/\s+/).length >= 3;
 
 const links = [
   { href: '/dashboard', label: 'PORTFOLIO' },
@@ -49,7 +53,6 @@ export default function Navigation() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [aiOpen, setAiOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -60,7 +63,7 @@ export default function Navigation() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchSuggestions = useCallback(async (q: string) => {
-    if (!q.trim()) { setSuggestions([]); return; }
+    if (!q.trim() || isQuestion(q)) { setSuggestions([]); return; }
     try {
       const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
       const data = await res.json();
@@ -85,14 +88,7 @@ export default function Navigation() {
   }, []);
 
   // Close drawer and overlay on route change
-  useEffect(() => { setMenuOpen(false); setSearchOpen(false); setAiOpen(false); }, [pathname]);
-
-  const closeAi = useCallback(() => setAiOpen(false), []);
-
-  function openAi() {
-    setMenuOpen(false); setSearchOpen(false); setSuggestions([]);
-    setAiOpen(true);
-  }
+  useEffect(() => { setMenuOpen(false); setSearchOpen(false); }, [pathname]);
 
   // The drawer and the search overlay both cover the page; stop the page
   // behind them scrolling under the finger.
@@ -119,11 +115,24 @@ export default function Navigation() {
     navigate(s.symbol, s.type === 'fund' ? `/fund/${s.symbol}` : undefined);
   }
 
+  // One box for looking things up and asking about them: anything that isn't
+  // a ticker or a fund becomes a question for the Analyst.
+  function ask(q: string) {
+    navigate('', `/advisor?q=${encodeURIComponent(q.trim())}`);
+  }
+
+  const query = searchValue.trim();
+  // The Ask row sits after the suggestions, so arrow keys reach it last.
+  const askIndex = suggestions.length;
+
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
     if (activeIndex >= 0 && suggestions[activeIndex]) return open(suggestions[activeIndex]);
-    // A typed fund name with no ticker match beats opening /stock/BRIDGEWATER.
+    if (activeIndex === askIndex && query) return ask(query);
     const top = suggestions[0];
+    // A phrase that isn't a fund name is a question, not a ticker to open.
+    if (/\s/.test(query) && top?.type !== 'fund') return ask(query);
+    // A typed fund name with no ticker match beats opening /stock/BRIDGEWATER.
     if (top?.type === 'fund' && !suggestions.some(s => s.type !== 'fund' && s.symbol === searchValue.trim())) return open(top);
     const ticker = searchValue.trim().toUpperCase();
     if (ticker) navigate(ticker);
@@ -131,15 +140,16 @@ export default function Navigation() {
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Escape') { setSuggestions([]); setActiveIndex(-1); setSearchOpen(false); return; }
-    if (!suggestions.length) return;
-    if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIndex(i => Math.min(i + 1, suggestions.length - 1)); }
+    if (!query) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIndex(i => Math.min(i + 1, askIndex)); }
     if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIndex(i => Math.max(i - 1, -1)); }
   }
 
-  const showDropdown = searchFocused && suggestions.length > 0;
+  const showDropdown = searchFocused && query.length > 0;
 
   async function handleLogout() {
     const supabase = createClient();
+    clearSnapshots();
     await supabase.auth.signOut();
     router.push('/login');
   }
@@ -191,16 +201,17 @@ export default function Navigation() {
                 <input
                   ref={inputRef}
                   value={searchValue}
-                  onChange={e => setSearchValue(e.target.value.toUpperCase())}
+                  onChange={e => setSearchValue(e.target.value)}
                   onFocus={() => setSearchFocused(true)}
                   onKeyDown={handleKeyDown}
-                  placeholder="TICKER OR FUND"
+                  placeholder="SEARCH OR ASK"
+                  aria-label="Search a ticker or fund, or ask the Analyst"
                   style={{
                     background: 'transparent', border: 'none',
                     borderBottom: `1px solid ${searchFocused ? 'var(--bg-ff8c00)' : 'var(--bg-666666)'}`,
                     color: 'var(--fg-ffaa33)', fontFamily: 'Courier New, monospace',
                     fontSize: '13px', letterSpacing: '2px', padding: '4px 8px',
-                    width: searchFocused || searchValue ? '220px' : '160px',
+                    width: searchFocused || searchValue ? '300px' : '160px',
                     outline: 'none', transition: 'width 0.2s ease, border-color 0.15s ease',
                   }}
                 />
@@ -209,30 +220,29 @@ export default function Navigation() {
                 <div style={{
                   position: 'absolute', top: '100%', left: 0,
                   background: 'var(--bg-0d0d0d)', border: '1px solid var(--bg-ff8c00)',
-                  borderTop: 'none', zIndex: 100, width: '240px',
+                  borderTop: 'none', zIndex: 100, width: '320px',
                 }}>
                   {suggestions.map((s, i) => (
                     <div key={s.symbol} onMouseDown={() => open(s)} style={{
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                       padding: '7px 12px', cursor: 'pointer',
                       background: i === activeIndex ? 'var(--bg-1a1a00)' : 'transparent',
-                      borderBottom: i < suggestions.length - 1 ? '1px solid var(--bg-1a1a1a)' : 'none',
+                      borderBottom: '1px solid var(--bg-1a1a1a)',
                     }}>
                       <span style={{ color: s.type === 'fund' ? 'var(--bg-00e5ff)' : 'var(--fg-ff8c00)', fontWeight: 'bold', fontSize: '13px', letterSpacing: '1px', fontFamily: 'Courier New, monospace' }}>{s.type === 'fund' ? 'FUND' : s.symbol}</span>
-                      <span style={{ color: 'var(--fg-666666)', fontSize: '11px', marginLeft: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: s.type === 'fund' ? '170px' : '140px' }}>{s.name}</span>
+                      <span style={{ color: 'var(--fg-666666)', fontSize: '11px', marginLeft: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '230px' }}>{s.name}</span>
                     </div>
                   ))}
+                  <div onMouseDown={() => ask(query)} style={{
+                    padding: '8px 12px', cursor: 'pointer', fontSize: '12px', lineHeight: 1.4,
+                    background: activeIndex === askIndex ? 'var(--bg-1a1a00)' : 'transparent',
+                  }}>
+                    <span style={{ color: 'var(--fg-ff8c00)', fontWeight: 'bold', letterSpacing: '1px' }}>✦ ASK ANALYST</span>
+                    <span style={{ color: 'var(--fg-999999)', marginLeft: '8px', overflowWrap: 'anywhere' }}>“{query}”</span>
+                  </div>
                 </div>
               )}
             </div>
-
-            <button className="nav-search" onClick={openAi} style={{
-              marginLeft: '10px', background: 'transparent', border: '1px solid var(--bg-ff8c00)',
-              color: 'var(--fg-ff8c00)', fontFamily: 'Courier New, monospace', fontWeight: 'bold',
-              fontSize: '10px', letterSpacing: '1px', padding: '3px 10px', height: '24px', cursor: 'pointer',
-            }}>
-              ✦ AI SEARCH
-            </button>
 
             {/* Right side — desktop */}
             <div className="nav-links" style={{ marginLeft: 'auto', alignItems: 'center', gap: '12px' }}>
@@ -275,12 +285,13 @@ export default function Navigation() {
               <input
                 ref={overlayInputRef}
                 value={searchValue}
-                onChange={e => setSearchValue(e.target.value.toUpperCase())}
+                onChange={e => setSearchValue(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="TICKER OR FUND"
+                placeholder="Ticker, fund, or a question"
+                aria-label="Search a ticker or fund, or ask the Analyst"
                 autoComplete="off"
                 autoCorrect="off"
-                autoCapitalize="characters"
+                autoCapitalize="none"
                 enterKeyHint="search"
                 style={{
                   flex: 1, background: 'var(--bg-0a0a0a)', border: '1px solid var(--bg-2a2a2a)',
@@ -299,15 +310,21 @@ export default function Navigation() {
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
-            <button onClick={openAi} style={{
-              display: 'block', width: '100%', textAlign: 'left',
-              padding: '14px 16px', background: 'var(--bg-0a0a0a)',
-              border: 'none', borderBottom: '1px solid var(--bg-1a1a1a)', cursor: 'pointer',
-              color: 'var(--fg-ff8c00)', fontFamily: 'Courier New, monospace',
-              fontWeight: 'bold', fontSize: '13px', letterSpacing: '1px',
-            }}>
-              ✦ AI SEARCH <span style={{ color: 'var(--fg-666666)', fontWeight: 'normal', fontSize: '11px' }}>— search by theme or headline</span>
-            </button>
+            {query ? (
+              <button onClick={() => ask(query)} style={{
+                display: 'block', width: '100%', textAlign: 'left',
+                padding: '14px 16px', background: 'var(--bg-0a0a0a)',
+                border: 'none', borderBottom: '1px solid var(--bg-1a1a1a)', cursor: 'pointer',
+                fontFamily: 'Courier New, monospace', fontSize: '13px', lineHeight: 1.4,
+              }}>
+                <span style={{ color: 'var(--fg-ff8c00)', fontWeight: 'bold', letterSpacing: '1px' }}>✦ ASK ANALYST</span>
+                <span style={{ color: 'var(--fg-999999)', marginLeft: '8px', overflowWrap: 'anywhere' }}>“{query}”</span>
+              </button>
+            ) : (
+              <p style={{ color: 'var(--fg-666666)', fontSize: '12px', lineHeight: 1.6, padding: '16px', margin: 0 }}>
+                Look up a ticker or fund, or ask a question (“who owns NVDA?”, “funds betting on grid power”) and the Analyst answers from the funds’ filings.
+              </p>
+            )}
             {suggestions.map(s => (
               <button key={s.symbol} onClick={() => open(s)} style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -319,11 +336,6 @@ export default function Navigation() {
                 <span style={{ color: 'var(--fg-777777)', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
               </button>
             ))}
-            {searchValue.trim() && suggestions.length === 0 && (
-              <p style={{ color: 'var(--fg-555555)', fontSize: '12px', letterSpacing: '1px', padding: '20px 16px' }}>
-                NO MATCHES — PRESS SEARCH TO OPEN {searchValue.trim()} ANYWAY
-              </p>
-            )}
           </div>
         </div>
       )}
@@ -359,15 +371,6 @@ export default function Navigation() {
                 </Link>
               );
             })}
-            <button onClick={openAi} style={{
-              display: 'block', width: '100%', textAlign: 'left',
-              padding: '15px 20px', background: 'transparent',
-              border: 'none', borderTop: '1px solid var(--bg-161616)',
-              color: 'var(--fg-ff8c00)', fontFamily: 'Courier New, monospace',
-              fontWeight: 'bold', fontSize: '14px', letterSpacing: '1px', cursor: 'pointer',
-            }}>
-              ✦ AI SEARCH
-            </button>
             <Link href="/disclosures" style={{
               padding: '15px 20px', fontSize: '13px', letterSpacing: '1px',
               color: 'var(--fg-777777)', borderTop: '1px solid var(--bg-161616)',
@@ -390,8 +393,6 @@ export default function Navigation() {
           </div>
         </>
       )}
-
-      {aiOpen && <AISearch onClose={closeAi} />}
 
       {/* Mobile tab bar — the primary navigation on a phone. */}
       <nav className="tabbar" aria-label="Primary">

@@ -1,5 +1,6 @@
 'use client';
 
+import AskAnalyst from '@/app/components/AskAnalyst';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import TradeModal from '@/app/components/TradeModal';
@@ -273,9 +274,15 @@ export default function StockPage() {
         {data && <span style={{ color: B.label, fontSize: '12px' }}>{data.name}</span>}
         {data?.sector && <span style={{ color: 'var(--fg-444444)', fontSize: '11px', letterSpacing: '1px' }}>{data.sector}</span>}
 
+        {data && (
+          <span style={{ marginLeft: 'auto' }}>
+            <AskAnalyst question={`Which tracked funds hold ${ticker}, and who added to or cut it in the latest filings?`} />
+          </span>
+        )}
+
         {/* Trade buttons */}
         {data && (
-          <div className="stock-trade-desktop" style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+          <div className="stock-trade-desktop" style={{ display: 'flex', gap: '8px' }}>
             <button
               onClick={() => setTradeModal('buy')}
               style={{ padding: '5px 18px', background: B.green, color: 'var(--fg-000000)', border: 'none', cursor: 'pointer', fontFamily: 'Courier New, monospace', fontWeight: 'bold', fontSize: '12px', letterSpacing: '2px' }}

@@ -1,5 +1,6 @@
 'use client';
 
+import AskAnalyst from '@/app/components/AskAnalyst';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -120,6 +121,9 @@ export default function FundPage() {
   const [needsAuth, setNeedsAuth] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
+  // null until known; the button stays hidden rather than guessing.
+  const [following, setFollowing] = useState<boolean | null>(null);
+  const [followBusy, setFollowBusy] = useState(false);
   const [shown, setShown] = useState(PAGE);
 
   useEffect(() => {
@@ -145,6 +149,31 @@ export default function FundPage() {
 
     return () => { cancelled = true; clearInterval(tick); };
   }, [cik]);
+
+  useEffect(() => {
+    if (!cik) return;
+    let cancelled = false;
+    setFollowing(null);
+    fetch(`/api/funds/${encodeURIComponent(cik)}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (!cancelled && j?.success) setFollowing(j.data.following); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [cik]);
+
+  // Follow from here, so finding a fund through search or the directory
+  // doesn't mean searching for it again on the Funds tab.
+  async function toggleFollow() {
+    if (following === null) return;
+    setFollowBusy(true);
+    try {
+      const res = following
+        ? await fetch(`/api/funds/${encodeURIComponent(cik)}`, { method: 'DELETE' })
+        : await fetch('/api/funds', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cik }) });
+      const j = await res.json();
+      if (j.success) setFollowing(!following);
+    } catch { /* leave the button as it was */ } finally { setFollowBusy(false); }
+  }
 
   const visible = useMemo(() => {
     const all = data?.positions ?? [];
@@ -207,6 +236,22 @@ export default function FundPage() {
             {f?.name ?? (loading ? '…' : `CIK ${cik}`)}
           </h1>
           {f && <span style={{ color: 'var(--fg-bbbbbb)', fontSize: '12px', letterSpacing: '1px' }}>{f.entity_label.toUpperCase()}</span>}
+          {f && (
+            <span style={{ marginLeft: 'auto', alignSelf: 'center', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <AskAnalyst question={`What changed in ${f.name}'s latest 13F filing, and what is it betting on?`} />
+          {following !== null && (
+            <button onClick={toggleFollow} disabled={followBusy} aria-pressed={following}
+              style={{
+                cursor: followBusy ? 'default' : 'pointer', opacity: followBusy ? 0.5 : 1,
+                fontFamily: 'inherit', fontSize: '11px', fontWeight: 'bold', letterSpacing: '1.5px', padding: '7px 16px',
+                background: following ? 'transparent' : B.amber, color: following ? B.amber : 'var(--fg-000000)',
+                border: `1px solid ${B.amber}`,
+              }}>
+              {followBusy ? '…' : following ? '✓ FOLLOWING' : '+ FOLLOW'}
+            </button>
+          )}
+            </span>
+          )}
         </div>
         <div style={{ color: 'var(--fg-444444)', fontSize: '10px', letterSpacing: '2px', marginBottom: f?.aliases.length ? '6px' : '18px' }}>
           CIK {cik} · 13F PORTFOLIO
