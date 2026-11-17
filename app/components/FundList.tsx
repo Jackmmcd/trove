@@ -22,6 +22,12 @@ interface Holding {
 // trade, and a call's 13F value is the shares it controls, not a stock position.
 const buyable = (h: Holding) => !h.put_call;
 
+// The card shows this many holdings, and only these can go into a basket. The
+// API sends the top 50, but a basket must never include a stock the user
+// didn't see on the card before buying.
+const SHOWN = 15;
+const shownBuyable = (holdings: Holding[]) => holdings.slice(0, SHOWN).filter(buyable);
+
 interface Fund {
   id: string;
   cik: string;
@@ -188,7 +194,7 @@ export default function FundList() {
   }
 
   function getSelected(fundId: string, holdings: Holding[]): Set<string> {
-    return selectedMap[fundId] ?? new Set(holdings.filter(buyable).map(h => h.ticker));
+    return selectedMap[fundId] ?? new Set(shownBuyable(holdings).map(h => h.ticker));
   }
 
   function toggleTicker(fundId: string, ticker: string, holdings: Holding[]) {
@@ -199,7 +205,7 @@ export default function FundList() {
 
   function toggleAll(fundId: string, holdings: Holding[]) {
     const current = getSelected(fundId, holdings);
-    const all = holdings.filter(buyable);
+    const all = shownBuyable(holdings);
     const next = current.size === all.length ? new Set<string>() : new Set(all.map(h => h.ticker));
     setSelectedMap(prev => ({ ...prev, [fundId]: next }));
   }
@@ -404,22 +410,23 @@ export default function FundList() {
                       </div>
                     );
                   }
-                  const buyableCount = fund.holdings.filter(buyable).length;
-                  const allChecked = buyableCount > 0 && selected.size === buyableCount;
-                  const someChecked = selected.size > 0 && !allChecked;
-                  const selectedHoldings = fund.holdings.filter(h => buyable(h) && selected.has(h.ticker));
+                  const shown = shownBuyable(fund.holdings);
+                  const buyableCount = shown.length;
+                  const selectedHoldings = shown.filter(h => selected.has(h.ticker));
+                  const allChecked = buyableCount > 0 && selectedHoldings.length === buyableCount;
+                  const someChecked = selectedHoldings.length > 0 && !allChecked;
                   return (
                     <div style={{ padding: '10px 14px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
                         <span style={{ color: B.label, fontSize: '10px', letterSpacing: '1px' }}>
-                          {fund.holdings.length} HOLDINGS — {selected.size} SELECTED
+                          {selectedHoldings.length} OF {buyableCount} SHOWN STOCKS IN BASKET
                         </span>
                         <button
                           onClick={() => setBasketFund({ fund, selected: selectedHoldings })}
                           disabled={selectedHoldings.length === 0}
                           style={{ ...btnAmber, background: selectedHoldings.length === 0 ? 'var(--bg-333333)' : B.green, color: 'var(--fg-000000)', opacity: selectedHoldings.length === 0 ? 0.4 : 1 }}
                         >
-                          BUY BASKET{selected.size < buyableCount ? ` (${selected.size})` : ''}
+                          BUY BASKET{selectedHoldings.length < buyableCount ? ` (${selectedHoldings.length})` : ''}
                         </button>
                       </div>
                       <div className="r-scroll">
@@ -437,7 +444,7 @@ export default function FundList() {
                             </tr>
                           </thead>
                           <tbody>
-                            {fund.holdings.slice(0, 15).map((h, idx) => {
+                            {fund.holdings.slice(0, SHOWN).map((h, idx) => {
                               const option = !buyable(h);
                               const checked = !option && selected.has(h.ticker);
                               return (
@@ -490,9 +497,9 @@ export default function FundList() {
                           </tbody>
                         </table>
                       </div>
-                      {fund.holdings_total > 15 && (
+                      {fund.holdings_total > SHOWN && (
                         <p style={{ color: B.label, fontSize: '10px', letterSpacing: '1px', textAlign: 'right', marginTop: '6px' }}>
-                          SHOWING 15 OF {fund.holdings_total.toLocaleString()} HOLDINGS ·{' '}
+                          SHOWING {SHOWN} OF {fund.holdings_total.toLocaleString()} HOLDINGS · BASKETS USE ONLY THE ROWS SHOWN ·{' '}
                           <Link href={`/fund/${fund.cik}`} style={{ color: B.amber, textDecoration: 'none' }}>SEE ALL →</Link>
                         </p>
                       )}

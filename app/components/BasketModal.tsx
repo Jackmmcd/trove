@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { queuedLedger, settleLeg, type BasketLeg } from '@/lib/baskets/ledger';
 
 interface Holding {
   ticker: string;
@@ -20,7 +21,7 @@ interface BasketLine {
 }
 
 interface BasketModalProps {
-  fundId?: string;
+  fundId: string;
   fundName: string;
   holdings: Holding[];
   isPaper?: boolean;
@@ -42,6 +43,9 @@ export default function BasketModal({ fundId, fundName, holdings, isPaper = fals
   const [step, setStep] = useState<'configure' | 'confirm' | 'placing' | 'done'>('configure');
   const [placedCount, setPlacedCount] = useState(0);
   const [errorCount, setErrorCount] = useState(0);
+  // Set when the basket couldn't be recorded (nothing was bought) or a fill
+  // couldn't be written back to it (bought, but the record is behind).
+  const [recordError, setRecordError] = useState<string | null>(null);
 
   const budgetNum = parseFloat(budget) || 0;
   const totalWeight = holdings.reduce((s, h) => s + h.weight, 0);
@@ -86,11 +90,46 @@ export default function BasketModal({ fundId, fundName, holdings, isPaper = fals
 
   async function placeAll() {
     setStep('placing');
-    let placed = 0, errors = 0;
-    const finalOrders: Array<{ ticker: string; shares: number; price: number; status: string }> = [];
+    setRecordError(null);
     const endpoint = isPaper ? '/api/paper/order' : '/api/tastytrade/orders';
+    const toPlace = lines.filter(l => l.sharesToBuy > 0);
+    let ledger: BasketLeg[] = queuedLedger(toPlace);
 
-    for (const line of lines.filter(l => l.sharesToBuy > 0)) {
+    // Record the basket before the first order goes out. If we can't, buy
+    // nothing: positions without a basket around them can't be tracked or sold
+    // as one, and a later basket could claim their shares.
+    let basketId: string;
+    try {
+      const res = await fetch('/api/baskets', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fundId, fundName, budget: budgetNum, orders: ledger, isPaper }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || `HTTP ${res.status}`);
+      basketId = data.data.id;
+    } catch (err: any) {
+      setRecordError(`Couldn't record the basket, so no orders were placed (${err.message}).`);
+      setStep('confirm');
+      return;
+    }
+
+    // Each settled leg is written back before the next order, so the record
+    // never trails the broker by more than one order.
+    const record = async () => {
+      try {
+        const res = await fetch('/api/baskets', {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: basketId, orders: ledger }),
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || `HTTP ${res.status}`);
+      } catch (err: any) {
+        setRecordError(`Orders went through, but the basket record may be missing some of them (${err.message}). Check Baskets before buying again.`);
+      }
+    };
+
+    let placed = 0, errors = 0;
+    for (const line of toPlace) {
       setLines(prev => prev.map(l => l.ticker === line.ticker ? { ...l, status: 'placing' } : l));
       try {
         const res = await fetch(endpoint, {
@@ -98,24 +137,24 @@ export default function BasketModal({ fundId, fundName, holdings, isPaper = fals
           body: JSON.stringify({ symbol: line.ticker, quantity: line.sharesToBuy, action: 'buy' }),
         });
         const data = await res.json();
-        if (data.success) {
-          placed++;
-          setLines(prev => prev.map(l => l.ticker === line.ticker ? { ...l, status: 'done' } : l));
-          finalOrders.push({ ticker: line.ticker, shares: line.sharesToBuy, price: line.price ?? 0, status: 'done' });
-        } else throw new Error(data.error || 'Order failed');
+        if (!data.success) throw new Error(data.error || 'Order failed');
+        placed++;
+        setLines(prev => prev.map(l => l.ticker === line.ticker ? { ...l, status: 'done' } : l));
+        ledger = settleLeg(ledger, line.ticker, 'done');
       } catch (err: any) {
         errors++;
         setLines(prev => prev.map(l => l.ticker === line.ticker ? { ...l, status: 'error', error: err.message } : l));
-        finalOrders.push({ ticker: line.ticker, shares: line.sharesToBuy, price: line.price ?? 0, status: 'error' });
+        ledger = settleLeg(ledger, line.ticker, 'error');
       }
+      await record();
     }
     setPlacedCount(placed); setErrorCount(errors); setStep('done');
 
-    if (placed > 0 && fundId) {
+    // Nothing filled: the basket owns nothing, so don't leave an empty one behind.
+    if (placed === 0) {
       fetch('/api/baskets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fundId, fundName, budget: budgetNum, orders: finalOrders, isPaper }),
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: basketId }),
       }).catch(() => {});
     }
   }
@@ -144,6 +183,9 @@ export default function BasketModal({ fundId, fundName, holdings, isPaper = fals
             <p style={{ color: B.text, fontSize: '14px', letterSpacing: '1px' }}>
               {placedCount} ORDER{placedCount !== 1 ? 'S' : ''} PLACED{errorCount > 0 ? ` · ${errorCount} FAILED` : ''}
             </p>
+            {recordError && (
+              <p style={{ color: B.amber, fontSize: '12px', lineHeight: 1.5, textAlign: 'center', maxWidth: '52ch', margin: 0 }}>{recordError}</p>
+            )}
             <div style={{ width: '100%', overflowY: 'auto', maxHeight: '180px' }}>
               {lines.filter(l => l.sharesToBuy > 0).map(l => (
                 <div key={l.ticker} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--bg-111111)', fontSize: '12px' }}>
@@ -197,6 +239,15 @@ export default function BasketModal({ fundId, fundName, holdings, isPaper = fals
                 )}
                 {loadingPrices && <span style={{ color: B.label, fontSize: '11px', letterSpacing: '1px' }}>FETCHING PRICES...</span>}
               </div>
+              {!loadingPrices && !fractional && budgetNum > 0 && uninvested > budgetNum * 0.2 && (() => {
+                const skipped = lines.filter(l => (l.price ?? 0) > 0 && l.sharesToBuy === 0).length;
+                return skipped > 0 && (
+                  <p style={{ color: B.label, fontSize: '11px', lineHeight: 1.5, margin: '8px 0 0' }}>
+                    At this budget {skipped} stock{skipped === 1 ? '' : 's'} cost more than {skipped === 1 ? 'its' : 'their'} share of it, so {skipped === 1 ? 'it gets' : 'they get'} 0 shares
+                    and ${uninvested.toFixed(0)} stays uninvested. Switch to fractional shares to buy every stock in proportion.
+                  </p>
+                );
+              })()}
             </div>
 
             {/* Table */}
@@ -242,6 +293,10 @@ export default function BasketModal({ fundId, fundName, holdings, isPaper = fals
                 </tbody>
               </table>
             </div>
+
+            {recordError && step === 'confirm' && (
+              <div style={{ padding: '8px 16px', color: B.red, fontSize: '12px', borderTop: `1px solid ${B.border}` }}>{recordError}</div>
+            )}
 
             {/* Footer */}
             <div style={{ padding: '12px 16px', borderTop: `1px solid ${B.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>

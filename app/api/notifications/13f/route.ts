@@ -26,7 +26,7 @@ function dateToQuarter(dateString: string): string {
 
 export async function GET() {
   try {
-    const { data: all, error } = await db.from('funds').select('id, cik, name').eq('enabled', true);
+    const { data: all, error } = await db.from('funds').select('id, cik, name').eq('enabled', true).is('user_id', null);
     if (error) throw new Error(error.message);
     // On-demand funds refresh themselves when viewed; alerting on them would
     // flag every never-opened fund as "new filing available".
@@ -47,16 +47,21 @@ export async function GET() {
 
         const forms: string[] = recent.form ?? [];
         const dates: string[] = recent.filingDate ?? [];
+        const periods: string[] = recent.reportDate ?? [];
         const idx = forms.findIndex((f: string) => f === '13F-HR' || f === '13F-HR/A');
         if (idx === -1) return;
 
+        // Stored quarters are the period the positions describe (see
+        // sec-api/client.ts). The filing date runs a quarter ahead of that, so
+        // comparing it flagged every up-to-date fund as having a new filing.
         const latestFilingDate = dates[idx];
-        const latestQuarter = dateToQuarter(latestFilingDate);
+        const latestQuarter = dateToQuarter(periods[idx] || latestFilingDate);
 
         const { data: latestHolding } = await db
           .from('holdings')
           .select('quarter')
           .eq('fund_id', fund.id)
+          .is('user_id', null)
           .order('quarter', { ascending: false })
           .limit(1)
           .maybeSingle();

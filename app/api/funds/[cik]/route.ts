@@ -16,6 +16,25 @@ async function getUser() {
   return user;
 }
 
+/** Whether the caller follows this fund. Cheap: the fund page asks it on every load. */
+export async function GET(_req: Request, { params }: Params) {
+  const { cik } = await params;
+  try {
+    const user = await getUser();
+    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+
+    const { data: fund } = await db.from('funds').select('id').eq('cik', normalizeCik(cik)).is('user_id', null).maybeSingle();
+    if (!fund) return NextResponse.json({ success: true, data: { following: false } });
+
+    const { data: row, error } = await db.from('user_watched_funds')
+      .select('fund_id').eq('user_id', user.id).eq('fund_id', fund.id).maybeSingle();
+    if (error) throw new Error(error.message);
+    return NextResponse.json({ success: true, data: { following: !!row } });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
 /** Unfollow. Removes only this user's watch row; the shared fund and its data stay. */
 export async function DELETE(_req: Request, { params }: Params) {
   const { cik } = await params;
