@@ -12,9 +12,9 @@ const B = {
 };
 
 const STARTERS = [
+  'I think AI power demand is underrated. Which funds are positioned for it, and how?',
+  "I like a company because I use its product every day. Who's on the other side?",
   'Which names are the most funds crowding into?',
-  'What did the activists add last quarter?',
-  'Who owns SpaceX and Cerebras?',
   'Show me a high-conviction name under $10B.',
 ];
 
@@ -246,8 +246,9 @@ export default function AnalystFull() {
                 THE ANALYST
               </h1>
               <p style={{ color: 'var(--fg-888888)', fontSize: '13px', lineHeight: 1.7, margin: '0 0 28px', maxWidth: '58ch' }}>
-                Reading {fundCount ?? 26} institutional filers. Ask about a fund, a company,
-                or what the smart money is crowding into.
+                Bring your own idea — a hunch, a theme, a stock you like — and see how it lines
+                up with where {fundCount ?? 26} of the biggest investors have put their money.
+                Who agrees, who&apos;s on the other side, and how the pros express it.
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
                 {STARTERS.map(s => (
@@ -316,7 +317,7 @@ export default function AnalystFull() {
         >
           <input
             ref={inputRef} value={input} onChange={e => setInput(e.target.value)}
-            placeholder="Ask about a fund, a company, or who's buying what…"
+            placeholder="Share an idea, a stock you like, or ask who's buying what…"
             disabled={busy} autoFocus
             style={{
               flex: 1, background: 'var(--bg-0a0a0a)', border: `1px solid ${B.border}`,
